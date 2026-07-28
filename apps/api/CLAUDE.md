@@ -12,6 +12,17 @@ NestJS 11.1.28 backend, TypeScript.
 ## Conventions
 
 - JSDoc required for all functions — see root `CLAUDE.md`.
+- API documentation is generated with `@nestjs/swagger`, served at `/api` (or the configured docs path) via `SwaggerModule`. Every controller/route must be annotated (`@ApiTags`, `@ApiOperation`, `@ApiResponse`, etc.) and every DTO must have `@ApiProperty`/`@ApiPropertyOptional` on its fields so the generated schema stays accurate. After adding or changing a module, controller, route, or DTO, run the app and check the Swagger UI to confirm the docs reflect the new/changed behavior before considering the work done — don't let the generated docs drift from the actual API surface.
+
+## Development workflow (TDD)
+
+This app is developed test-first (design → test → develop):
+
+1. Before implementing a feature or change, write/extend the end-to-end tests (`test/*.e2e-spec.ts`) first, covering the intended behavior.
+2. Review and refine the test cases with the user — clarify edge cases, add missing scenarios — before writing implementation code. Tests should fail cleanly (red phase) at this point.
+3. Only then implement the functionality to make the tests pass.
+4. After any functional change, re-run the e2e/unit suite and confirm it still matches the intended behavior.
+5. If existing tests need to change because requirements changed, don't just edit them silently — flag it and confirm the new/updated cases with the user first.
 
 ## Commands
 
