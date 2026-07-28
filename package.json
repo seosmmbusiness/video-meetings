@@ -1,0 +1,29 @@
+{
+  "name": "video-meetings",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Monorepo: Next.js (App Router) frontend + NestJS backend",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:api": "npm run start:dev --workspace apps/api",
+    "build": "npm run build --workspaces",
+    "build:web": "npm run build --workspace apps/web",
+    "build:api": "npm run build --workspace apps/api",
+    "lint": "npm run lint --workspaces",
+    "lint:web": "npm run lint --workspace apps/web",
+    "lint:api": "npm run lint --workspace apps/api",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test:api": "npm run test --workspace apps/api"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}
