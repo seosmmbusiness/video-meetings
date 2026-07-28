@@ -10,6 +10,10 @@ Next.js 16.2.12 frontend, App Router, TypeScript, React 19.
 - Path alias `@/*` → `src/*` (see `tsconfig.json`).
 - Own ESLint config (`eslint-config-next`) — kept separate from `apps/api`'s because the rule sets don't compose.
 
+## Conventions
+
+- JSDoc required for all functions — see root `CLAUDE.md`.
+
 ## Commands
 
 Run from this directory, or via the root's `npm run dev:web` / `build:web` / `lint:web`:

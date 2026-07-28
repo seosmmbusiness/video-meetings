@@ -9,6 +9,10 @@ NestJS 11.1.28 backend, TypeScript.
 - `test/` — e2e tests (Jest, config in `test/jest-e2e.json`); unit specs live next to their source as `*.spec.ts` (see `src/app.controller.spec.ts`).
 - Own ESLint config, using `eslint-plugin-prettier` — kept separate from `apps/web`'s because the rule sets don't compose.
 
+## Conventions
+
+- JSDoc required for all functions — see root `CLAUDE.md`.
+
 ## Commands
 
 Run from this directory, or via the root's `npm run dev:api` / `build:api` / `lint:api` / `test:api`:
