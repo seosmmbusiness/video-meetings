@@ -19,12 +19,22 @@ services:
   redis:
     image: redis:8
     restart: unless-stopped
+    command:
+      ['redis-server', '--requirepass', '${REDIS_PASSWORD:-video_meetings}']
     ports:
       - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '-a',
+          '${REDIS_PASSWORD:-video_meetings}',
+          '--no-auth-warning',
+          'ping',
+        ]
       interval: 5s
       timeout: 5s
       retries: 10

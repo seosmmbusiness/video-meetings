@@ -47,7 +47,7 @@ npm run db:up           # start
 npm run db:down         # stop
 ```
 
-- Connection details (user/password/db/port, Redis port) are set via `.env` (see `.env.example`); Postgres defaults all resolve to `video_meetings`.
+- Connection details (user/password/db/port, Redis port/password) are set via `.env` (see `.env.example`); defaults all resolve to `video_meetings`. Redis requires auth (`--requirepass`) — connect via `REDIS_URL`, not a bare `redis-cli` with no password.
 - Data persists in the `postgres_data` / `redis_data` named Docker volumes across restarts.
 - No ORM/driver is wired into `apps/api` yet — `DATABASE_URL` in `.env.example` is ready for whenever that's added.
 
