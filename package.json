@@ -21,7 +21,9 @@
     "lint:api": "npm run lint --workspace apps/api",
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
-    "test:api": "npm run test --workspace apps/api"
+    "test:api": "npm run test --workspace apps/api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
   },
   "devDependencies": {
     "prettier": "^3.9.6"

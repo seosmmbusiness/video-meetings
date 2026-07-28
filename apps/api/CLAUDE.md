@@ -20,6 +20,12 @@ Run from this directory, or via the root's `npm run dev:api` / `build:api` / `li
 - `npm run test:cov` — coverage
 - `npm run lint`
 
+## Database
+
+A local Postgres 18 instance and a Redis 8 instance are available via the root `docker-compose.yml` (`npm run db:up` from repo root). Connection details live in the root `.env` / `.env.example` (`DATABASE_URL`, `REDIS_URL`, etc.). No ORM/driver and no Redis client is wired up in this app yet — that's the next step once a domain module needs persistence or caching.
+
+**Redis is optional, not a hard dependency.** It's provisioned for future caching/session/pub-sub use, but nothing in this app depends on it today. Any future Redis-backed code (cache modules, session store, rate limiter, etc.) must handle Redis being absent or unreachable without failing the request — e.g. catch connection errors and fall back to the non-cached path, don't let a Redis outage take down the API.
+
 ## Status
 
-Default `nest new` scaffold (2026-07-28) — single root module, no real domain modules, no database/ORM, no auth yet. Update this file once feature modules exist.
+Default `nest new` scaffold (2026-07-28) — single root module, no real domain modules, no auth yet. Postgres 18 and Redis 8 run via docker-compose but neither is connected from the app yet (no ORM/driver, no Redis client). Update this file once feature modules exist.

@@ -6,6 +6,7 @@ npm-workspaces monorepo with two independent apps. See @README.md for the full s
 
 - `apps/web` — Next.js 16 frontend (App Router, TypeScript). See `apps/web/CLAUDE.md`.
 - `apps/api` — NestJS 11 backend (TypeScript). See `apps/api/CLAUDE.md`.
+- `docker-compose.yml` — local Postgres 18 + Redis 8 (`npm run db:up` / `db:down`). See the README's Database section. **Redis is optional infra** — no service depends on it; any code that uses it must degrade gracefully if it's unavailable.
 
 The two apps are independent (no shared package yet) — each has its own `node_modules`, `tsconfig.json`, and ESLint config, because `eslint-config-next` and the NestJS ESLint setup use different rule sets and can't be merged.
 
@@ -28,4 +29,4 @@ Don't let docs drift from the code; treat doc updates as part of the task, not a
 
 ## Status
 
-Freshly scaffolded (2026-07-28) from `create-next-app` and `nest new` — no shared libs, auth, database, CI, or deployment config yet. Update this file as real architecture emerges instead of letting it go stale.
+Freshly scaffolded (2026-07-28) from `create-next-app` and `nest new`. Local Postgres 18 and Redis 8 now run via `docker-compose.yml` (added 2026-07-28), but `apps/api` has no ORM/driver or Redis client wired to it yet — no shared libs, auth, CI, or deployment config either. Redis is treated as optional/best-effort infra project-wide: no code should hard-depend on it being up. Update this file as real architecture emerges instead of letting it go stale.
