@@ -21,21 +21,23 @@ npm run db:up
 
 ## Scripts
 
-| Script                 | Description                                 |
-| ---------------------- | ------------------------------------------- |
-| `npm run dev:web`      | Start Next.js dev server (apps/web)         |
-| `npm run dev:api`      | Start NestJS in watch mode (apps/api)       |
-| `npm run build`        | Build both apps                             |
-| `npm run build:web`    | Build apps/web only                         |
-| `npm run build:api`    | Build apps/api only                         |
-| `npm run lint`         | Lint both apps                              |
-| `npm run lint:web`     | Lint apps/web only                          |
-| `npm run lint:api`     | Lint apps/api only                          |
-| `npm run format`       | Format apps/** with Prettier                |
-| `npm run format:check` | Check formatting without writing            |
-| `npm run test:api`     | Run NestJS unit tests                       |
-| `npm run db:up`        | Start the local Postgres + Redis containers |
-| `npm run db:down`      | Stop the local Postgres + Redis containers  |
+| Script                       | Description                                 |
+| ---------------------------- | ------------------------------------------- |
+| `npm run dev:web`            | Start Next.js dev server (apps/web)         |
+| `npm run dev:api`            | Start NestJS in watch mode (apps/api)       |
+| `npm run build`              | Build both apps                             |
+| `npm run build:web`          | Build apps/web only                         |
+| `npm run build:api`          | Build apps/api only                         |
+| `npm run lint`               | Lint both apps                              |
+| `npm run lint:web`           | Lint apps/web only                          |
+| `npm run lint:api`           | Lint apps/api only                          |
+| `npm run format`             | Format apps/** with Prettier                |
+| `npm run format:check`       | Check formatting without writing            |
+| `npm run test:api`           | Run NestJS unit tests                       |
+| `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)     |
+| `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)  |
+| `npm run db:up`              | Start the local Postgres + Redis containers |
+| `npm run db:down`            | Stop the local Postgres + Redis containers  |
 
 ## Database
 
@@ -49,7 +51,8 @@ npm run db:down         # stop
 
 - Connection details (user/password/db/port, Redis port/password) are set via `.env` (see `.env.example`); defaults all resolve to `video_meetings`. Redis requires auth (`--requirepass`) — connect via `REDIS_URL`, not a bare `redis-cli` with no password.
 - Data persists in the `postgres_data` / `redis_data` named Docker volumes across restarts.
-- No ORM/driver is wired into `apps/api` yet — `DATABASE_URL` in `.env.example` is ready for whenever that's added.
+- `apps/api` connects to Postgres via **Prisma** (`DATABASE_URL`). After `npm run db:up`, run `npm run prisma:migrate:dev` once to create the schema. See `apps/api/CLAUDE.md` for Prisma-specific setup notes (generator choice, driver adapter, config file).
+- Auth also needs `JWT_SECRET` (and optionally `JWT_EXPIRES_IN`, default `1h`) set in `.env` — used by `apps/api`'s email/password auth (`POST /auth/register`, `POST /auth/login`) to sign JWTs.
 
 **Redis is optional infrastructure, not a hard dependency.** It's present in `docker-compose.yml` (`REDIS_URL` in `.env.example`) for future caching/session/pub-sub use, but no service in this repo depends on it yet. When code is written against Redis, it must be written to **degrade gracefully if Redis is absent or unreachable** (connection refused, timeout, etc.) — treat it as a best-effort cache/accelerator, not a source of truth. Don't let a missing or down Redis take down `apps/api` or block a request path; fall back to the non-cached/direct behavior and log, rather than throwing.
 

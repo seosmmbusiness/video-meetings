@@ -30,4 +30,4 @@ Don't let docs drift from the code; treat doc updates as part of the task, not a
 
 ## Status
 
-Freshly scaffolded (2026-07-28) from `create-next-app` and `nest new`. Local Postgres 18 and Redis 8 now run via `docker-compose.yml` (added 2026-07-28), but `apps/api` has no ORM/driver or Redis client wired to it yet — no shared libs, auth, CI, or deployment config either. Redis is treated as optional/best-effort infra project-wide: no code should hard-depend on it being up. Update this file as real architecture emerges instead of letting it go stale.
+Scaffolded 2026-07-28 from `create-next-app` and `nest new`. Local Postgres 18 and Redis 8 run via `docker-compose.yml`. `apps/api` now has Prisma wired to Postgres and a first domain module: email/password auth (register/login issuing JWTs) — see `apps/api/CLAUDE.md`. Still no shared libs, CI, or deployment config, and Redis remains unused. Redis is treated as optional/best-effort infra project-wide: no code should hard-depend on it being up. Update this file as real architecture emerges instead of letting it go stale.
