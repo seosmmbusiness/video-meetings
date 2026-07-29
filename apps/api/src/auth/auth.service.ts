@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -12,6 +13,12 @@ import { RegisterDto } from './dto/register.dto';
 
 const BCRYPT_SALT_ROUNDS = 12;
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
+const PRISMA_UNIQUE_CONSTRAINT_ERROR_CODE = 'P2002';
+// A bcrypt hash of an unguessable, unused password. Compared against on
+// login when the email isn't registered, so lookups for unknown vs. known
+// emails cost the same amount of time and can't be told apart by timing.
+const DUMMY_PASSWORD_HASH =
+  '$2b$12$C6UzMDM.H6dfI/f/IKcEeO6bh2xLpU8iuw1RG5hV3ZQ4gzGvvBQ8W';
 
 /**
  * Handles user registration and authentication: password hashing,
@@ -39,15 +46,30 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        consentToTerms: dto.consentToTerms,
-      },
-    });
 
-    return { accessToken: await this.signToken(user.id, user.email) };
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          consentToTerms: dto.consentToTerms,
+        },
+      });
+
+      return { accessToken: await this.signToken(user.id, user.email) };
+    } catch (error) {
+      // Two concurrent registrations for the same email can both pass the
+      // findUnique check above; the database's unique constraint is the
+      // real guard, so translate its violation into the same 409 instead
+      // of letting a raw Prisma error escape as a 500.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === PRISMA_UNIQUE_CONSTRAINT_ERROR_CODE
+      ) {
+        throw new ConflictException('Email is already registered');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -60,15 +82,15 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (!user) {
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
-    }
 
+    // Always run bcrypt.compare, even for an unknown email, against a fixed
+    // dummy hash — otherwise an unknown email short-circuits before hashing
+    // and a timing side-channel reveals which emails are registered.
     const passwordMatches = await bcrypt.compare(
       dto.password,
-      user.passwordHash,
+      user?.passwordHash ?? DUMMY_PASSWORD_HASH,
     );
-    if (!passwordMatches) {
+    if (!user || !passwordMatches) {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 

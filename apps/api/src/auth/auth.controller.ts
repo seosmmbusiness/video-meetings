@@ -6,8 +6,10 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
@@ -44,12 +46,16 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  // Tighter than the app-wide default limit — login is the endpoint an
+  // attacker would use to brute-force passwords.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Log in with email and password' })
   @ApiOkResponse({ description: 'Authenticated', type: AuthResponseDto })
   @ApiBadRequestResponse({
     description: 'Invalid email format or missing password',
   })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
+  @ApiTooManyRequestsResponse({ description: 'Too many login attempts' })
   login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(dto);
   }
