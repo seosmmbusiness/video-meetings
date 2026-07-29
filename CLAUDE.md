@@ -20,16 +20,13 @@ The two apps are independent (no shared package yet) — each has its own `node_
 
 ## Module documentation
 
-CLAUDE.md files stay brief on purpose — one line per module, not full architecture write-ups. Detailed per-module docs (architecture + function-by-function reference) live outside the repo as `type: module` entries in this project's auto-memory (`~/.claude/projects/-run-media-johnny-SomeData-Education-video-meetings/memory/`, indexed in that directory's `MEMORY.md`, named `module-<app>-<name>`, e.g. `module-api-auth`).
-
-This is a deliberate, project-specific exception to the memory system's general rule that architecture/code-structure content shouldn't go in auto-memory (since it's normally derivable by reading the code) — that default is overridden here to keep CLAUDE.md itself lean. Don't "clean up" these entries as guidance violations.
+CLAUDE.md files stay brief on purpose — one line per module, not full architecture write-ups. Detailed per-module docs (architecture + function-by-function reference) live in this repo under `.claude/modules/`, named `module-<app>-<name>.md` (e.g. `module-api-auth.md`), indexed in `.claude/modules/INDEX.md`. These are committed like any other file, so any teammate cloning the repo (or CI) can read them.
 
 Workflow:
 
-- To work on a module: read its one-line pointer in the relevant CLAUDE.md, then read _only that module's_ memory file — don't preload every module's memory file into context.
-- After changing a module's implementation: update its memory file to match. Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
-- New module: create `module-<app>-<name>.md` in the memory directory with the same frontmatter shape as existing entries, add an index line to that directory's `MEMORY.md`, and add a one-line pointer in the owning app's CLAUDE.md.
-- Caveat: these memory files aren't part of the git repo — they're keyed to this machine/user path, won't travel with `git clone`, and aren't visible to teammates or CI.
+- To work on a module: read its one-line pointer in the relevant CLAUDE.md, then read _only that module's_ doc under `.claude/modules/` — don't preload every module's doc into context.
+- After changing a module's implementation: update its doc to match, in the same change. Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
+- New module: create `.claude/modules/module-<app>-<name>.md`, add a line to `.claude/modules/INDEX.md`, and add a one-line pointer in the owning app's CLAUDE.md.
 
 ## Documentation maintenance
 

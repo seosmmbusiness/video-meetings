@@ -6,10 +6,10 @@ NestJS 11.1.28 backend, TypeScript.
 
 - `src/main.ts` — entry point (Nest bootstrap); mounts a global `ValidationPipe` (`whitelist`, `transform`) so DTO validation (`class-validator`) is enforced on every route.
 - `src/app.module.ts` / `app.controller.ts` / `app.service.ts` — root module/controller/service; `AppModule` wires up `ConfigModule` (global), a global `ThrottlerGuard` (`@nestjs/throttler`, default 20 req/60s per IP), `PrismaModule`, and feature modules.
-- `src/prisma/` — injectable Prisma client wrapper (`PrismaService`/`PrismaModule`) over Postgres. Architecture + function reference: memory `module-api-prisma` (see root `CLAUDE.md`'s Module documentation section).
-- `src/auth/` — email/password auth (register/login, JWT issuance, rate limiting). Architecture + function reference: memory `module-api-auth` (see root `CLAUDE.md`'s Module documentation section).
-- `prisma/schema.prisma` — Prisma schema (`User` model), output to `generated/prisma` (gitignored, run `npm run prisma:generate` to produce it locally). Generator/adapter rationale: memory `module-api-prisma`.
-- `prisma.config.ts` — Prisma CLI config; loads the monorepo-root `.env` (two levels up, since CLI commands run with cwd=`apps/api`) and points `datasource.url` at `DATABASE_URL`. Build-exclusion gotcha: memory `module-api-prisma`.
+- `src/prisma/` — injectable Prisma client wrapper (`PrismaService`/`PrismaModule`) over Postgres. Architecture + function reference: `.claude/modules/module-api-prisma.md` (see root `CLAUDE.md`'s Module documentation section).
+- `src/auth/` — email/password auth (register/login, JWT issuance, rate limiting). Architecture + function reference: `.claude/modules/module-api-auth.md` (see root `CLAUDE.md`'s Module documentation section).
+- `prisma/schema.prisma` — Prisma schema (`User` model), output to `generated/prisma` (gitignored, run `npm run prisma:generate` to produce it locally). Generator/adapter rationale: `.claude/modules/module-api-prisma.md`.
+- `prisma.config.ts` — Prisma CLI config; loads the monorepo-root `.env` (two levels up, since CLI commands run with cwd=`apps/api`) and points `datasource.url` at `DATABASE_URL`. Build-exclusion gotcha: `.claude/modules/module-api-prisma.md`.
 - `test/` — e2e tests (Jest, config in `test/jest-e2e.json`), including `test/auth.e2e-spec.ts`; unit specs live next to their source as `*.spec.ts` (see `src/app.controller.spec.ts`).
 - Own ESLint config, using `eslint-plugin-prettier` — kept separate from `apps/web`'s because the rule sets don't compose.
 
@@ -43,10 +43,10 @@ Run from this directory, or via the root's `npm run dev:api` / `build:api` / `li
 
 A local Postgres 18 instance and a Redis 8 instance are available via the root `docker-compose.yml` (`npm run db:up` from repo root). Connection details live in the root `.env` / `.env.example` (`DATABASE_URL`, `REDIS_URL`, etc.). Redis requires a password (`--requirepass`, set via `REDIS_PASSWORD`) — always connect using `REDIS_URL`, which embeds it. No Redis client is wired up in this app yet.
 
-Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). Generator choice, the required driver adapter, CLI config, and a build gotcha around `prisma.config.ts` are documented in memory `module-api-prisma` — read it before touching anything Prisma-related.
+Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). Generator choice, the required driver adapter, CLI config, and a build gotcha around `prisma.config.ts` are documented in `.claude/modules/module-api-prisma.md` — read it before touching anything Prisma-related.
 
 **Redis is optional, not a hard dependency.** It's provisioned for future caching/session/pub-sub use, but nothing in this app depends on it today. Any future Redis-backed code (cache modules, session store, rate limiter, etc.) must handle Redis being absent or unreachable without failing the request — e.g. catch connection errors and fall back to the non-cached path, don't let a Redis outage take down the API.
 
 ## Status
 
-Postgres-backed email/password auth is implemented (`POST /auth/register`, `POST /auth/login` — see memory `module-api-auth` for hardening details) on top of Prisma (`User` model — see memory `module-api-prisma`). Redis is still unused. Update this file as more domain modules land, and add a corresponding `module-api-<name>` memory entry per the root `CLAUDE.md`'s Module documentation section.
+Postgres-backed email/password auth is implemented (`POST /auth/register`, `POST /auth/login` — see `.claude/modules/module-api-auth.md` for hardening details) on top of Prisma (`User` model — see `.claude/modules/module-api-prisma.md`). Redis is still unused. Update this file as more domain modules land, and add a corresponding `.claude/modules/module-api-<name>.md` doc per the root `CLAUDE.md`'s Module documentation section.
