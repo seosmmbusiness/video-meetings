@@ -18,6 +18,19 @@ The two apps are independent (no shared package yet) — each has its own `node_
 - Run app-scoped commands via the root `dev:web` / `dev:api` / `build:web` / `build:api` scripts, or `cd` into the app and use its own scripts directly — both work.
 - Every function (exported or not, including React components, Nest providers/controllers/handlers, and utilities) gets a JSDoc comment: a one-line summary, `@param` for each parameter, `@returns` when it returns a value, and `@throws` when it can throw. Skip only trivial one-line arrow functions passed inline (e.g. `.map((x) => x.id)`).
 
+## Module documentation
+
+CLAUDE.md files stay brief on purpose — one line per module, not full architecture write-ups. Detailed per-module docs (architecture + function-by-function reference) live outside the repo as `type: module` entries in this project's auto-memory (`~/.claude/projects/-run-media-johnny-SomeData-Education-video-meetings/memory/`, indexed in that directory's `MEMORY.md`, named `module-<app>-<name>`, e.g. `module-api-auth`).
+
+This is a deliberate, project-specific exception to the memory system's general rule that architecture/code-structure content shouldn't go in auto-memory (since it's normally derivable by reading the code) — that default is overridden here to keep CLAUDE.md itself lean. Don't "clean up" these entries as guidance violations.
+
+Workflow:
+
+- To work on a module: read its one-line pointer in the relevant CLAUDE.md, then read _only that module's_ memory file — don't preload every module's memory file into context.
+- After changing a module's implementation: update its memory file to match. Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
+- New module: create `module-<app>-<name>.md` in the memory directory with the same frontmatter shape as existing entries, add an index line to that directory's `MEMORY.md`, and add a one-line pointer in the owning app's CLAUDE.md.
+- Caveat: these memory files aren't part of the git repo — they're keyed to this machine/user path, won't travel with `git clone`, and aren't visible to teammates or CI.
+
 ## Documentation maintenance
 
 When a change affects project architecture (new app/package, new shared library, new service/database, changed layout, new CI/deployment pipeline, etc.), update the relevant docs in the same change:

@@ -13,6 +13,7 @@ Next.js 16.2.12 frontend, App Router, TypeScript, React 19.
 ## Conventions
 
 - JSDoc required for all functions — see root `CLAUDE.md`.
+- No real feature modules yet. Once one lands, give it a one-line pointer here to a `module-web-<name>` memory entry — see root `CLAUDE.md`'s Module documentation section for the convention.
 
 ## Commands
 
