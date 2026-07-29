@@ -25,7 +25,9 @@ CLAUDE.md files stay brief on purpose — one line per module, not full architec
 Workflow:
 
 - To work on a module: read its one-line pointer in the relevant CLAUDE.md, then read _only that module's_ doc under `.claude/modules/` — don't preload every module's doc into context.
-- After changing a module's implementation: update its doc to match, in the same change. Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
+- Before writing a new module: scan `.claude/modules/INDEX.md` for existing modules that already cover, or partially cover, the needed functionality. Prefer extending/reusing a close match over writing a duplicate — only start a new module when nothing existing fits.
+- After changing a module's implementation (new functions, changed behavior, new gotchas): update its doc under `.claude/modules/` to match, in the same change — don't let it drift out of sync with the code. Keep it synced together with the other doc sources that cover the same code: JSDoc on the changed functions (root Conventions) and, for `apps/api`, Swagger annotations on any changed controller/route/DTO (`apps/api/CLAUDE.md`'s Swagger convention). Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
+- Scope doc updates to what actually changed: update the `.claude/modules/` doc, JSDoc, and Swagger annotations only for the functions/endpoints/DTOs you touched. Don't rewrite documentation for other, untouched parts of the module just because the file changed — that's wasted work and noise in the diff.
 - New module: create `.claude/modules/module-<app>-<name>.md`, add a line to `.claude/modules/INDEX.md`, and add a one-line pointer in the owning app's CLAUDE.md.
 
 ## Documentation maintenance
