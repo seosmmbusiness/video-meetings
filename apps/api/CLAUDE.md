@@ -4,7 +4,7 @@ NestJS 11.1.28 backend, TypeScript.
 
 ## Structure
 
-- `src/main.ts` — entry point (Nest bootstrap); mounts a global `ValidationPipe` (`whitelist`, `transform`) so DTO validation (`class-validator`) is enforced on every route.
+- `src/main.ts` — entry point (Nest bootstrap); mounts a global `ValidationPipe` (`whitelist`, `transform`) so DTO validation (`class-validator`) is enforced on every route, and enables CORS (`app.enableCors`) for `apps/web`'s origin (`CORS_ORIGIN` env var, default `http://localhost:3000`) since the browser calls this API cross-origin in dev.
 - `src/app.module.ts` / `app.controller.ts` / `app.service.ts` — root module/controller/service; `AppModule` wires up `ConfigModule` (global), a global `ThrottlerGuard` (`@nestjs/throttler`, default 20 req/60s per IP), `PrismaModule`, and feature modules.
 - `src/prisma/` — injectable Prisma client wrapper (`PrismaService`/`PrismaModule`) over Postgres. Architecture + function reference: `.claude/modules/module-api-prisma.md` (see root `CLAUDE.md`'s Module documentation section).
 - `src/auth/` — authentication orchestration only: register/login flow, JWT issuance/verification, rate limiting. Delegates user persistence to `src/users` and password hashing/verification to `src/credentials`, via CQRS (see Architecture below). Architecture + function reference: `.claude/modules/module-api-auth.md` (see root `CLAUDE.md`'s Module documentation section); the JWT verification guard/strategy used to protect routes is documented in `.claude/modules/module-api-meetings.md` (added alongside that module, as its first consumer).
