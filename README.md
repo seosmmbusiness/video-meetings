@@ -34,6 +34,7 @@ npm run db:up
 | `npm run format`             | Format apps/** with Prettier                |
 | `npm run format:check`       | Check formatting without writing            |
 | `npm run test:api`           | Run NestJS unit tests                       |
+| `npm run test:e2e:web`       | Run Playwright e2e tests (apps/web)         |
 | `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)     |
 | `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)  |
 | `npm run db:up`              | Start the local Postgres + Redis containers |

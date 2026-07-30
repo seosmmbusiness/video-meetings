@@ -25,6 +25,12 @@ apps/api/generated/
 # testing / coverage
 coverage/
 
+# playwright (apps/web e2e)
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/playwright/.cache/
+
 # production
 build/
 
@@ -50,3 +56,6 @@ pnpm-debug.log*
 
 # Claude Code local overrides
 .claude/settings.local.json
+
+# playwright mcp screenshots
+/screenshots/

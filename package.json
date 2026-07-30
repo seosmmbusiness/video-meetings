@@ -22,6 +22,7 @@
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
     "test:api": "npm run test --workspace apps/api",
+    "test:e2e:web": "npm run test:e2e --workspace apps/web",
     "prisma:generate": "npm run prisma:generate --workspace apps/api",
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace apps/api",
     "db:up": "docker compose up -d",

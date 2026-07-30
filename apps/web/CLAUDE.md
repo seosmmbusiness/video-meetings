@@ -7,6 +7,7 @@ Next.js 16.2.12 frontend, App Router, TypeScript, React 19.
 ## Structure
 
 - `src/app/` — App Router routes. `layout.tsx` is the root layout, `page.tsx` the home route.
+- `e2e/` — Playwright e2e specs, run against a dev server Playwright starts itself (see `playwright.config.ts`).
 - Path alias `@/*` → `src/*` (see `tsconfig.json`).
 - Own ESLint config (`eslint-config-next`) — kept separate from `apps/api`'s because the rule sets don't compose.
 
@@ -23,7 +24,9 @@ Run from this directory, or via the root's `npm run dev:web` / `build:web` / `li
 - `npm run build` — production build
 - `npm run start` — serve the production build
 - `npm run lint`
+- `npm run test:e2e` — run Playwright e2e tests (auto-starts the dev server)
+- `npm run test:e2e:ui` — same, in Playwright's UI mode
 
 ## Status
 
-Default `create-next-app` scaffold (2026-07-28) — no custom pages, components, or API integration yet.
+Default `create-next-app` scaffold (2026-07-28) — no custom pages, components, or API integration yet. Playwright e2e testing wired up (2026-07-30) with a single smoke test against the scaffold home page; Playwright's system dependencies aren't installed (`playwright install --with-deps` needs sudo, unavailable in this environment) — only the Chromium binary itself is installed, which is enough for local test runs.
