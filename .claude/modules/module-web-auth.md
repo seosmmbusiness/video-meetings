@@ -10,6 +10,7 @@ This is apps/web's first real feature module. It talks to `apps/api`'s `src/auth
 - `lib/auth-api.ts` — the HTTP client: `registerAccount`/`loginAccount` post to `NEXT_PUBLIC_API_URL` (default `http://localhost:3001`, apps/api's dev port), parse the JSON response, and throw `ApiError` (with the backend's status code and message) on a non-2xx response.
 - `lib/auth-storage.ts` — wraps `localStorage` for the JWT (`saveAccessToken`/`getAccessToken`/`clearAccessToken`), plus `getEmailFromToken` (decodes the `email` claim client-side, display-only, signature not verified) and `subscribeToAccessTokenChanges` (for `useSyncExternalStore` consumers — see Gotchas).
 - `app/page.tsx` (home) — reads sign-in state via `useSyncExternalStore(subscribeToAccessTokenChanges, ...)` and renders either "Get started"/"Sign in" buttons or a "Signed in as `<email>`" + "Sign out" state.
+- `e2e/auth.spec.ts` — Playwright coverage: register (success, password-mismatch, duplicate-email), login (success, wrong-password), sign-out, and the register↔login cross-links. Runs against a real `apps/api` + Postgres; Playwright's `webServer` only starts `apps/web`, so the API and DB must already be running (`npm run db:up`, `npm run dev:api` or root `npm run dev`).
 
 ## Gotchas (non-obvious, worth preserving)
 
@@ -19,6 +20,7 @@ This is apps/web's first real feature module. It talks to `apps/api`'s `src/auth
 - **Client-side password validation mirrors, but doesn't replace, the backend's.** The register page re-implements `RegisterDto`'s complexity regex (`PASSWORD_COMPLEXITY_REGEX`) and length bounds for instant `FieldError` feedback; the backend remains the source of truth; if `RegisterDto`'s rules change, update the copy in `app/register/page.tsx` too.
 - **Password field placeholders must not be literal bullet characters.** An empty `Input` with `placeholder="••••••••"` is visually indistinguishable from a filled, masked password — use descriptive placeholder text (e.g. "Create a password") instead.
 - **Error messages surface backend validation as-is.** `class-validator`'s `ValidationPipe` returns `message` as a string array for 400s and a plain string for 401/409/429s; `lib/auth-api.ts`'s `extractErrorMessage` joins the array case with spaces so either shape renders as one line in the `Alert`.
+- **Click the checkbox's label text in tests, not the input/control.** HeroUI's `Checkbox`'s animated selection indicator (an absolutely-positioned `::before`/SVG) intercepts direct Playwright clicks on the control mid-transition; `e2e/auth.spec.ts`'s `acceptTerms` helper clicks the "I agree to the terms of service" label text instead, which reliably forwards to the underlying input.
 
 ## Function reference
 
