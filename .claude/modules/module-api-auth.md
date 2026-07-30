@@ -2,6 +2,8 @@
 
 Architecture and function reference for email/password authentication: registration and login, both returning `{ accessToken: string }` (a JWT signed via `@nestjs/jwt`).
 
+Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm `test/auth.e2e-spec.ts` (and unit specs) are green before refactoring, then re-run after each step.
+
 ## Architecture
 
 - `AuthModule` (`auth.module.ts`) registers `JwtModule` asynchronously via `JwtModule.registerAsync`, pulling `secret` from `JWT_SECRET` (`config.getOrThrow`, so a missing secret fails startup loudly) and `signOptions.expiresIn` from `JWT_EXPIRES_IN` (default `'1h'`). Declares `AuthController` and `AuthService`.

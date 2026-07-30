@@ -2,6 +2,8 @@
 
 Architecture and function reference for the injectable Prisma client wrapper, exposed globally so feature modules don't need to re-import it, plus the generator/driver-adapter/build gotchas around it.
 
+Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm the e2e/unit suite is green before refactoring, then re-run after each step.
+
 ## Architecture
 
 - `PrismaModule` (`prisma.module.ts`) — `@Global()` module, provides and exports `PrismaService` only. Because it's global, any module can inject `PrismaService` without listing `PrismaModule` in its own `imports`.

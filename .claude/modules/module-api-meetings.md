@@ -2,6 +2,8 @@
 
 Architecture and function reference for the meetings module: create/list/get, all scoped to the authenticated user and protected by a JWT guard added alongside this module.
 
+Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm `test/meetings.e2e-spec.ts` (and unit specs) are green before refactoring, then re-run after each step.
+
 ## Architecture
 
 - `MeetingsModule` (`meetings.module.ts`) imports `AuthModule` (for `JwtAuthGuard`), declares `MeetingsController` and `MeetingsService`. `PrismaService` isn't imported explicitly — `PrismaModule` is `@Global()`.
