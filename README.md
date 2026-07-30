@@ -23,6 +23,7 @@ npm run db:up
 
 | Script                       | Description                                 |
 | ---------------------------- | ------------------------------------------- |
+| `npm run dev`                | Start apps/api then apps/web together (dev) |
 | `npm run dev:web`            | Start Next.js dev server (apps/web)         |
 | `npm run dev:api`            | Start NestJS in watch mode (apps/api)       |
 | `npm run build`              | Build both apps                             |
@@ -39,6 +40,8 @@ npm run db:up
 | `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)  |
 | `npm run db:up`              | Start the local Postgres + Redis containers |
 | `npm run db:down`            | Stop the local Postgres + Redis containers  |
+
+`npm run dev` runs both apps concurrently via `concurrently` (apps/api first, apps/web right after) in one terminal, prefixing output with `[api]`/`[web]`; if either process exits the other is killed too (`--kill-others`). apps/api listens on port `3001` by default (`PORT` env var), apps/web (Next.js) on `3000`, so they don't collide when run together.
 
 ## Database
 
