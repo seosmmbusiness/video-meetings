@@ -62,5 +62,5 @@ npm run db:down         # stop
 - A single root `.prettierrc` / `.prettierignore` is shared by both apps for consistent formatting.
 - Each app keeps its own ESLint config, since `eslint-config-next` and the NestJS ESLint setup use different rule sets and plugins.
 - Node version is pinned via `.nvmrc`.
-- **apps/api** is developed test-first (TDD): end-to-end tests are written/extended and their cases reviewed before implementation, functional changes are checked against the test suite afterward, and any test rewrite is confirmed with the requester first rather than done silently. See `apps/api/CLAUDE.md`.
+- **apps/api** is developed test-first (TDD), following Red/Green/Refactor: end-to-end tests are written/extended and their cases reviewed before implementation (red), functional changes are checked against the test suite afterward (green), refactors start only from a green baseline and re-run the suite after each step, and any test rewrite is confirmed with the requester first rather than done silently. See `apps/api/CLAUDE.md`.
 - **apps/api** documents its HTTP surface with `@nestjs/swagger` (Swagger UI); every controller/route/DTO is annotated, and the generated docs are checked after adding or changing endpoints. See `apps/api/CLAUDE.md`.

@@ -21,13 +21,14 @@ NestJS 11.1.28 backend, TypeScript.
 
 ## Development workflow (TDD)
 
-This app is developed test-first (design → test → develop):
+This app is developed test-first (design → test → develop), following **Red/Green/Refactor**:
 
 1. Before implementing a feature or change, write/extend the end-to-end tests (`test/*.e2e-spec.ts`) first, covering the intended behavior.
-2. Review and refine the test cases with the user — clarify edge cases, add missing scenarios — before writing implementation code. Tests should fail cleanly (red phase) at this point.
-3. Only then implement the functionality to make the tests pass.
-4. After any functional change, re-run the e2e/unit suite and confirm it still matches the intended behavior.
-5. If existing tests need to change because requirements changed, don't just edit them silently — flag it and confirm the new/updated cases with the user first.
+2. Review and refine the test cases with the user — clarify edge cases, add missing scenarios — before writing implementation code. Tests should fail cleanly (**red**) at this point.
+3. Implement the minimum needed to make the tests pass (**green**).
+4. **Refactor**: before starting any refactor, run the suite first and confirm it's fully green on the current code — never refactor against a red baseline. Then refactor in small steps, re-running the suite after each step to confirm it's still green before moving to the next; stop and fix immediately if a step turns a test red.
+5. After any functional change, re-run the e2e/unit suite and confirm it still matches the intended behavior.
+6. If existing tests need to change because requirements changed, don't just edit them silently — flag it and confirm the new/updated cases with the user first.
 
 ## Commands
 
