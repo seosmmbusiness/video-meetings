@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { MeetingsModule } from './meetings/meetings.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
     PrismaModule,
     AuthModule,
+    MeetingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

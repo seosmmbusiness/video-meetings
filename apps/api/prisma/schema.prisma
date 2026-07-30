@@ -11,12 +11,27 @@ datasource db {
 }
 
 model User {
-  id             String   @id @default(uuid())
-  email          String   @unique
+  id             String    @id @default(uuid())
+  email          String    @unique
   passwordHash   String
   consentToTerms Boolean
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  meetings       Meeting[]
 
   @@map("users")
+}
+
+model Meeting {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  date         DateTime
+  participants String[]
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("meetings")
 }
