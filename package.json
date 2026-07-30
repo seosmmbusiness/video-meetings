@@ -25,9 +25,11 @@
     "prisma:generate": "npm run prisma:generate --workspace apps/api",
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace apps/api",
     "db:up": "docker compose up -d",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "prettier": "^3.9.6"
   }
 }
