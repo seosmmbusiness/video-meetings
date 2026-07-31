@@ -21,25 +21,28 @@ npm run db:up
 
 ## Scripts
 
-| Script                       | Description                                 |
-| ---------------------------- | ------------------------------------------- |
-| `npm run dev`                | Start apps/api then apps/web together (dev) |
-| `npm run dev:web`            | Start Next.js dev server (apps/web)         |
-| `npm run dev:api`            | Start NestJS in watch mode (apps/api)       |
-| `npm run build`              | Build both apps                             |
-| `npm run build:web`          | Build apps/web only                         |
-| `npm run build:api`          | Build apps/api only                         |
-| `npm run lint`               | Lint both apps                              |
-| `npm run lint:web`           | Lint apps/web only                          |
-| `npm run lint:api`           | Lint apps/api only                          |
-| `npm run format`             | Format apps/** with Prettier                |
-| `npm run format:check`       | Check formatting without writing            |
-| `npm run test:api`           | Run NestJS unit tests                       |
-| `npm run test:e2e:web`       | Run Playwright e2e tests (apps/web)         |
-| `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)     |
-| `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)  |
-| `npm run db:up`              | Start the local Postgres + Redis containers |
-| `npm run db:down`            | Stop the local Postgres + Redis containers  |
+| Script                       | Description                                                     |
+| ---------------------------- | --------------------------------------------------------------- |
+| `npm run dev`                | Start apps/api then apps/web together (dev)                     |
+| `npm run dev:web`            | Start Next.js dev server (apps/web)                             |
+| `npm run dev:api`            | Start NestJS in watch mode (apps/api)                           |
+| `npm run build`              | Build both apps                                                 |
+| `npm run build:web`          | Build apps/web only                                             |
+| `npm run build:api`          | Build apps/api only                                             |
+| `npm run start`              | Start apps/api then apps/web together (prod, from build output) |
+| `npm run start:web`          | Serve the apps/web production build                             |
+| `npm run start:api`          | Start apps/api from its production build                        |
+| `npm run lint`               | Lint both apps                                                  |
+| `npm run lint:web`           | Lint apps/web only                                              |
+| `npm run lint:api`           | Lint apps/api only                                              |
+| `npm run format`             | Format apps/** with Prettier                                    |
+| `npm run format:check`       | Check formatting without writing                                |
+| `npm run test:api`           | Run NestJS unit tests                                           |
+| `npm run test:e2e:web`       | Run Playwright e2e tests (apps/web)                             |
+| `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)                         |
+| `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)                      |
+| `npm run db:up`              | Start the local Postgres + Redis containers                     |
+| `npm run db:down`            | Stop the local Postgres + Redis containers                      |
 
 `npm run dev` runs both apps concurrently via `concurrently` (apps/api first, apps/web right after) in one terminal, prefixing output with `[api]`/`[web]`; if either process exits the other is killed too (`--kill-others`). apps/api listens on port `3001` by default (`PORT` env var), apps/web (Next.js) on `3000`, so they don't collide when run together.
 
