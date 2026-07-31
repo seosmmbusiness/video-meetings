@@ -33,6 +33,8 @@ This app is developed test-first (design → test → develop), following **Red/
 5. After any functional change, re-run the e2e/unit suite and confirm it still matches the intended behavior.
 6. If existing tests need to change because requirements changed, don't just edit them silently — flag it and confirm the new/updated cases with the user first.
 
+**Security test cases are mandatory, not optional.** Alongside functional behavior, step 1's e2e specs for a feature/endpoint must also cover: authorization boundaries (a caller can't read/modify another user's resources — IDOR); auth bypass (missing, malformed, or expired JWT against a protected route); injection/mass-assignment edge cases (extra/unexpected fields are rejected by `ValidationPipe`'s `whitelist`, not silently accepted); and rate-limiting/brute-force protection on sensitive endpoints (login, register, etc.). These are required cases in the Red/Green/Refactor cycle above, written before implementation like any other — not bolted on after. See `apps/web/CLAUDE.md`'s Development workflow section for the frontend-side equivalent.
+
 ## Commands
 
 Run from this directory, or via the root's `npm run dev:api` / `build:api` / `lint:api` / `test:api`:
