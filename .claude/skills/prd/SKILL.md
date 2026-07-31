@@ -1,64 +1,107 @@
 ---
 name: prd
-description: 'Создаёт PRD-документ для фичи по стандартной структуре проекта; используется, когда нужно описать требования к новой фиче перед реализацией.'
+description: 'Writes a feature PRD — goal, user scenarios, scope fence, falsifiable acceptance criteria — to docs/<feature>/<feature>-PRD.md. Use when a feature needs its requirements pinned down before planning or implementation, or when another skill needs the PRD that plan-phase consumes.'
 ---
 
-# Поведение скилла
+# PRD
 
-Скилл принимает аргумент — название или описание фичи — и на его основе создаёт PRD. Файл сохраняется в папку docs; если папки нет, она создаётся автоматически. Имя файла формируется автоматически: название переводится на английский язык и приводится к формату kebab-case (например, file-upload-PRD.md).
+A PRD fixes **what** the user gets and **how you will know it is done**. The mechanism — libraries, schema, endpoints, file layout — is chosen later by `research`; a mechanism named here freezes a decision nobody has investigated yet.
 
-# Структура PRD-документа
+Position in the pipeline: **`prd`** → `plan-phase` → `issues` → `research` → `milestone`.
 
-Документ состоит из следующих разделов:
+## Argument
 
-## 1. Заголовок и метаданные
+A feature name or description (`/prd meeting file upload`).
 
-**PRD**: Название фичи
+- No argument → ask which feature to write up, rather than inferring one from the repo state.
+- `docs/<feature>/<feature>-PRD.md` already exists → ask whether to update it in place or start a new iteration. Never overwrite silently.
 
-**Дата**: Текущая дата (для датирования документа)
+## Steps
 
-**Статус**: draft
+### 1. Ground the feature in the repo
 
-## 2. Цель
+Read, before drafting a line:
 
-1–2 предложения: что нужно пользователю и зачем. Описывает итоговую ценность фичи, а не способ её реализации.
+1. Root `CLAUDE.md` — the Status section above all: what already exists, so the PRD asks for the delta instead of for what is already built.
+2. `README.md` — scripts, setup, available infrastructure.
+3. `CLAUDE.md` of each app the feature touches (`apps/web`, `apps/api`).
+4. `.claude/modules/INDEX.md`, then the docs of only those modules the feature extends.
 
-## 3. Пользовательские сценарии
+Done when every statement you are about to make about current behaviour traces to a file you just read, and you can name the existing modules this feature builds on.
 
-Каждый сценарий строится по схеме:
+### 2. Cut the iteration
 
-- Пользователь —> кто совершает действие
-- Действие —> что он делает
-- Результат —> что происходит в итоге
+Slice the feature down to the smallest version that delivers its goal end to end for a real user. Everything else that came up — from the argument, from step 1, from your own ideas about the feature — goes into **Out of scope** in writing. That list is a fence: an exclusion left unwritten is scope creep with a head start.
 
-Пример: пользователь заходит в раздел загрузки файлов → выбирает файл → файл загружается и отображается в интерфейсе.
+Done when every capability raised sits in exactly one list, In scope or Out of scope.
 
-## 4. Скоуп (область фичи)
+### 3. Ask what the document cannot invent
 
-Что в скоупе — конкретный список того, что входит в данную итерацию.
+Product decisions only: who the actors are, what the user sees when the action fails, which limits are the user's (sizes, counts, retention), what stays out of this iteration. Put them in a single `AskUserQuestion` block, each option carrying a recommendation and the consequence of picking it.
 
-Что не в скоупе — явный список того, что не реализуется в этой итерации.
+Technical choices belong to `research`. Record one under Technical constraints only when the user states it as already fixed.
 
-Например: не разрабатываем собственное хранилище, используем хранение на диске. Этот раздел критически важен для предотвращения неконтролируемого расширения фичи.
+Skip whatever the repo, the argument, or project convention already answers.
 
-## 5. Технические ограничения
+Done when no requirement in the draft rests on an assumption you invented, and every user answer is reflected in the document.
 
-Известные ограничения, которые необходимо учитывать. Например: развёртывание на сервере с ограниченными ресурсами.
+### 4. Write the file
 
-## 6. Критерии готовности
+- **Slug**: the feature name in English kebab-case (`Загрузка файлов встречи` → `meeting-file-upload`). It names the folder, this file, and later the PLAN, RESEARCH and MS files — choose it once and reuse it.
+- **Path**: `docs/<slug>/<slug>-PRD.md`, creating `docs/<slug>/` if it does not exist.
+- **Date**: read from `date +%F` — the real date, not a remembered one.
+- **Language**: English, whatever language the request came in.
+- **Shape**: the template below, section for section.
 
-Список проверяемых условий, при выполнении которых фича считается реализованной. Критерии должны быть конкретными и легко проверяемыми — не абстрактными нагрузочными сценариями, а чёткими утверждениями, которые можно подтвердить или опровергнуть.
+Done when every section is filled, every scenario is covered by at least one acceptance criterion, and every criterion is falsifiable.
 
-- [] Критерий 1
-- [] Критерий 2
+### 5. Report
 
-  и т.д.
+The path, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/plan-phase docs/<slug>/<slug>-PRD.md`.
 
-# Правила, заданные скиллу
+## Template
 
-Чтобы контролировать качество генерируемого документа, скиллу задаются явные ограничения:
+```markdown
+# PRD: <Feature name>
 
-- Писать конкретно, без «воды».
-- Не описывать, как реализовывать — только что и зачем.
-- Критерии готовности должны быть проверяемы.
-- Если описание фичи недостаточно полное — задавать уточняющие вопросы до создания файла.
+**Date**: <YYYY-MM-DD>
+**Status**: draft
+
+## 1. Goal
+
+<1–2 sentences: what the user needs and why — the value they end up with, not the mechanism that delivers it.>
+
+## 2. User scenarios
+
+<One line per scenario, **actor** → action → outcome. Cover the main path, plus every failure the user is shown.>
+
+- Meeting owner → uploads a file on the meeting page → the file appears in that meeting's file list.
+- Meeting owner → uploads a file of an unsupported type → the upload is rejected with a stated reason and the file list is unchanged.
+
+## 3. Scope
+
+**In scope**
+
+- <capability shipping in this iteration>
+
+**Out of scope**
+
+- <capability deferred, with its reason in the same line — e.g. "no storage service of our own: files live on the server disk">
+
+## 4. Technical constraints
+
+<Fixed facts the implementation must live with: what the existing stack dictates, deployment limits, numbers the user gave. Facts, not decisions.>
+
+## 5. Acceptance criteria
+
+<Falsifiable statements — each names an observation that would prove it wrong. "Uploading a 30 MB file returns an error and stores nothing" is falsifiable; "upload works reliably" is not.>
+
+- [ ] <criterion>
+- [ ] <criterion>
+```
+
+## Rules
+
+- The PRD is the only input `plan-phase` gets — write it for someone who never saw this conversation.
+- Numbers over adjectives: "up to 25 MB", "within 3 seconds", never "reasonably large" or "fast".
+- Short and falsifiable beats long and aspirational: a sentence that cannot be proven wrong is not a requirement.

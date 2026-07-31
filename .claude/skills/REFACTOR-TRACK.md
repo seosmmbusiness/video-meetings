@@ -1,0 +1,106 @@
+# Refactor track
+
+The pipeline runs two tracks. A **feature** adds behaviour. A **refactor** keeps behaviour exactly as it is and improves what sits behind it — speed, security, structure, or agreement with the docs.
+
+`refactor-prd` → `plan-phase` → `issues` → `research` → `milestone` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing.
+
+## Parity
+
+Observable behaviour is identical on both sides of the change:
+
+- the same request returns the same status, body and headers;
+- the same screen shows the same copy in the same states;
+- the same failure produces the same error, in the same shape;
+- env vars, database schema, stored data and public exports keep their names and their meanings.
+
+Free to move: internal structure, file layout, private names, algorithms, query plans, dependencies, memory and time.
+
+A change a user could notice is a feature. It leaves through `/prd` with its own branch and its own tests; the refactor stays at parity.
+
+## The suite is the contract
+
+The tests that already exist are the only proof that parity held, so they run exactly as they are — same files, same assertions, same names.
+
+- **Green baseline → change → green.** The suite runs and its output is recorded before the first line changes, and the same commands with the same result are what proves the work done. Red at the start is a stop: there is no parity signal to refactor against.
+- Behaviour no test covers has no parity signal. Pin it with a **characterization test** — written against the current implementation and passing before that implementation moves — and land it first.
+- A test that goes red under a refactor names a behaviour that changed: return the code to parity. Where the test itself looks wrong, that is a conversation with the user before a single assertion is touched.
+
+## File names
+
+The `-REFACTOR-` infix marks the track everywhere, so both tracks can share one `docs/<slug>/` folder:
+
+| Feature track                     | Refactor track                       |
+| --------------------------------- | ------------------------------------ |
+| `docs/<slug>/<slug>-PRD.md`       | `docs/<slug>/<slug>-REFACTOR-PRD.md` |
+| `<slug>-PLAN.md`                  | `<slug>-REFACTOR-PLAN.md`            |
+| `<slug>-RESEARCH.md`              | `<slug>-REFACTOR-RESEARCH.md`        |
+| `<slug>-MS.json`                  | `<slug>-REFACTOR-MS.json`            |
+| branch `feature/<slug>-phase-<N>` | branch `refactor/<slug>-phase-<N>`   |
+| `docs/Features.md`                | `docs/Refactor.md`                   |
+
+A `docs/*/*-PRD.md` listing matches both tracks — the infix in the path says which one you picked up.
+
+## `plan-phase` on a refactor
+
+Input `docs/<slug>/<slug>-REFACTOR-PRD.md`, output `docs/<slug>/<slug>-REFACTOR-PLAN.md`. The PRD's **Behaviour freeze**, **Green baseline** and **Internal outcomes** are the plan's target, the way acceptance criteria are on the feature track. These phasing rules replace the tracer bullet and the one-layer-per-phase rule:
+
+- **Phase 1 secures the parity signal**: run the PRD's baseline commands, then add the characterization tests for whatever behaviour the PRD marked unprotected. Production code does not move in this phase.
+- **One seam per phase** — one module, one layer of one module, one query path. Two seams in a phase leave you unable to bisect the change that broke parity.
+- Every phase lands at **parity**: after it, the same suite run the same way gives the same result and the app behaves as it did before the plan started.
+- A phase's **Done when** names the baseline commands and their green result, plus the measured before → after number for the internal outcome it serves.
+- Tasks move code; they do not edit tests. A task that could only be done by changing a test is a behaviour change hiding in the plan — split it out and send it to `/prd`.
+
+Template delta: the header links `<slug>-REFACTOR-PRD.md`, and each phase block gains **Parity check** (the commands that must stay green, plus what to observe by hand) and **Measures** (before → target for this phase).
+
+## `issues` on a refactor
+
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `milestone` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
+
+- Milestone titles carry the track: `Refactor phase 1. Characterization tests for the meetings query`. A feature milestone of the same number is a different milestone; matching stays on the full title.
+- Labels: `refactor` on every issue, plus the driver's label (`performance`, `security`, `documentation`) and `backend`/`frontend` from **Touches**. Three at most, and a label the repo lacks is asked about before it is created.
+- The issue body gains one line under the phase line — `**Parity**: <the phase's parity check>` — so whoever closes it knows what proves it done.
+- Characterization-test tasks become issues like any other. A task that would rewrite an existing test becomes a question for the user instead of an issue.
+
+## `research` on a refactor
+
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-RESEARCH.md`. Every option is judged against **parity** before anything else: an option that moves a response, an error or a screen is rejected here however fast it is, and goes into the report as a proposal for `/prd`.
+
+### Measure before you choose
+
+A speed refactor starts from a number, not from a suspicion. Reproduce the cost the PRD names and record how you got it: the command, the input and its size, the environment, the value, and the spread over repeated runs. An optimisation with no before-number cannot be shown to have worked — and that is the usual way a refactor ships a regression believing it shipped a win.
+
+Where the number comes from in this repo:
+
+- **Database** — Prisma query logging (`log: ['query']`) for the statements one request actually emits, their count, and `EXPLAIN ANALYZE` on the slow one. The recurring finds are N+1 loops, a missing index on a filtered or sorted column, and a full row fetch where a `select` would do.
+- **API** — request duration end to end, split into database time and handler time; payload size; and work repeated per request that could be done once at startup (config parsing, key derivation, client construction).
+- **Web** — server render time, the number and waterfall depth of the server-to-server calls a page makes, per-route bundle bytes, and what a client component costs that a server component would not.
+- **Process** — `npm run build` and suite duration, when the driver is developer speed.
+
+### Optimisation order
+
+Cheapest and most reversible first; stop at the first level that reaches the PRD's target.
+
+1. **Do less work** — a narrower query, a dropped round trip, work hoisted out of a loop or a request, `Promise.all` where sequential `await`s were serialising independent calls.
+2. **Do it at the right layer** — the database filtering, sorting and paginating instead of the process; the server rendering what the client was assembling.
+3. **Do it once** — memoise per request, then per process. Redis only as a best-effort cache the code still works without (root `CLAUDE.md`'s standing rule), never as a source of truth.
+4. **Do it differently** — another algorithm, another data structure, a schema change. The highest cost and the one that needs the strongest before-number.
+
+A dependency added for speed carries the **dependency budget** like any other, plus its own measured win.
+
+### Security and doc-compliance drivers
+
+- **Security** — name the finding, the input path that reaches it, and the fix in this repo's existing idiom (guard, DTO validation, Prisma parameterisation, rate limit). Then its parity consequence: hardening that starts rejecting requests the API accepts today is behaviour change, and goes back as a proposal rather than into the plan.
+- **Doc compliance** — a mismatch table, one row per gap: doc claim · what the code does · which one is wrong. Where the code is right, the doc is fixed. Where the doc is right, aligning the code is behaviour change unless the doc describes internals only.
+
+Template delta: section 4 carries a **Baseline** table — metric · how it was measured · value today · target — and every decision block gains **Parity**: what proves this option leaves behaviour identical.
+
+## `milestone` on a refactor
+
+Sources are the `-REFACTOR-` files, the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
+
+- **Green baseline first.** On the freshly cut branch, before the first line changes, run the PRD's baseline commands and show the output. Red at the start stops the run and goes to the user: a failure inherited from the base branch is not this phase's to absorb.
+- **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves.
+- **Prove parity in step 7**: the same commands as the baseline, the same result, shown next to the baseline output. Plus the after-number for every internal outcome the phase serves, measured the way the before-number was.
+- The PR body carries the baseline → after table and the evidence that the contract held: `git diff --stat <base>...HEAD -- '**/*.spec.ts' '**/*.e2e-spec.ts'` showing only added characterization tests.
+- Behaviour that has to change for a task to finish is a stop-and-ask. It leaves the refactor and becomes a `/prd` item.
+- Close-out reads `<slug>-REFACTOR-PRD.md`, deletes merged `refactor/<slug>-phase-*` branches, and collapses the log rows in `docs/Refactor.md`.
