@@ -7,8 +7,9 @@ import {
 } from '@playwright/test';
 
 // These specs exercise the real register/login flow against a running
-// apps/api + Postgres (see apps/api/CLAUDE.md's Database section) — unlike
-// home.spec.ts, they are not self-contained to apps/web alone.
+// apps/api + Postgres (see apps/api/CLAUDE.md's Database section); so does
+// home.spec.ts, since the home page now requires a session and fetches the
+// caller's meetings from apps/api.
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3001';
 const STRONG_PASSWORD = 'Str0ngPass!';
 
@@ -158,7 +159,6 @@ test.describe('Sign out', () => {
 
     await page.getByRole('button', { name: 'Sign out' }).click();
 
-    await expect(page.getByRole('link', { name: 'Get started' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+    await expect(page).toHaveURL('/login');
   });
 });

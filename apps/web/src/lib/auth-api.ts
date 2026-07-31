@@ -39,7 +39,7 @@ export class ApiError extends Error {
  * Resolves the base URL of the apps/api backend.
  * @returns `API_BASE_URL` (from the root `.env`) if set, otherwise the local dev default (`http://localhost:3001`).
  */
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
 }
 
@@ -51,7 +51,7 @@ function getApiBaseUrl(): string {
  * @param fallback - Message to use when the body has no usable `message`.
  * @returns A single human-readable error message.
  */
-function extractErrorMessage(body: unknown, fallback: string): string {
+export function extractErrorMessage(body: unknown, fallback: string): string {
   const message = (body as { message?: string | string[] } | null)?.message;
   if (Array.isArray(message)) return message.join(' ');
   return message ?? fallback;
