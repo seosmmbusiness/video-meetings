@@ -1,49 +1,17 @@
-'use client';
-
-import { useSyncExternalStore } from 'react';
-import { useRouter } from 'next/navigation';
+import NextLink from 'next/link';
+import { buttonVariants } from '@heroui/styles';
 import { Alert, Button, Card } from '@heroui/react';
-import {
-  clearAccessToken,
-  getAccessToken,
-  getEmailFromToken,
-  subscribeToAccessTokenChanges,
-} from '@/lib/auth-storage';
-
-/**
- * Reads the signed-in user's email from the locally stored JWT, if any.
- * @returns The stored token's `email` claim, or `null` when signed out.
- */
-function getSignedInEmailSnapshot(): string | null {
-  const token = getAccessToken();
-  return token ? getEmailFromToken(token) : null;
-}
-
-/** Always `null` server-side — there's no `localStorage` to read. */
-function getSignedInEmailServerSnapshot(): string | null {
-  return null;
-}
+import { logoutAction } from '@/app/actions/auth';
+import { getSession } from '@/lib/session';
 
 /**
  * Home route — landing page introducing the video-meetings app. Shows
- * sign-up/sign-in actions, or a signed-in state read from the locally
- * stored JWT.
+ * sign-up/sign-in links, or a signed-in state read from the session cookie
+ * before the page renders (no client-side flash).
  * @returns The rendered home page.
  */
-export default function Home() {
-  const router = useRouter();
-  const signedInEmail = useSyncExternalStore(
-    subscribeToAccessTokenChanges,
-    getSignedInEmailSnapshot,
-    getSignedInEmailServerSnapshot,
-  );
-
-  /**
-   * Signs the user out locally by clearing the stored access token.
-   */
-  function handleSignOut() {
-    clearAccessToken();
-  }
+export default async function Home() {
+  const session = await getSession();
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
@@ -54,29 +22,34 @@ export default function Home() {
             Create and join meetings in a few clicks.
           </Card.Description>
         </Card.Header>
-        {signedInEmail ? (
+        {session ? (
           <Card.Content>
             <Alert status="success">
               <Alert.Indicator />
               <Alert.Content>
-                <Alert.Title>Signed in as {signedInEmail}</Alert.Title>
+                <Alert.Title>Signed in as {session.email}</Alert.Title>
               </Alert.Content>
             </Alert>
           </Card.Content>
         ) : null}
         <Card.Footer className="flex gap-3">
-          {signedInEmail ? (
-            <Button variant="secondary" onPress={handleSignOut}>
-              Sign out
-            </Button>
+          {session ? (
+            <form action={logoutAction}>
+              <Button variant="secondary" type="submit">
+                Sign out
+              </Button>
+            </form>
           ) : (
             <>
-              <Button onPress={() => router.push('/register')}>
+              <NextLink className={buttonVariants()} href="/register">
                 Get started
-              </Button>
-              <Button variant="secondary" onPress={() => router.push('/login')}>
+              </NextLink>
+              <NextLink
+                className={buttonVariants({ variant: 'secondary' })}
+                href="/login"
+              >
                 Sign in
-              </Button>
+              </NextLink>
             </>
           )}
         </Card.Footer>

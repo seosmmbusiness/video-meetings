@@ -1,9 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 import { linkVariants } from '@heroui/styles';
-import { useState, type FormEvent } from 'react';
+import { useActionState, useState } from 'react';
 import {
   Alert,
   Button,
@@ -16,23 +15,24 @@ import {
   Label,
   TextField,
 } from '@heroui/react';
-import { ApiError, registerAccount } from '@/lib/auth-api';
-import { saveAccessToken } from '@/lib/auth-storage';
+import { registerAction } from '@/app/actions/auth';
 
 const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
 const MAX_PASSWORD_LENGTH = 72;
 
 /**
- * Registration page — creates a new account via `POST /auth/register` and
- * signs the user in immediately on success.
+ * Registration page — creates a new account via the `registerAction` Server
+ * Action, which stores the returned JWT in an `httpOnly` session cookie and
+ * redirects to the home page on success.
  * @returns The rendered registration page.
  */
 export default function RegisterPage() {
-  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(
+    registerAction,
+    undefined,
+  );
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isPasswordInvalid =
     password.length > 0 &&
@@ -41,45 +41,6 @@ export default function RegisterPage() {
       !PASSWORD_COMPLEXITY_REGEX.test(password));
   const isConfirmInvalid =
     confirmPassword.length > 0 && confirmPassword !== password;
-
-  /**
-   * Submits the registration form: blocks on a client-side password
-   * confirmation mismatch, otherwise calls the register API, stores the
-   * returned JWT, and redirects to the home page.
-   * @param event - The form submission event.
-   */
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFormError(null);
-
-    if (password !== confirmPassword) {
-      setFormError('Passwords do not match.');
-      return;
-    }
-
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get('email') ?? '');
-    const consentToTerms = formData.get('consentToTerms') === 'on';
-
-    setIsSubmitting(true);
-    try {
-      const { accessToken } = await registerAccount({
-        email,
-        password,
-        consentToTerms,
-      });
-      saveAccessToken(accessToken);
-      router.push('/');
-    } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : 'Something went wrong. Please try again.',
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
@@ -91,16 +52,16 @@ export default function RegisterPage() {
           </Card.Description>
         </Card.Header>
         <Card.Content>
-          {formError ? (
+          {state?.error ? (
             <Alert className="mb-4" status="danger">
               <Alert.Indicator />
               <Alert.Content>
-                <Alert.Title>{formError}</Alert.Title>
+                <Alert.Title>{state.error}</Alert.Title>
               </Alert.Content>
             </Alert>
           ) : null}
 
-          <Form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <Form className="flex flex-col gap-4" action={formAction}>
             <TextField
               isRequired
               autoComplete="email"
@@ -162,7 +123,7 @@ export default function RegisterPage() {
               <FieldError>You must accept the terms to continue.</FieldError>
             </Checkbox>
 
-            <Button fullWidth isPending={isSubmitting} type="submit">
+            <Button fullWidth isPending={isPending} type="submit">
               Create account
             </Button>
           </Form>

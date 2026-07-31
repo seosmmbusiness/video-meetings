@@ -1,3 +1,5 @@
+import 'server-only';
+
 const DEFAULT_API_BASE_URL = 'http://localhost:3001';
 
 /** Response body returned by the register and login endpoints. */
@@ -35,10 +37,10 @@ export class ApiError extends Error {
 
 /**
  * Resolves the base URL of the apps/api backend.
- * @returns `NEXT_PUBLIC_API_URL` if set, otherwise the local dev default (`http://localhost:3001`).
+ * @returns `API_BASE_URL` (from the root `.env`) if set, otherwise the local dev default (`http://localhost:3001`).
  */
 function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_BASE_URL;
+  return process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
 }
 
 /**

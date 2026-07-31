@@ -9,7 +9,7 @@ import {
 // These specs exercise the real register/login flow against a running
 // apps/api + Postgres (see apps/api/CLAUDE.md's Database section) — unlike
 // home.spec.ts, they are not self-contained to apps/web alone.
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3001';
 const STRONG_PASSWORD = 'Str0ngPass!';
 
 /**
@@ -158,9 +158,7 @@ test.describe('Sign out', () => {
 
     await page.getByRole('button', { name: 'Sign out' }).click();
 
-    await expect(
-      page.getByRole('button', { name: 'Get started' }),
-    ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Get started' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
 });

@@ -7,5 +7,5 @@ test('home page loads and renders the HeroUI landing card', async ({
   await expect(
     page.getByRole('heading', { name: 'video-meetings' }),
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Get started' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Get started' })).toBeVisible();
 });
