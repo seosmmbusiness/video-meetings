@@ -16,6 +16,7 @@ import {
   TextField,
 } from '@heroui/react';
 import { registerAction } from '@/app/actions/auth';
+import { VideoCameraIcon } from '@/components/icons/video-camera-icon';
 
 const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
 const MAX_PASSWORD_LENGTH = 72;
@@ -46,7 +47,10 @@ export default function RegisterPage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
       <Card className="w-full max-w-md">
         <Card.Header>
-          <Card.Title>Create your account</Card.Title>
+          <Card.Title className="flex items-center gap-2">
+            <VideoCameraIcon className="size-5 text-accent" />
+            Create your account
+          </Card.Title>
           <Card.Description>
             Start hosting and joining meetings in minutes.
           </Card.Description>

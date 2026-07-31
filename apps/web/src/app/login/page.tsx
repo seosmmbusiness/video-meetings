@@ -14,6 +14,7 @@ import {
   TextField,
 } from '@heroui/react';
 import { loginAction } from '@/app/actions/auth';
+import { VideoCameraIcon } from '@/components/icons/video-camera-icon';
 
 /**
  * Login page — authenticates via the `loginAction` Server Action, which
@@ -28,7 +29,10 @@ export default function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
       <Card className="w-full max-w-md">
         <Card.Header>
-          <Card.Title>Welcome back</Card.Title>
+          <Card.Title className="flex items-center gap-2">
+            <VideoCameraIcon className="size-5 text-accent" />
+            Welcome back
+          </Card.Title>
           <Card.Description>Sign in to manage your meetings.</Card.Description>
         </Card.Header>
         <Card.Content>

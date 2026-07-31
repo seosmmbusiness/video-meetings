@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Alert, Button, Card, Chip, EmptyState } from '@heroui/react';
 import { logoutAction } from '@/app/actions/auth';
 import { getSession } from '@/lib/session';
+import { VideoCameraIcon } from '@/components/icons/video-camera-icon';
 import {
   ApiError,
   listMeetings,
@@ -129,7 +130,10 @@ export default async function Home() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 p-8">
       <Card className="w-full">
         <Card.Header>
-          <Card.Title>video-meetings</Card.Title>
+          <Card.Title className="flex items-center gap-2">
+            <VideoCameraIcon className="size-5 text-accent" />
+            video-meetings
+          </Card.Title>
           <Card.Description>
             Create and join meetings in a few clicks.
           </Card.Description>
