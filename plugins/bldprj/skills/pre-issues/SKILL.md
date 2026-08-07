@@ -35,8 +35,10 @@ Read all four, each against the ones before it:
 
 1. **PRD** — goal, every scenario, In scope, **Out of scope**, technical constraints, and every `AC-<n>` in its exact wording, numbers included.
 2. **The current plan** — every phase with its **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Done when**, every task with its number and label, the `- [~]` dropped ones, and `## Revisions`.
-3. **RESEARCH** — the decision map, every `D-<n>` with its **Chosen**, **Exposure** and **Fits in at**, the Parameters table verbatim, Dependencies, and section 9's plan impact.
-4. **THREATS** — the threat map, every `S-<n>` with its control, its proof and its disposition, and section 5's plan impact.
+3. **RESEARCH** — the decision map, every `D-<n>` with its **Chosen**, **Exposure** and **Fits in at**, the Parameters table verbatim, Dependencies, section 9's plan impact, and `## Revisions` where a revision pass wrote one.
+4. **THREATS** — the threat map, every `S-<n>` with its control, its proof and its disposition, section 5's plan impact, and `## Revisions` where a revision pass wrote one.
+
+A block carrying `**Superseded by**` is history: it is read for what a later round overruled and why, and nothing in FINAL cites it. Two stages that went round twice without settling handed the disagreement here on purpose — it is a trade-off, and this is the stage that rules on one.
 
 Then the repo the documents make claims about: the project's root docs, the docs of each part they touch, and the module docs of what this work extends — enough to tell a claim that is already true from one that is still work.
 
@@ -126,7 +128,7 @@ Nine classes, each taken across all four documents.
 2. **Mechanism against promise** — the chosen mechanism can actually produce the observable a criterion names. Storage that cannot list by owner will not serve a criterion about the owner's list.
 3. **Control against scenario** — a control that changes what the user sees: an input the scenario accepts and the validator rejects, an extra step the scenarios do not have, an error where the PRD promised success.
 4. **Missing work** — a decision or control that needs a migration, an env var, a characterization test, an install or a config change that no task carries. `research` and `security-analyse` each revised the plan for their own; work neither claimed surfaces here.
-5. **Stale citations** — a `Held` disposition naming a task or file the revisions moved, a decision-map row pointing at a task that no longer exists, a `- [~]` task still cited by a `D-<n>` or `S-<n>`, an `AC-<n>` cited by nothing.
+5. **Stale citations** — a `Held` disposition naming a task or file the revisions moved, a decision-map row pointing at a task that no longer exists, a `- [~]` task still cited by a `D-<n>` or `S-<n>`, an `AC-<n>` cited by nothing, and a phase or task still citing a `D-<n>` or `S-<n>` whose block carries `**Superseded by**` — the citation moves to the replacement, and the superseded block stays where it is.
 6. **Order** — a phase consuming what a later phase builds: a frontend phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
 7. **Phase integrity** — the revisions left every phase still shippable: five live tasks at most, one layer, and a stop after it leaves the repo working.
 8. **Unproven control** — an `S-<n>` whose **Proven by** test no task writes, or whose control lands in a task that never mentions it. `build-phase` checks a finding against the control its task carries; a control with no test is a control nobody notices losing.

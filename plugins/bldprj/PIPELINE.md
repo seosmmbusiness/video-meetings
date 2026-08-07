@@ -81,6 +81,21 @@ Two documents carry phases and tasks. The plan is the **preliminary** one and is
 
 **After a revision the backlog is stale.** Re-run `/bldprj:pre-issues`, then `/bldprj:issues` on the FINAL it wrote: `issues` reconciles by task number, tops up what is missing, and reports the issues whose task no longer exists rather than closing them.
 
+## Re-running a stage
+
+The chain runs forward once, and that single pass is complete on its own: nothing in this section is needed for a feature to reach `issues`.
+
+A stage run again on a document it already wrote is a **revision pass**, not a rewrite. It is detected rather than asked for — its own artifact exists, and the artifact of a stage after it is newer — and `research` and `security-analyse` each carry the closed list of triggers that says what it may touch.
+
+- **Read backwards first**: its own previous output, then what the later stage wrote against it, then the plan's `## Revisions`.
+- **Change only what a trigger fires on.** Everything else is left byte-identical. A block rewritten in different words, or a decision re-taken the same way under a new number, is the failure this contract exists to prevent — a revision pass that touches nothing is the expected outcome.
+- **Record the round** in the document's own `## Revisions`, one line per change, citing the identifier from the other stage behind it: `2026-08-07 — round 2: D-3 superseded by D-7 (chosen storage cannot scope by owner) — S-1.`
+- **Converged is a result, not a failure.** No trigger fired → the file gains one `## Revisions` line naming the round and what was re-read, nothing else moves, and the report says so plainly and names the next command in the chain.
+- **Numbers survive a reversal.** A superseded decision or a retired finding keeps its `### D-3.` / `### S-2.` heading, so every citation and the linter still resolve, and gains `**Superseded by**: D-7 — <reason>, round <N>` as the block's first line. It is never deleted and never renumbered; replacement work takes the next free number.
+- **The plan is revised exactly as on the first pass** — in place, every task number intact, each `## Revisions` line naming the `D-<n>` or `S-<n>` behind it.
+
+**Two rounds is the budget** — `research` → `security-analyse` → `research` → `security-analyse`. What survives that is a trade-off rather than a technical gap, and a trade-off is `pre-issues`' to rule on: at the end of round 2 each skill recommends `/bldprj:pre-issues` and names what stays open. A further round asked for by hand still runs, and still runs as a revision pass — the skill does the work, says the budget is past, and names the conflict it believes arbitration would settle more cheaply.
+
 ## Asking
 
 Every skill asks. Each asks inside **its own class**, and hands a question outside that class to the stage that owns it — named in the report, so it is asked at the stage that can answer it cheaply:

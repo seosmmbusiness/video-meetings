@@ -18,6 +18,7 @@ Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`researc
 Path to a plan (`/bldprj:research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
 - No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to research, rather than picking one.
+- A `-RESEARCH.md` already sits beside the plan and a `-THREATS.md` beside it is newer → this is a **revision pass**, per **Re-running a stage** in `PIPELINE.md`. It is detected, not asked for, and it changes only what the **Revision triggers** below fire on. A `-RESEARCH.md` with no threats file beside it is an unfinished first pass: finish it as one.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
 
 ## Steps
@@ -26,7 +27,9 @@ Path to a plan (`/bldprj:research docs/meeting-file-upload/meeting-file-upload-P
 
 Every phase — **Goal**, **Touches**, **Covers**, **Tasks** with their numbers, **Done when** — then the sibling `-PRD.md`: key, goal, In scope, **Out of scope**, technical constraints, the `AC-<n>` criteria. Out of scope fences this run too.
 
-Done when you can say, for every task number in the plan, whether it hides a technical choice or follows straight from project convention.
+**On a revision pass**, read backwards first, before the plan: this file's own previous version — every `D-<n>` with what it chose and why — then `-THREATS.md` whole, every `S-<n>` with its control, its **Proven by** and its disposition, then the plan's `## Revisions` for what the threat pass already wrote into it. What that pass settled on its own is settled; you are looking only for the places it could not.
+
+Done when you can say, for every task number in the plan, whether it hides a technical choice or follows straight from project convention — and on a revision pass, for every `S-<n>`, whether the mechanism this file already chose can carry its control.
 
 ### 2. Take the stack from the repo, not from memory
 
@@ -45,7 +48,9 @@ Walk the plan's tasks and keep only the places where a genuine choice exists and
 
 Number them `D-1`, `D-2`, … and tag each with the plan tasks it serves (`1.2`, `3.1`). Those numbers are permanent: the plan cites them per phase and `build-phase` reads them per task.
 
-Done when every decision point traces to at least one plan task, and every task a developer could implement two materially different ways is covered by one.
+**On a revision pass this step is the trigger list, not the plan.** Walk the **Revision triggers** below against the threats file instead of re-deriving the decision points: what fires becomes this round's work, and every existing `D-<n>` nothing fires on is finished — it is not re-argued, re-worded or re-taken under a new number. No trigger fires at all → skip to step 6 and write the converged form.
+
+Done when every decision point traces to at least one plan task, and every task a developer could implement two materially different ways is covered by one — or, on a revision pass, when every `S-<n>` has been through every trigger with a named outcome.
 
 ### 4. Settle each decision, in this order
 
@@ -69,6 +74,8 @@ Done when every decision point from step 3 has a named winner, its rejected alte
 
 This skill's class in `PIPELINE.md`: which library when the trade-off is a product call, where data lives, what the limits are, anything paid or external, anything that would move the PRD's scope. **Every new dependency is a question** — the budget is the user's, not yours. This is the cheap moment: the same question during implementation costs a rewrite.
 
+**On a revision pass, ask only what this round opened**: the security finding is what changed, so the question is what it costs to close — a new dependency the control needs, a limit the control puts below what the PRD promised, a mechanism swap that moves the scope. A question the first pass already answered is not re-asked; its answer is in **Asked & assumed**.
+
 Done when no decision in the draft rests on a preference you invented, and every user answer is recorded in the report as agreed.
 
 ### 6. Write the file
@@ -78,7 +85,9 @@ Done when no decision in the draft rests on a preference you invented, and every
 
 Section 2 is the **decision map** — phase, its tasks, and the decisions those tasks carry. It is written on every run, whether or not the plan is revised: `issues` renders it into issue bodies and `build-phase` reads it to load a phase's decisions, so a decision that reaches neither is a decision implementation will not see.
 
-Done when every decision point from step 3 has a block, every phase appears in the decision map, every number implementation needs sits in Parameters, and nothing in the file paraphrases the plan.
+**On a revision pass the file is edited, not rewritten.** Only the blocks a trigger fired on move; every other byte stays as it was. A decision this round reverses keeps its `### D-3.` heading and gains `**Superseded by**: D-7 — <reason>, round <N>` as the block's first line, and the replacement takes the next free number. Each change gets a line in `## Revisions` citing the `S-<n>` behind it, and the decision map and Parameters are updated only where those blocks moved. Nothing fired → the whole edit is one `## Revisions` line: `<date> — round <N>: no change; re-read S-1…S-4 against D-1…D-5.`
+
+Done when every decision point from step 3 has a block, every phase appears in the decision map, every number implementation needs sits in Parameters, and nothing in the file paraphrases the plan — or, on a revision pass, when the diff against the previous version contains only what a trigger produced.
 
 ### 7. Revise the plan, only where a decision changed the work
 
@@ -92,6 +101,8 @@ Those three are yours to write, inside the existing phases, following **Versions
 
 Anything larger is **not yours to write**: a change of phase order, a new phase, a phase that swaps layers, or work that crosses the PRD's scope fence. Show it to the user with the decision behind it and ask — it is often a PRD change wearing a plan's clothes.
 
+**A task a `S-<n>` put there is not yours to drop.** On a revision pass the plan already carries tasks `security-analyse` wrote, and a control is retired only by the finding's owner: where a decision makes one unnecessary, say so in section 9 and hand it back — the next `/bldprj:security-analyse` round retires it against its finding.
+
 Done when either the plan is untouched and the report says why, or it carries the revision with every task number preserved and every change traced to a decision.
 
 ### 8. Add the report to the index
@@ -103,6 +114,24 @@ Done when the row's links all resolve and the feature still has exactly one row.
 ### 9. Report
 
 The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/bldprj:security-analyse docs/<slug>/<slug>-PLAN.md`.
+
+A revision pass reports its round instead: which triggers fired and which `S-<n>` fired them, every decision superseded with its replacement, every finding handed back for its own stage to retire, and then the next command by outcome —
+
+- **Converged** — nothing fired: say exactly that. The mechanisms hold every control the threat pass named, the round changed nothing, and the work is ready for `/bldprj:pre-issues docs/<slug>/<slug>-PLAN.md`.
+- **Revised** — a decision moved, so the surface may have moved with it: `/bldprj:security-analyse docs/<slug>/<slug>-PLAN.md` for the round that checks it, naming what it should re-check.
+- **Past the budget** — round 3 or later, run by hand: report it as any other revision pass, then say the budget is past and name the conflict `/bldprj:pre-issues` would settle more cheaply, and why.
+
+## Revision triggers
+
+What a threat pass can legitimately reopen in this file. Five, and the list is closed: an `S-<n>` that fires none of them is a finding the chosen mechanisms already carry, and it changes nothing here.
+
+1. **The mechanism cannot carry the control.** The finding's control is not implementable on what `D-<n>` chose — storage that cannot scope by owner under a control that must, a format that cannot be validated before it is parsed. The decision reopens, and the alternative it rejected is re-costed against the control rather than re-argued from scratch.
+2. **The control needs a parameter this file does not have.** A threshold, a timeout, an allowed-format list, a retention window the control's threshold cites. It is a row in **Parameters**, verified and sourced like any other — no new `D-<n>`, because nothing was chosen.
+3. **The control needs a mechanism nobody chose.** A rate limiter, a content sniffer, a signer, a scanner: work with a real build-or-install choice behind it, which no existing `D-<n>` covers. That is a new `D-<n>`, taken through step 4's order and step 5's question like any other.
+4. **An accepted risk changed the arithmetic.** The user accepted a finding, and the mechanism was chosen partly to close it — the cheaper rejected alternative is now the better one. The decision reopens, citing the acceptance and its date.
+5. **An `Exposure` line turned out wrong.** The threat pass proved a `D-<n>`'s exposure incomplete or mistaken. Correct that line and nothing else: the choice stands, only what it was known to hand an attacker changes.
+
+A finding whose control fits the mechanism as chosen, a finding disposed of as **Held**, and a finding whose task the plan already carries are all **no change** — they are what a converged round is made of.
 
 ## Template
 
@@ -134,6 +163,7 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 
 ### D-1. <The choice, written as a question>
 
+- **Superseded by**: <only on a reversed decision — D-7 — the reason, round 2. The block below stays as it was written.>
 - **Plan tasks**: <1.2, 3.1>
 - **Options**: <table — option · pros · cons · cost to adopt · risk>
 - **Chosen**: <the option, with package version when it is a library>
@@ -167,6 +197,12 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 
 - **Asked** — <the question> → <what the user chose>.
 - **Assumed** — <what was taken as given> · <what changes if it is wrong>.
+
+## Revisions
+
+<Empty on the first pass. One line per revision round: what moved and the S-<n> behind it, or that nothing did.>
+
+- 2026-08-07 — round 2: no change; re-read S-1…S-4 against D-1…D-5.
 ```
 
 ## Rules
@@ -180,3 +216,4 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 - The code stays as it is: no feature code, no installs, no edits to `package.json` or the PRD.
 - The plan is revised only under step 7, in place, and never by renumbering an existing task.
 - A gap in the plan or PRD that blocks a decision is a question for the user, asked before the report file exists.
+- A revision pass changes only what a **Revision trigger** fired on. A settled `D-<n>` is not re-argued, re-worded or re-taken under a new number, and a reversed one keeps its heading and gains `**Superseded by**`. Changing nothing is the expected outcome and is reported as one.
