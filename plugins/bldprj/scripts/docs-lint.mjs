@@ -2,8 +2,9 @@
 /**
  * Checks the invariants this plugin's pipeline (`../PIPELINE.md`) states in prose:
  * key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria
- * coverage and duplicates, D-/S- citation integrity, plan ↔ final ↔ backlog
- * agreement (including a backlog published from a superseded FINAL), and
+ * coverage and duplicates, D-/S- citation integrity in both directions (a cited id
+ * resolves to a live block, a defined one reaches implementation), plan ↔ final ↔
+ * backlog agreement (including a backlog published from a superseded FINAL), and
  * resolvable links that stay inside the project.
  *
  * Usage: `node docs-lint.mjs [project-dir]` — exits 1 when an error is found,
@@ -91,7 +92,7 @@ function insideRoot(path) {
  * @returns {{ slug: string, track: string, prd: string | null, plans: string[], finals: string[], research: string | null, threats: string | null, ms: string | null }} The track's files.
  */
 function collectTrack(folder, track) {
-  const slug = folder.split('/').pop();
+  const slug = basename(folder);
   const infix = track === 'refactor' ? '-REFACTOR' : '';
   const names = readdirSync(folder);
   /**
@@ -456,9 +457,18 @@ function checkBacklog(ms, phases) {
 function checkLinks(file) {
   const { lines } = readLines(file);
   lines.forEach((raw, index) => {
-    for (const match of raw.matchAll(/\]\((\.[^)\s]+)\)/g)) {
+    for (const match of raw.matchAll(/\]\(([^)\s]+)\)/g)) {
       const target = match[1].split('#')[0];
-      if (target && !existsSync(resolve(dirname(file), target))) {
+      // A bare anchor has nothing to resolve, a scheme (`https:`, `mailto:`)
+      // leaves the project, and a root-relative path belongs to a site the
+      // linter knows nothing about.
+      if (
+        !target ||
+        /^[a-z][a-z\d+.-]*:/i.test(target) ||
+        target.startsWith('/')
+      )
+        continue;
+      if (!existsSync(resolve(dirname(file), target))) {
         report('error', file, index + 1, `link to ${target} does not resolve`);
       }
     }
@@ -466,44 +476,67 @@ function checkLinks(file) {
 }
 
 /**
- * Checks that every D-/S- id the buildable document cites is actually defined
- * where it is minted, so build-phase never loads a phase against a dangling id.
+ * Collects the ids a document defines as `### <id>.` blocks, and which of those
+ * blocks a revision round overruled (`**Superseded by**` / `**Retired**`).
+ * @param {string | null} file Absolute path of the defining document.
+ * @param {RegExp} pattern Non-global pattern matching one id heading, id in group 1.
+ * @returns {Map<string, boolean>} Id → whether its block was superseded or retired.
+ */
+function definedIds(file, pattern) {
+  /** @type {Map<string, boolean>} */
+  const defined = new Map();
+  if (!file) return defined;
+  let current = null;
+  for (const raw of readLines(file).lines) {
+    const heading = raw.match(pattern);
+    if (heading) {
+      current = heading[1];
+      defined.set(current, false);
+    } else if (raw.startsWith('#')) {
+      current = null;
+    } else if (current && /^-\s+\*\*(Superseded by|Retired)\*\*:/.test(raw)) {
+      defined.set(current, true);
+    }
+  }
+  return defined;
+}
+
+/**
+ * Checks the D-/S- ids the buildable document and its sources share, both ways:
+ * a cited id resolves to a live block, and a defined one reaches implementation.
  * @param {string} buildable Absolute path of the plan or FINAL later stages read.
  * @param {string | null} research Absolute path of the research file, when present.
  * @param {string | null} threats Absolute path of the threats file, when present.
+ * @param {boolean} consolidated Whether the buildable document is a FINAL, where
+ *   every phase is required to carry its **Decisions** and **Threats** lines.
  * @returns {void}
  */
-function checkCitations(buildable, research, threats) {
-  /**
-   * Collects the ids a document defines as `### <id>.` blocks.
-   * @param {string | null} file Absolute path of the defining document.
-   * @param {RegExp} pattern Pattern with the id in group 1.
-   * @returns {Set<string>} The defined ids, empty when the file is absent.
-   */
-  const ids = (file, pattern) =>
-    file
-      ? new Set(
-          [...readLines(file).text.matchAll(pattern)].map((match) => match[1]),
-        )
-      : new Set();
+function checkCitations(buildable, research, threats, consolidated) {
   const sources = {
     D: {
-      known: ids(research, /^###\s+(D-\d+)\./gm),
+      defined: definedIds(research, /^###\s+(D-\d+)\./),
       file: research,
       stage: 'research',
     },
     S: {
-      known: ids(threats, /^###\s+(S-\d+)\./gm),
+      defined: definedIds(threats, /^###\s+(S-\d+)\./),
       file: threats,
       stage: 'threats',
     },
   };
+  const cited = new Set();
+  let inRevisions = false;
   readLines(buildable).lines.forEach((raw, index) => {
-    if (!raw.startsWith('**Decisions**:') && !raw.startsWith('**Threats**:'))
-      return;
+    if (raw.startsWith('## ')) inRevisions = /^##\s+Revisions/.test(raw);
+    // `**Decisions**:` and `**Threats**:` are the lines issues and build-phase
+    // load a phase's ids from; an id anywhere else is prose that must still
+    // resolve, and `## Revisions` is history, free to name what it overruled.
+    const structural =
+      raw.startsWith('**Decisions**:') || raw.startsWith('**Threats**:');
     for (const match of raw.matchAll(/\b([DS]-\d+)\b/g)) {
       const id = match[1];
-      const { known, file, stage } = sources[id[0]];
+      const { defined, file, stage } = sources[id[0]];
+      if (!inRevisions) cited.add(id);
       if (!file) {
         report(
           'error',
@@ -511,16 +544,38 @@ function checkCitations(buildable, research, threats) {
           index + 1,
           `cites ${id} but there is no ${stage} file beside it`,
         );
-      } else if (!known.has(id)) {
+      } else if (!defined.has(id)) {
         report(
           'error',
           buildable,
           index + 1,
           `cites ${id}, which ${basename(file)} does not define`,
         );
+      } else if (structural && defined.get(id)) {
+        report(
+          'error',
+          buildable,
+          index + 1,
+          `cites ${id}, which a revision round superseded — cite its replacement`,
+        );
       }
     }
   });
+  // Only a FINAL is required to carry every phase's ids, so only there does an
+  // uncited decision or finding prove implementation will never see it.
+  if (!consolidated) return;
+  for (const { defined, file } of Object.values(sources)) {
+    if (!file) continue;
+    for (const [id, superseded] of defined) {
+      if (superseded || cited.has(id)) continue;
+      report(
+        'warn',
+        file,
+        null,
+        `defines ${id}, which ${basename(buildable)} cites nowhere — implementation will not see it`,
+      );
+    }
+  }
 }
 
 /**
@@ -573,12 +628,12 @@ function checkTrack(track, keys) {
   }
   const prdLines = readLines(track.prd).lines;
   const key = header(prdLines, 'Key');
-  if (!key || !/^[A-Z]{2,4}$/.test(key)) {
+  if (!key || !/^[A-Z]{2,6}$/.test(key)) {
     report(
       'error',
       track.prd,
       null,
-      `**Key** is "${key ?? 'missing'}" — 2–4 uppercase letters`,
+      `**Key** is "${key ?? 'missing'}" — 2–6 uppercase letters`,
     );
   } else {
     const owner = keys.get(key);
@@ -667,7 +722,12 @@ function checkTrack(track, keys) {
     }
   }
   checkCoverage(track.prd, buildable, phases);
-  checkCitations(buildable, track.research, track.threats);
+  checkCitations(
+    buildable,
+    track.research,
+    track.threats,
+    Boolean(currentFinal),
+  );
   checkMap(track.research, 'Decision map', phases);
   checkMap(track.threats, 'Threat map', phases);
   if (track.ms) {
@@ -711,7 +771,7 @@ function checkIndex(folders) {
   }
   const { text } = readLines(index);
   for (const folder of folders) {
-    const slug = folder.split('/').pop();
+    const slug = basename(folder);
     const rows = text
       .split('\n')
       .filter((line) => line.includes(`${slug}/${slug}-`));

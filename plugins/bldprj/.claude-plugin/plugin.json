@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "bldprj",
   "displayName": "Build Project Pipeline",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "The document pipeline a feature or refactor is built through: PRD, preliminary phase plan, research, threat analysis, the final plan those three consolidate into, the GitHub backlog, one phase build at a time, and the close-out that archives the shipped work.",
   "author": {
     "name": "Kirill Ivanov",

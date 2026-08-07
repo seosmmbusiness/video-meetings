@@ -1,6 +1,6 @@
 # bldprj — Build Project Pipeline
 
-The document pipeline a feature or refactor is built through, packaged as one Claude Code plugin. Eight stages, nine skills, one chain, one artifact per stage:
+The document pipeline a feature or refactor is built through, packaged as one Claude Code plugin. Eight stages, nine skills, one chain, one artifact per stage — plus `status`, which reports on the chain from outside it:
 
 ```
 prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase  →  close-feature
@@ -17,6 +17,8 @@ prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  
 | `issues`           | GitHub, `-MS.json`            | the mirror of the final plan on GitHub                  |
 | `build-phase`      | code, PR, progress            | one phase, from branch to green PR to closed milestone  |
 | `close-feature`    | archive, logs, PRD status     | the proof of every criterion, and the archive           |
+
+One skill sits outside the chain: **`status`** reads `docs/` and reports where every work item has got to and the one command that moves it on. It writes nothing and calls nothing, so it is safe at any point.
 
 The chain runs forward once, and that pass is complete on its own. `research` and `security-analyse` can additionally be run against each other — a mechanism that cannot carry a control sends the work back to `research`, and a decision that moves an entry point sends it back to `security-analyse`. A re-run is detected, not asked for, and it revises rather than rewrites: it changes only what its own closed list of triggers fires on, records the round in the document's `## Revisions`, and reports **converged** when nothing fired. Two rounds is the budget; past that, `pre-issues` is the cheaper arbiter. See **Re-running a stage** in `PIPELINE.md`.
 
@@ -65,7 +67,7 @@ claude plugin validate <path to this folder>
 
 ## The validator
 
-`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria coverage and duplicates, D-/S- citation integrity, plan ↔ final plan ↔ backlog agreement (including a backlog left behind by a newer FINAL), and resolvable links that stay inside the project.
+`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria coverage and duplicates, D-/S- citation integrity in both directions (a cited id resolves to a live block, a superseded one is not cited as current, and a decision or finding a FINAL cites nowhere is a warning), plan ↔ final plan ↔ backlog agreement (including a backlog left behind by a newer FINAL), and resolvable links that stay inside the project.
 
 It reads the project's `docs/` tree, which it cannot infer from its own location inside the plugin, so the project root comes from the first argument, else `$CLAUDE_PROJECT_DIR`, else the working directory:
 

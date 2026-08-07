@@ -1,6 +1,6 @@
 # bldprj
 
-A Claude Code plugin: the document pipeline a feature or refactor is built through. Eight stages, nine skills, one artifact per stage, from a PRD to a shipped and archived feature.
+A Claude Code plugin: the document pipeline a feature or refactor is built through. Eight stages, nine skills, one artifact per stage, from a PRD to a shipped and archived feature — plus `status`, a tenth skill that only reports on the chain.
 
 This file is for working **on the plugin**. What the pipeline _is_ lives in [`PIPELINE.md`](PIPELINE.md) (the contract every skill shares) and [`REFACTOR-TRACK.md`](REFACTOR-TRACK.md) (what the refactor track does differently) — don't restate either here. [`README.md`](README.md) is the user-facing install and validator doc.
 
@@ -42,6 +42,9 @@ bldprj/
 | `issues`           | GitHub, `-MS.json`            | the mirror of the final plan on GitHub                  |
 | `build-phase`      | code, PR, progress            | one phase, from branch to green PR to closed milestone  |
 | `close-feature`    | archive, logs, PRD status     | the proof of every criterion, and the archive           |
+| `status`           | nothing                       | where each work item stopped, and its next command      |
+
+`status` is the one skill that is not a stage: it reads `docs/`, writes no file, makes no network call, and runs no postflight. Keep it that way — the moment it corrects something it becomes a stage with no artifact to own.
 
 ## Invariants
 
@@ -84,18 +87,17 @@ Never both in one project — the pipeline would load twice.
 
 ## Status
 
-Version 2.1.0. Nine skills, both tracks, the validator and its suite are in place, and the plugin is decoupled from the repo that hosts it (no host-project names in the pipeline text). The skills are invoked namespaced: `/bldprj:prd`, `/bldprj:plan-phase`, …
+Version 2.2.0. Ten skills, both tracks, the validator and its suite are in place, and the plugin is decoupled from the repo that hosts it (no host-project names in the pipeline text). The skills are invoked namespaced: `/bldprj:prd`, `/bldprj:plan-phase`, …
+
+2.2.0 closed the linter and contract gaps 2.1.0 left open. `docs-lint.mjs` now checks citations **both ways** — a cited id must resolve to a live block anywhere it appears, a `**Decisions**:` / `**Threats**:` line may not cite a superseded one, and a `D-<n>` or `S-<n>` that a FINAL cites nowhere is a warning (the check is gated on FINAL, because only there is every phase required to carry its ids; `## Revisions` is history and grants no citation). `checkLinks` resolves every relative link rather than only `.`-prefixed ones, skipping schemes and root-relative paths. `basename` replaced `split('/')`, so the linter is no longer POSIX-only. The Key may now grow to six letters, matching `PIPELINE.md`'s instruction to lengthen it on a collision. `build-phase` step 2 names the settle-commit risk and its recovery, and the postflight rule no longer assumes npm. New skill: `status`.
 
 2.1.0 added the **revision pass** (`PIPELINE.md`, Re-running a stage): `research` and `security-analyse` can now run round-trips against each other. Each detects its own re-run, reads backwards before forwards, changes only what its closed **Revision triggers** list fires on, records the round in its own `## Revisions`, and reports "converged" when nothing fired. A reversed decision or a retired finding keeps its heading and gains `**Superseded by**`, so citations still resolve. The budget is two rounds, after which each skill recommends `pre-issues` as the arbiter — a further round asked for by hand still runs, and says the budget is past. The single forward pass is unchanged and remains the default. The same release made an approved **Promise** land complete — criterion, phase **Covers**, and the task that keeps it — which is what stopped it failing the run's own postflight.
 
-Known gaps, in the order they bite:
+Known gaps:
 
-- **Citation checks are one-directional.** The linter catches a cited id that nothing defines, not a defined id that nothing cites — and it only reads `**Decisions**:` / `**Threats**:` lines, not ids inside task text. It does not yet know `**Superseded by**` either: a phase citing a superseded `D-<n>` is caught by `pre-issues`, not mechanically.
-- **`docs-lint.mjs` splits paths on `/`** in `collectTrack` and `checkIndex` while importing `sep` for `insideRoot` — POSIX-only, and `basename` is already imported.
-- **`checkLinks` only matches links starting with `.`** (`docs-lint.mjs`), so a plain relative link is never resolved.
-- **The Key regex caps at four letters** (`^[A-Z]{2,4}$`) while `PIPELINE.md` says to lengthen a Key on a collision — the escape hatch has a ceiling the linter enforces.
-- **The postflight is npm-shaped** — "the project's `docs:lint` script" assumes a package manifest, and the fallback needs `node` on a project that may have neither.
-- **A settle commit rides the next phase's branch** (`build-phase` step 2). If that phase's PR never merges, the completion record of the phase before it goes with the branch. The risk is not named in the skill.
-- **No `/bldprj:status`** — nine commands, and the state of a feature is spread across its MS file, `docs/INDEX.md` and FINAL.
+- **`checkMap` matches the map heading anywhere in the file**, so a document merely mentioning "Decision map" passes the check that it has one.
+- **`checkCitations` reads ids from a document's text**, so an id inside a fenced code block or an illustrative example counts as a citation. Harmless today, since neither research nor threats documents ship examples of foreign ids.
+- **Nothing checks the `## Revisions` sections against each other** — a research round recorded with no corresponding threats round is invisible to the linter, and only `pre-issues` would notice.
+- **`build-phase`, `issues` and `close-feature` are unlinted**: they act on GitHub, and their invariants live only in prose.
 
 Update this file when a stage, an artifact name or an invariant moves — not for wording changes inside a skill.

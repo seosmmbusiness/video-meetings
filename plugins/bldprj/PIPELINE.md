@@ -1,6 +1,6 @@
 # Pipeline
 
-Eight stages, nine skills, one chain. Each stage owns one artifact and one class of decision, and reads the artifact the stage before it wrote:
+Eight stages, nine skills, one chain. Each stage owns one artifact and one class of decision, and reads the artifact the stage before it wrote. A tenth skill, `status`, sits outside the chain and only reports on it:
 
 ```
 prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase  →  close-feature
@@ -31,7 +31,7 @@ Seven identifiers carry work through the chain. Each is minted once by the stage
 | Id                | Minted by              | Shape                                               |
 | ----------------- | ---------------------- | --------------------------------------------------- |
 | **slug**          | `prd`                  | English kebab-case, names the folder and every file |
-| **Key**           | `prd`                  | 2–4 uppercase letters, the slug's initials — `MFU`  |
+| **Key**           | `prd`                  | 2–6 uppercase letters, the slug's initials — `MFU`  |
 | **`AC-<n>`**      | `prd` / `refactor-prd` | one acceptance criterion                            |
 | **`<phase>.<n>`** | `plan-phase`           | one task, counted from 1 inside its phase           |
 | **`D-<n>`**       | `research`             | one technical decision                              |
@@ -39,7 +39,7 @@ Seven identifiers carry work through the chain. Each is minted once by the stage
 | **`T-<n>`**       | `pre-issues`           | one trade-off ruled on by the user                  |
 
 - Numbers are **never reused and never renumbered**. A dropped item keeps its number, retired, so the issue, commit or log row that cites it still resolves.
-- A **Key** is unique across the repo, both tracks and the archive included. Mint it against what already exists, and lengthen it on a collision (`MFU` taken → `MFUP`):
+- A **Key** is unique across the repo, both tracks and the archive included. Mint it against what already exists, and lengthen it on a collision, up to six letters (`MFU` taken → `MFUP`) — it prefixes every milestone and issue title, so the shortest one that is still free is the right one:
 
   ```bash
   grep -h '^\*\*Key\*\*' docs/*/*-PRD.md docs/*/*-REFACTOR-PRD.md docs/archive/*/*-PRD.md docs/archive/*/*-REFACTOR-PRD.md 2>/dev/null | sort -u
@@ -132,7 +132,7 @@ Every skill asks. Each asks inside **its own class**, and hands a question outsi
   - **Assumed** — <what was taken as given> · <what changes if it is wrong>.
   ```
 
-- **Postflight**: run the docs linter before reporting — the project's `docs:lint` script when it defines one, else the copy shipping with this plugin: `node ${CLAUDE_PLUGIN_ROOT}/scripts/docs-lint.mjs <project root>`. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, citation integrity, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it.
+- **Postflight**: run the docs linter before reporting. The project's own entry point comes first where its docs name one, in whatever form the project runs commands (an npm `docs:lint` script, a make target, a task runner recipe); otherwise the copy shipping with this plugin, which needs Node on the machine: `node ${CLAUDE_PLUGIN_ROOT}/scripts/docs-lint.mjs <project root>`. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, citation integrity both ways, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it; a linter that could not run at all is named too, with what stopped it, and never passed off as clean.
 
 ## Reporting
 

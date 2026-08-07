@@ -276,6 +276,226 @@ test('a cited decision id must exist in the research file', () => {
   );
 });
 
+/**
+ * Builds a feature whose FINAL cites the research and threats beside it.
+ * @param {{ decisions?: string, threats?: string, research?: string[], findings?: string[] }} parts
+ *   Overrides for the FINAL's citation lines and the two source documents' blocks.
+ * @returns {Record<string, string>} Relative paths and their contents.
+ */
+function consolidatedFeature(parts = {}) {
+  const files = cleanFeature();
+  files['docs/demo/demo-PLAN.md'] = files['docs/demo/demo-PLAN.md'].replace(
+    '**Status**: preliminary',
+    '**Status**: superseded by [demo-FINAL.md](./demo-FINAL.md)',
+  );
+  files['docs/demo/demo-FINAL.md'] = [
+    '# Final plan: Demo',
+    '',
+    '**Key**: DEM',
+    '**Date**: 2026-08-07',
+    '**Status**: ready',
+    '',
+    '## Phase 1. Tracer',
+    '',
+    '**Goal**: X works',
+    '**Covers**: AC-1',
+    parts.decisions ?? '**Decisions**: D-1',
+    parts.threats ?? '**Threats**: S-1',
+    '**Tasks**:',
+    '',
+    '- [ ] **1.1** Do X — X becomes true',
+    '',
+    '**Done when**: X observed',
+    '',
+    '## Asked & assumed',
+    '',
+    '- **Assumed** — nothing · nothing.',
+    '',
+  ].join('\n');
+  files['docs/demo/demo-RESEARCH.md'] = [
+    '# Research: Demo',
+    '',
+    '## 2. Decision map',
+    '',
+    '| Phase | Tasks | Decisions |',
+    '| ----- | ----- | --------- |',
+    '| 1     | 1.1   | D-1       |',
+    '',
+    ...(parts.research ?? ['### D-1. Which storage?', '']),
+    '## Asked & assumed',
+    '',
+    '- **Assumed** — nothing · nothing.',
+    '',
+  ].join('\n');
+  files['docs/demo/demo-THREATS.md'] = [
+    '# Threats: Demo',
+    '',
+    '## 2. Threat map',
+    '',
+    '| Phase | Tasks | Findings |',
+    '| ----- | ----- | -------- |',
+    '| 1     | 1.1   | S-1      |',
+    '',
+    ...(parts.findings ?? ['### S-1. Stranger reads a row.', '']),
+    '## Asked & assumed',
+    '',
+    '- **Assumed** — nothing · nothing.',
+    '',
+  ].join('\n');
+  files['docs/INDEX.md'] = files['docs/INDEX.md'].replace(
+    'Research — · Threats — · Final —',
+    [
+      '[Research](demo/demo-RESEARCH.md)',
+      '[Threats](demo/demo-THREATS.md)',
+      '[Final](demo/demo-FINAL.md)',
+    ].join(' · '),
+  );
+  return files;
+}
+
+test('a consolidated feature citing live ids both ways lints clean', () => {
+  const run = lint(consolidatedFeature());
+  assert.equal(run.status, 0, run.stdout);
+  assert.match(run.stdout, /0 errors, 0 warnings/);
+});
+
+test('a decision no phase cites is a warning once a FINAL exists', () => {
+  const run = lint(
+    consolidatedFeature({
+      research: [
+        '### D-1. Which storage?',
+        '',
+        '### D-2. Which validator?',
+        '',
+      ],
+    }),
+  );
+  assert.equal(run.status, 0, run.stdout);
+  assert.match(
+    run.stdout,
+    /defines D-2, which demo-FINAL\.md cites nowhere — implementation will not see it/,
+  );
+});
+
+test('a preliminary plan is not held to citing every decision', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-RESEARCH.md'] = [
+    '# Research: Demo',
+    '',
+    '## 2. Decision map',
+    '',
+    '| Phase | Tasks | Decisions |',
+    '| ----- | ----- | --------- |',
+    '| 1     | 1.1   | D-1       |',
+    '',
+    '### D-1. Which storage?',
+    '',
+    '## Asked & assumed',
+    '',
+    '- **Assumed** — nothing · nothing.',
+    '',
+  ].join('\n');
+  files['docs/INDEX.md'] = files['docs/INDEX.md'].replace(
+    'Research —',
+    '[Research](demo/demo-RESEARCH.md)',
+  );
+  const run = lint(files);
+  assert.equal(run.status, 0, run.stdout);
+  assert.doesNotMatch(run.stdout, /cites nowhere/);
+});
+
+test('a phase citing a superseded decision is an error', () => {
+  const run = lint(
+    consolidatedFeature({
+      research: [
+        '### D-1. Which storage?',
+        '',
+        '- **Superseded by**: D-2 — cannot scope by owner, round 2',
+        '',
+        '### D-2. Which storage, after S-1?',
+        '',
+      ],
+      decisions: '**Decisions**: D-1, D-2',
+    }),
+  );
+  assert.equal(run.status, 1);
+  assert.match(
+    run.stdout,
+    /cites D-1, which a revision round superseded — cite its replacement/,
+  );
+});
+
+test('a superseded decision named only in ## Revisions is not a citation', () => {
+  const files = consolidatedFeature({
+    research: [
+      '### D-1. Which storage?',
+      '',
+      '- **Superseded by**: D-2 — cannot scope by owner, round 2',
+      '',
+      '### D-2. Which storage, after S-1?',
+      '',
+    ],
+    decisions: '**Decisions**: D-2',
+  });
+  files['docs/demo/demo-FINAL.md'] = files['docs/demo/demo-FINAL.md'].concat(
+    [
+      '## Revisions',
+      '',
+      '- 2026-08-07 — round 2: D-1 superseded by D-2 — S-1.',
+      '',
+    ].join('\n'),
+  );
+  const run = lint(files);
+  assert.equal(run.status, 0, run.stdout);
+  assert.doesNotMatch(run.stdout, /superseded — cite its replacement/);
+  assert.doesNotMatch(run.stdout, /cites nowhere/);
+});
+
+test('a relative link with no leading dot is still resolved', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PRD.md'] = files['docs/demo/demo-PRD.md'].replace(
+    '## Asked & assumed',
+    '[the plan](demo-PLAN.md) and [a ghost](demo-GHOST.md)\n\n## Asked & assumed',
+  );
+  const run = lint(files);
+  assert.equal(run.status, 1);
+  assert.match(run.stdout, /link to demo-GHOST\.md does not resolve/);
+  assert.doesNotMatch(run.stdout, /link to demo-PLAN\.md/);
+});
+
+test('an external or root-relative link is left alone', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PRD.md'] = files['docs/demo/demo-PRD.md'].replace(
+    '## Asked & assumed',
+    '[docs](https://example.com/x) [mail](mailto:a@b.c) [root](/nope.md)\n\n## Asked & assumed',
+  );
+  const run = lint(files);
+  assert.equal(run.status, 0, run.stdout);
+  assert.doesNotMatch(run.stdout, /does not resolve/);
+});
+
+test('a key is allowed to grow to six letters on a collision', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PRD.md'] = files['docs/demo/demo-PRD.md'].replace(
+    '**Key**: DEM',
+    '**Key**: DEMOPQ',
+  );
+  files['docs/demo/demo-PLAN.md'] = files['docs/demo/demo-PLAN.md'].replace(
+    '**Key**: DEM',
+    '**Key**: DEMOPQ',
+  );
+  const ok = lint(files);
+  assert.equal(ok.status, 0, ok.stdout);
+
+  files['docs/demo/demo-PRD.md'] = files['docs/demo/demo-PRD.md'].replace(
+    '**Key**: DEMOPQ',
+    '**Key**: DEMOPQR',
+  );
+  const tooLong = lint(files);
+  assert.equal(tooLong.status, 1);
+  assert.match(tooLong.stdout, /2–6 uppercase letters/);
+});
+
 test('a FINAL with no plan beside it is still checked', () => {
   const files = cleanFeature();
   files['docs/demo/demo-FINAL.md'] = files['docs/demo/demo-PLAN.md']
