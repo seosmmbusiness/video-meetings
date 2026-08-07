@@ -28,15 +28,15 @@ Two tracks run through the same seven skills. **Feature** adds behaviour; **refa
 
 Seven identifiers carry work through the chain. Each is minted once by the stage that owns it, and every later mention is a reference to it:
 
-| Id                | Minted by          | Shape                                               |
-| ----------------- | ------------------ | --------------------------------------------------- |
-| **slug**          | `prd`              | English kebab-case, names the folder and every file |
-| **Key**           | `prd`              | 2–4 uppercase letters, the slug's initials — `MFU`  |
-| **`AC-<n>`**      | `prd`              | one acceptance criterion                            |
-| **`<phase>.<n>`** | `plan-phase`       | one task, counted from 1 inside its phase           |
-| **`D-<n>`**       | `research`         | one technical decision                              |
-| **`S-<n>`**       | `security-analyse` | one security finding                                |
-| **`T-<n>`**       | `pre-issues`       | one trade-off ruled on by the user                  |
+| Id                | Minted by              | Shape                                               |
+| ----------------- | ---------------------- | --------------------------------------------------- |
+| **slug**          | `prd`                  | English kebab-case, names the folder and every file |
+| **Key**           | `prd`                  | 2–4 uppercase letters, the slug's initials — `MFU`  |
+| **`AC-<n>`**      | `prd` / `refactor-prd` | one acceptance criterion                            |
+| **`<phase>.<n>`** | `plan-phase`           | one task, counted from 1 inside its phase           |
+| **`D-<n>`**       | `research`             | one technical decision                              |
+| **`S-<n>`**       | `security-analyse`     | one security finding                                |
+| **`T-<n>`**       | `pre-issues`           | one trade-off ruled on by the user                  |
 
 - Numbers are **never reused and never renumbered**. A dropped item keeps its number, retired, so the issue, commit or log row that cites it still resolves.
 - A **Key** is unique across the repo, both tracks and the archive included. Mint it against what already exists, and lengthen it on a collision (`MFU` taken → `MFUP`):

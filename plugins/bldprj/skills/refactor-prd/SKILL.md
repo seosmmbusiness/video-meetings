@@ -84,7 +84,7 @@ Done when every improvement you found sits in exactly one list — a driver, or 
 - **Path**: `docs/<slug>/<slug>-REFACTOR-PRD.md`, creating `docs/<slug>/` if it does not exist.
 - **Shape**: the template below, section for section.
 
-Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by an acceptance criterion, and every criterion is falsifiable.
+Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by a numbered `AC-<n>`, and every criterion is falsifiable.
 
 ### 7. Open the refactor's row in the index
 
@@ -149,10 +149,10 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 ## 7. Acceptance criteria
 
-<Falsifiable statements. At least one per freeze line and one per outcome; each names the observation that would prove it wrong.>
+<Falsifiable statements, numbered **AC-1**, **AC-2**, … exactly as in a feature PRD — the numbers are permanent: phases cite them in **Covers**, the linter holds the plan to them, and close-out proves them one by one. At least one per freeze line and one per outcome; each names the observation that would prove it wrong.>
 
-- [ ] `npm run test:api` passes with the same test count and no test file changed.
-- [ ] `GET /meetings` emits 2 queries per request, down from 1 + N, measured by Prisma query logging.
+- [ ] **AC-1** The full test suite passes with the same test count and no test file changed.
+- [ ] **AC-2** The listing endpoint emits 2 queries per request, down from 1 + N, measured by query logging.
 
 ## Asked & assumed
 

@@ -35,7 +35,7 @@ Input `docs/<slug>/<slug>-REFACTOR-PRD.md`, output `docs/<slug>/<slug>-REFACTOR-
 - A phase's **Done when** names the baseline commands and their green result, plus the measured before → after number for the internal outcome it serves.
 - Tasks move code; they do not edit tests. A task that could only be done by changing a test is a behaviour change hiding in the plan — split it out and send it to `/prd`.
 
-Template delta: the header links `<slug>-REFACTOR-PRD.md`, and each phase block gains **Parity check** (the commands that must stay green, plus what to observe by hand) and **Measures** (before → target for this phase).
+Template delta: the header links `<slug>-REFACTOR-PRD.md`, each phase's **Covers** cites the refactor PRD's `AC-<n>` exactly as on the feature track, and each phase block gains **Parity check** (the commands that must stay green, plus what to observe by hand) and **Measures** (before → target for this phase).
 
 ## `issues` on a refactor
 
@@ -89,7 +89,7 @@ Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR
 
 ## `pre-issues` on a refactor
 
-Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-FINAL.md`, phases addressed `R<N>`. The **Behaviour freeze** and the **Internal outcomes** take the place of `AC-<n>` throughout: the Trace table's first column is a freeze line or an outcome, and its **Proven by** column is the baseline command that would catch the freeze breaking, or the measurement that produces the after-number.
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-FINAL.md`, phases addressed `R<N>`. Every freeze line and every internal outcome already fronts an `AC-<n>` in the refactor PRD, so the Trace table reads exactly as on the feature track — one row per criterion — and its **Proven by** column is the baseline command that would catch the freeze breaking, or the measurement that produces the after-number.
 
 Parity is a tenth conflict class, and it outranks the rest:
 

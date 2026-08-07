@@ -80,7 +80,7 @@ Done when the tree is clean, the starting branch from step 2 is current, and the
 git checkout -b feature/meeting-file-upload-phase-2 <starting branch from step 2>
 ```
 
-- The name is `feature/<slug>-phase-<N>`, and the slug comes from the PRD/PLAN/MS filenames — inventing a new one scatters a feature's branches.
+- The name is `feature/<slug>-phase-<N>` — `refactor/<slug>-phase-<N>` on the refactor track, per the MS file's `"track"` field — and the slug comes from the PRD/PLAN/MS filenames; inventing a new one scatters a feature's branches.
 - The branch already exists → switch to it and continue the phase; commits on it you cannot account for → show `git log` and ask.
 - Every commit of this run lands here. `main` and `develop` receive none.
 
@@ -158,7 +158,7 @@ For this run's phase once its PR is merged, and for the earlier phase step 2 fou
 1. The merge closed the issues through the PR's `Closes` lines. Any that stayed open — a task settled outside the PR — closes here with its reason:
 
    ```bash
-   gh issue close <number> --comment "Done in feature/<slug>-phase-<N>, commit <sha>, PR <url>."
+   gh issue close <number> --comment "Done in <the phase branch>, commit <sha>, PR <url>."
    ```
 
 2. The milestone closes **only once all its issues are closed** (`gh` has no `milestone` subcommand — go through the API):
@@ -242,7 +242,7 @@ Shipped features, newest first. Phase rows collect under **In progress** while a
 - One phase per run. Other phases' tasks are not implemented, and the only other phase this run touches is one it settles after a merge.
 - Research decisions and the rulings in FINAL are not reopened during implementation; a discrepancy is a question, not a silent replay.
 - Nothing outside the PRD's scope. A worthwhile improvement spotted in passing becomes its own task, not a commit in this branch.
-- Work happens on `feature/<slug>-phase-<N>` cut from `develop`/`main` (or from the previous phase's branch, per step 2). The base branch receives no commits.
+- Work happens on `feature/<slug>-phase-<N>` (`refactor/<slug>-phase-<N>` on the refactor track) cut from `develop`/`main` (or from the previous phase's branch, per step 2). The base branch receives no commits.
 - The branch slug matches the slug of the PRD/PLAN/MS files.
 - Tests run after every task and in full before the push; red never gets pushed.
 - Tests are not rewritten or weakened to reach green; any test rewrite is agreed with the user first.
