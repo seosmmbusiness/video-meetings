@@ -19,8 +19,7 @@ This is the design-level pass. `/security-review` is the diff-level one that `bu
 
 Path to a plan (`/security-analyse docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to analyse, rather than picking one.
-- Several versions of the same plan → take the current one and say which file you took.
+- No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to analyse, rather than picking one.
 - No `-RESEARCH.md` next to the plan → say so and offer `/research` first: a control can only be named in the idiom of a mechanism that has been chosen.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `security-analyse` section decides the disposition of every finding against parity.
 
@@ -65,7 +64,7 @@ Done when every finding states its caller, its input and its asset, and carries 
 Exactly one of four, and the fourth is the user's:
 
 - **Held** — an existing control or a task already in the plan closes it. Name the file or the task number; no new work.
-- **Work** — the plan is missing the control. It becomes a task in the phase that owns the entry point, written into the next plan version in step 8.
+- **Work** — the plan is missing the control. It becomes a task in the phase that owns the entry point, written into the plan in step 8.
 - **Promise** — the control is something the user was never promised, so there is nothing for a test to hold. It needs an `AC-<n>` in the PRD.
 - **Accepted** — the user takes the risk knowingly, with the date and their words recorded.
 
@@ -165,7 +164,7 @@ Ten classes, each with what already holds it in this repo. An entry point is tak
 - **Severity**: <high · medium · low, and what makes it that>
 - **Control**: <the guard, validator, limit or scope that closes it, and the file it lives in>
 - **Proven by**: <the test that fails without the control>
-- **Disposition**: <held by … · work: task 2.4 in v2 · promise: AC-7 · accepted 2026-08-05 by the user>
+- **Disposition**: <held by … · work: task 2.4 · promise: AC-7 · accepted 2026-08-05 by the user>
 
 ## 5. Plan impact
 

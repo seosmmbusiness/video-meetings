@@ -17,8 +17,7 @@ Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`researc
 
 Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to research, rather than picking one.
-- Several versions of the same plan → take the current one and say which file you took.
+- No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to research, rather than picking one.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
 
 ## Steps

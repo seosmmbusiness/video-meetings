@@ -22,8 +22,7 @@ Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research`
 
 Path to a plan (`/pre-issues docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` that have a research and a threats file beside them, and ask which one to finalise.
-- Several versions of the same plan → take the current one and say which file you took.
+- No argument → list the plans under `docs/*/*-PLAN.md` that have a research and a threats file beside them, and ask which one to finalise.
 - No `-RESEARCH.md` or no `-THREATS.md` beside it → say so and offer `/research` or `/security-analyse` first: with a mechanism or a control still missing there is nothing to consolidate.
 - A `-FINAL.md` already sits there → **Versions** in `PIPELINE.md` decides whether this run rewrites it or writes the next version.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `pre-issues` section adds parity to the conflict classes and names the file this run writes.
@@ -96,7 +95,7 @@ Done when every conflict from step 4 carries its `T-<n>`, the user's words and i
 
 ### 6. Write the final plan
 
-- **Path**: `docs/<slug>/<slug>-FINAL.md`, next to the plan, reusing its slug exactly.
+- **Path**: `docs/<slug>/<slug>-FINAL.md`, next to the plan, reusing its slug exactly. A re-run that must version (an `-MS.json` exists — **Versions** in `PIPELINE.md`) writes `docs/<slug>/<slug>-FINAL-v<N>.md` instead, and gives the version it replaces `**Status**: superseded by [<slug>-FINAL-v<N>.md](./<slug>-FINAL-v<N>.md)`.
 - **Shape**: the template below — the plan's phase blocks, so `issues`, `build-phase` and `docs:lint` read FINAL exactly as they read a plan.
 
 Three things make it the buildable document rather than a summary:
@@ -110,7 +109,7 @@ Done when every live task from the plan appears with its number, every phase car
 ### 7. Close the plan and open FINAL's place in the index
 
 - The plan this run consolidated gains `**Status**: superseded by [<slug>-FINAL.md](./<slug>-FINAL.md)`. The preliminary cut stays as history, and nothing downstream reads it again.
-- `docs/INDEX.md` — this feature's row: its `Final —` placeholder becomes the link to the file just written (a row opened before this stage existed gains the segment).
+- `docs/INDEX.md` — this feature's row: its `Final` segment links the file just written — the `Final —` placeholder on a first run, the previous version's link on a version bump (a row opened before this stage existed gains the segment).
 - `npm run docs:lint`.
 
 Done when the plan says what superseded it, every link in the feature's row resolves, and docs:lint is clean or its findings are named in the report.

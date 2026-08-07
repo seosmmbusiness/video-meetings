@@ -66,7 +66,7 @@ A `docs/*/*-PRD.md` listing matches both tracks — the infix in the path says w
 
 ## Resolving paths
 
-- **Before the backlog exists**: siblings of the document in the argument, by slug. The **current** version of a plan or a FINAL is the highest-numbered one present, and the unsuffixed file is version 1.
+- **Before the backlog exists**: siblings of the document in the argument, by slug. The plan is exactly one file, revised in place; the **current** FINAL is the highest-numbered `-FINAL-v<N>.md` present, and the unsuffixed file is version 1.
 - **Once `-MS.json` exists**: its `sources` block is authoritative. `sources.final` records the exact FINAL file the backlog was published from, version and all, and `sources.plan` the preliminary plan behind it — `build-phase` and every later run take their phases and tasks from `sources.final`, and the PRD, research and threats from those fields, rather than looking for the newest file on disk.
 
 ## Versions
