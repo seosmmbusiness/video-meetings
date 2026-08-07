@@ -9,7 +9,7 @@ A refactor PRD fixes **what stays identical** and **what gets better behind it**
 
 **Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/prd` — this run finds them, and asks rather than absorbing them.
 
-Position in the pipeline: **`refactor-prd`** → `plan-phase` → `issues` → `research` → `milestone`.
+Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `issues` → `build-phase`.
 
 **Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1** — parity, the test contract and the track's file names are defined there and are not repeated here.
 
@@ -81,22 +81,24 @@ Done when every improvement you found sits in exactly one list — a driver, or 
 ### 6. Write the file
 
 - **Slug**: target plus driver, in English kebab-case (`ускорить дашборд встреч` → `meetings-dashboard-speed`). It names this file and later the PLAN, RESEARCH and MS files. A target that already has a `docs/<slug>/` folder → reuse that folder; the `-REFACTOR-` infix keeps the two tracks apart.
+- **Key**: reusing an existing `docs/<slug>/` folder → reuse the `**Key**` already on its `-PRD.md` or `-REFACTOR-PRD.md`, since it is the same feature. A brand-new slug mints one the way `prd` does: 2–4 uppercase letters, the slug's initials (`meetings-dashboard-speed` → `MDS`), checked unique against the `**Key**` line of every `docs/*/*-PRD.md` and `docs/*/*-REFACTOR-PRD.md` (and their `docs/archive/` counterparts) — lengthen on a collision.
 - **Path**: `docs/<slug>/<slug>-REFACTOR-PRD.md`, creating `docs/<slug>/` if it does not exist.
 - **Date**: read from `date +%F` — the real date, not a remembered one.
 - **Language**: English, whatever language the request came in.
 - **Shape**: the template below, section for section.
 
-Done when every section is filled, every freeze line and every outcome is covered by an acceptance criterion, and every criterion is falsifiable.
+Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by an acceptance criterion, and every criterion is falsifiable.
 
 ### 7. Report
 
-The path, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
+The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
 
 ## Template
 
 ```markdown
 # Refactor PRD: <Name>
 
+**Key**: <MFU>
 **Date**: <YYYY-MM-DD>
 **Status**: draft
 **Track**: refactor
@@ -158,3 +160,4 @@ The path, the target, one line per driver with its outcome, the baseline command
 - Every outcome is measured the same way twice: the method is written down in the PRD, so the after-number is comparable to the before-number.
 - An improvement that changes behaviour is recorded and asked about, never folded in quietly.
 - Mechanism stays with `research`: this document says the query count must drop, not which index or library drops it.
+- The feature key is an identifier, not decoration: reused when the same `docs/<slug>/` is refactored again, checked for uniqueness across every PRD and refactor PRD when it is not.

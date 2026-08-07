@@ -45,7 +45,7 @@ git mv docs/<slug> docs/archive/<slug>
 
 The PRD, PLAN, RESEARCH and MS files link each other relatively (`./<slug>-PRD.md`), so those survive the move. What does not, and gets updated:
 
-- Root `CLAUDE.md`, section `## Research reports` — the link points at `docs/archive/<slug>/<slug>-RESEARCH.md`.
+- `docs/INDEX.md` — this feature's row: its PRD, Plan and Research links each gain the `archive/` segment, pointing at `docs/archive/<slug>/...`.
 - `docs/archive/<slug>/<slug>-MS.json` — every path under `sources` gains the `archive/` segment.
 - Any other reference to `docs/<slug>/`: `grep -rn "docs/<slug>/" --exclude-dir=node_modules --exclude-dir=.git .`
 

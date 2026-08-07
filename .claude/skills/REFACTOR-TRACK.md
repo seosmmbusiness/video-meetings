@@ -2,7 +2,7 @@
 
 The pipeline runs two tracks. A **feature** adds behaviour. A **refactor** keeps behaviour exactly as it is and improves what sits behind it — speed, security, structure, or agreement with the docs.
 
-`refactor-prd` → `plan-phase` → `issues` → `research` → `milestone` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing.
+`refactor-prd` → `plan-phase` → `research` → `issues` → `build-phase` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing.
 
 ## Parity
 
@@ -29,14 +29,15 @@ The tests that already exist are the only proof that parity held, so they run ex
 
 The `-REFACTOR-` infix marks the track everywhere, so both tracks can share one `docs/<slug>/` folder:
 
-| Feature track                     | Refactor track                       |
-| --------------------------------- | ------------------------------------ |
-| `docs/<slug>/<slug>-PRD.md`       | `docs/<slug>/<slug>-REFACTOR-PRD.md` |
-| `<slug>-PLAN.md`                  | `<slug>-REFACTOR-PLAN.md`            |
-| `<slug>-RESEARCH.md`              | `<slug>-REFACTOR-RESEARCH.md`        |
-| `<slug>-MS.json`                  | `<slug>-REFACTOR-MS.json`            |
-| branch `feature/<slug>-phase-<N>` | branch `refactor/<slug>-phase-<N>`   |
-| `docs/Features.md`                | `docs/Refactor.md`                   |
+| Feature track                       | Refactor track                       |
+| ----------------------------------- | ------------------------------------ |
+| `docs/<slug>/<slug>-PRD.md`         | `docs/<slug>/<slug>-REFACTOR-PRD.md` |
+| `<slug>-PLAN.md`                    | `<slug>-REFACTOR-PLAN.md`            |
+| `<slug>-RESEARCH.md`                | `<slug>-REFACTOR-RESEARCH.md`        |
+| `<slug>-MS.json`                    | `<slug>-REFACTOR-MS.json`            |
+| branch `feature/<slug>-phase-<N>`   | branch `refactor/<slug>-phase-<N>`   |
+| `docs/Features.md`                  | `docs/Refactor.md`                   |
+| milestone/issue title `<KEY> <N> …` | `<KEY> R<N> …`                       |
 
 A `docs/*/*-PRD.md` listing matches both tracks — the infix in the path says which one you picked up.
 
@@ -54,10 +55,10 @@ Template delta: the header links `<slug>-REFACTOR-PRD.md`, and each phase block 
 
 ## `issues` on a refactor
 
-Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `milestone` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `build-phase` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
 
-- Milestone titles carry the track: `Refactor phase 1. Characterization tests for the meetings query`. A feature milestone of the same number is a different milestone; matching stays on the full title.
-- Labels: `refactor` on every issue, plus the driver's label (`performance`, `security`, `documentation`) and `backend`/`frontend` from **Touches**. Three at most, and a label the repo lacks is asked about before it is created.
+- Milestone and issue titles carry the same `<KEY> <phase>.<task>` identity as the feature track, with the phase number prefixed `R` so the two tracks never collide when they share a Key (a refactor reusing a feature's `docs/<slug>/` folder reuses its Key too): `MFU R1 · Characterization tests for the meetings query`, `MFU R1.2 — <label>`. `issues` reconciles by that prefix, exactly as it matches `<KEY> <N>` on the feature track.
+- Labels: `refactor` on every issue, plus the driver's label (`performance`, `security`, `documentation`) and `backend`/`frontend` from **Touches** — the same priority order and four-label cap as `issues`' own Labels rule.
 - The issue body gains one line under the phase line — `**Parity**: <the phase's parity check>` — so whoever closes it knows what proves it done.
 - Characterization-test tasks become issues like any other. A task that would rewrite an existing test becomes a question for the user instead of an issue.
 
@@ -94,7 +95,7 @@ A dependency added for speed carries the **dependency budget** like any other, p
 
 Template delta: section 4 carries a **Baseline** table — metric · how it was measured · value today · target — and every decision block gains **Parity**: what proves this option leaves behaviour identical.
 
-## `milestone` on a refactor
+## `build-phase` on a refactor
 
 Sources are the `-REFACTOR-` files, the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
 

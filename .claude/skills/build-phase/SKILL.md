@@ -1,13 +1,13 @@
 ---
-name: milestone
+name: build-phase
 description: 'Builds one plan phase end to end — branch, tasks test-first, full checks, PR — then closes its issues and milestone, logs the phase in docs/Features.md or docs/Refactor.md, and records progress in docs/<slug>/<slug>-MS.json. Use when the backlog exists and a phase is ready to be implemented, or when a phase or milestone is named to be built.'
 ---
 
-# Milestone
+# Build phase
 
 One run carries exactly one phase from a fresh branch to a **green** pushed PR with its issues closed. Tasks from other phases stay untouched however small they look: the phase split is the contract, and a phase that spreads loses the independent verifiability it was cut for.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `issues` → `research` → **`milestone`**, run by hand, one phase at a time.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `issues` → **`build-phase`**, run by hand, one phase at a time.
 
 Sources of truth, in priority order when they disagree:
 
@@ -20,10 +20,10 @@ A contradiction between them is a question for the user, never a silent pick.
 
 ## Argument
 
-A phase number or milestone title (`/milestone 2`, `/milestone "Phase 2. Upload and list meeting files"`), optionally followed by the MS file path (`/milestone 2 docs/meeting-file-upload/meeting-file-upload-MS.json`).
+A phase number or milestone title (`/build-phase 2`, `/build-phase "Phase 2. Upload and list meeting files"`), optionally followed by the MS file path (`/build-phase 2 docs/meeting-file-upload/meeting-file-upload-MS.json`).
 
 - No argument → list the open phases from `docs/*/*-MS.json` with their status and ask which one to build, rather than picking one.
-- A `-REFACTOR-MS.json` map file, or one carrying `"track": "refactor"` → the refactor track. **Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1**: its `milestone` section opens the phase with a green baseline instead of a failing test, and closes it on parity evidence.
+- A `-REFACTOR-MS.json` map file, or one carrying `"track": "refactor"` → the refactor track. **Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1**: its `build-phase` section opens the phase with a green baseline instead of a failing test, and closes it on parity evidence.
 - Several MS files and no path given → ask which feature, since phase numbers repeat across features.
 - Titles match case-insensitively on substring; more than one candidate → show them and ask.
 - The milestone is already closed, or all its issues are → say so and ask whether to finish it off (a phase can be partly done) or take the next open phase.
@@ -75,7 +75,7 @@ Done when `git branch --show-current` prints the phase branch.
 
 ### 5. Work the tasks in plan order
 
-Plan order encodes the dependencies: tests before implementation, model before routes, backend before frontend. On the refactor track, the track file's `milestone` section sets this step's rhythm instead — green baseline first, then code that keeps the suite as it is. Per task:
+Plan order encodes the dependencies: tests before implementation, model before routes, backend before frontend. On the refactor track, the track file's `build-phase` section sets this step's rhythm instead — green baseline first, then code that keeps the suite as it is. Per task:
 
 1. Match it against its research decision and the app's conventions.
 2. Write it in the surrounding code's style — `apps/api` goes Red/Green/Refactor (a failing test first, implementation second, refactors only from a green baseline); `apps/web` gets a Playwright e2e over the user scenario. Tests keep their teeth: rewriting or weakening one to reach green is agreed with the user first.
@@ -124,7 +124,7 @@ Done when every command above is green and every clause of **Done when** has its
 ```bash
 git push -u origin feature/<slug>-phase-<N>
 gh pr create --base <base> --head feature/<slug>-phase-<N> \
-  --title "Phase <N>. <phase title>" --milestone "<phase title>" --body "<body>"
+  --title "<KEY> <N>. <phase title>" --milestone "<the phase's milestone title from the MS file, e.g. MFU 1 · Storage service and upload endpoint>" --body "<body>"
 ```
 
 PR body: the phase **Goal**, one line per task with its issue number and commit, the **Done when** evidence from step 7, and a link to the RESEARCH file when one exists. Merging is the user's — this run opens the PR and stops there.
@@ -179,7 +179,7 @@ Facts, briefly:
 - test and check results as they came out, including anything skipped and why;
 - the phase's **Done when**, clause by clause, with the evidence;
 - what closed on GitHub and what stayed open, plus the PR URL;
-- the next phase — number, title, milestone URL — and the command: `/milestone <N+1>`;
+- the next phase — number, title, milestone URL — and the command: `/build-phase <N+1>`;
 - open questions and anything left out of scope.
 
 ## Commit format

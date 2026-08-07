@@ -7,7 +7,7 @@ description: 'Writes a feature PRD — goal, user scenarios, scope fence, falsif
 
 A PRD fixes **what** the user gets and **how you will know it is done**. The mechanism — libraries, schema, endpoints, file layout — is chosen later by `research`; a mechanism named here freezes a decision nobody has investigated yet.
 
-Position in the pipeline: **`prd`** → `plan-phase` → `issues` → `research` → `milestone`.
+Position in the pipeline: **`prd`** → `plan-phase` → `research` → `issues` → `build-phase`.
 
 ## Argument
 
@@ -37,7 +37,9 @@ Done when every capability raised sits in exactly one list, In scope or Out of s
 
 ### 3. Ask what the document cannot invent
 
-Product decisions only: who the actors are, what the user sees when the action fails, which limits are the user's (sizes, counts, retention), what stays out of this iteration. Put them in a single `AskUserQuestion` block, each option carrying a recommendation and the consequence of picking it.
+Product decisions only: who the actors are, what the user sees when the action fails, which limits are the user's (sizes, counts, retention), what stays out of this iteration. Put them in an `AskUserQuestion` block, each option carrying a recommendation and the consequence of picking it.
+
+The tool takes at most four questions per block, four options each. More than four decisions → several blocks, most consequential first, so a question whose answer reshapes the rest is asked before the questions it reshapes.
 
 Technical choices belong to `research`. Record one under Technical constraints only when the user states it as already fixed.
 
@@ -45,25 +47,34 @@ Skip whatever the repo, the argument, or project convention already answers.
 
 Done when no requirement in the draft rests on an assumption you invented, and every user answer is reflected in the document.
 
-### 4. Write the file
+### 4. Name the feature
 
 - **Slug**: the feature name in English kebab-case (`Загрузка файлов встречи` → `meeting-file-upload`). It names the folder, this file, and later the PLAN, RESEARCH and MS files — choose it once and reuse it.
+- **Key**: 2–4 uppercase letters, the initials of the slug's words (`meeting-file-upload` → `MFU`; a one-word slug takes its first three letters, `meetings` → `MTG`). Every issue and milestone this feature ever creates carries it, so it has to be unique: check the `**Key**` line of every `docs/*/*-PRD.md` and `docs/archive/*/*-PRD.md`, and lengthen yours on a collision (`MFU` taken → `MFUP`).
+
+Done when the slug and the key are fixed, and no other PRD in `docs/` or `docs/archive/` claims that key.
+
+### 5. Write the file
+
 - **Path**: `docs/<slug>/<slug>-PRD.md`, creating `docs/<slug>/` if it does not exist.
 - **Date**: read from `date +%F` — the real date, not a remembered one.
 - **Language**: English, whatever language the request came in.
 - **Shape**: the template below, section for section.
 
+Acceptance criteria are numbered `AC-1`, `AC-2`, … and those numbers are permanent: `plan-phase` cites them per phase, `research` cites them per decision, and close-out checks the shipped feature against them. A criterion dropped in a later iteration keeps its number retired rather than passing it on.
+
 Done when every section is filled, every scenario is covered by at least one acceptance criterion, and every criterion is falsifiable.
 
-### 5. Report
+### 6. Report
 
-The path, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/plan-phase docs/<slug>/<slug>-PRD.md`.
+The path, the key, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/plan-phase docs/<slug>/<slug>-PRD.md`.
 
 ## Template
 
 ```markdown
 # PRD: <Feature name>
 
+**Key**: <MFU>
 **Date**: <YYYY-MM-DD>
 **Status**: draft
 
@@ -96,8 +107,8 @@ The path, the goal in one line, the Out of scope list, every decision that came 
 
 <Falsifiable statements — each names an observation that would prove it wrong. "Uploading a 30 MB file returns an error and stores nothing" is falsifiable; "upload works reliably" is not.>
 
-- [ ] <criterion>
-- [ ] <criterion>
+- [ ] **AC-1** <criterion>
+- [ ] **AC-2** <criterion>
 ```
 
 ## Rules
@@ -105,3 +116,4 @@ The path, the goal in one line, the Out of scope list, every decision that came 
 - The PRD is the only input `plan-phase` gets — write it for someone who never saw this conversation.
 - Numbers over adjectives: "up to 25 MB", "within 3 seconds", never "reasonably large" or "fast".
 - Short and falsifiable beats long and aspirational: a sentence that cannot be proven wrong is not a requirement.
+- `AC-<n>` numbers and the feature key are identifiers, not decoration: everything downstream refers to this feature by them, so they are assigned once and never reused for something else.

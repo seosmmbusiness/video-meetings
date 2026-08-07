@@ -1,21 +1,22 @@
 ---
 name: research
-description: 'Settles the technical decisions a plan leaves open — built-in or library, storage, schema, limits, access rules, and on a refactor plan the measured optimisation path — into docs/<slug>/<slug>-RESEARCH.md. Use when a plan is ready and implementation would otherwise pick its mechanisms at random, or when another skill needs the research that milestone consumes.'
+description: 'Settles the technical decisions a plan leaves open — built-in or library, storage, schema, limits, access rules, and on a refactor plan the measured optimisation path — into docs/<slug>/<slug>-RESEARCH.md, revising the plan when a decision changes the work. Use when a plan is ready and implementation would otherwise pick its mechanisms at random, or when another skill needs the research that issues and build-phase consume.'
 ---
 
 # Research
 
 One pass covers a whole plan, not one task. It closes the plan's **one-way doors** — the choices that are expensive to undo once code exists — so implementation reads a decision instead of inventing one mid-task.
 
-Research decides; it does not build. Feature code, `npm install`, `package.json`, the plan, the PRD and the GitHub issues stay as they are: this run writes the RESEARCH file, its link in root `CLAUDE.md`, and `sources.research` in the MS file.
+Research decides; it does not build. Feature code, `npm install` and `package.json` stay as they are: this run writes the RESEARCH file, its line in `docs/INDEX.md`, and — only where a decision genuinely changes the work — the next version of the plan.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `issues` → **`research`** → `milestone`.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `issues` → `build-phase`. It runs **before** the backlog exists, so a decision that reshapes a task costs a plan revision rather than a round of edits to published issues.
 
 ## Argument
 
 Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to research, rather than picking one.
+- No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to research, rather than picking one.
+- Several versions of the same plan → take the current one per **Plan versions** in [`../plan-phase/SKILL.md`](../plan-phase/SKILL.md), and say which file you took.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
 - A `-RESEARCH.md` already sits next to that plan → ask whether to update it in place or start a new iteration. Never overwrite silently.
 
@@ -23,9 +24,9 @@ Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`
 
 ### 1. Read the plan and its PRD
 
-Every phase — **Goal**, **Touches**, **Tasks**, **Done when** — then the sibling `-PRD.md`: goal, In scope, **Out of scope**, technical constraints. Out of scope fences this run too.
+Every phase — **Goal**, **Touches**, **Covers**, **Tasks** with their numbers, **Done when** — then the sibling `-PRD.md`: key, goal, In scope, **Out of scope**, technical constraints, the `AC-<n>` criteria. Out of scope fences this run too.
 
-Done when you can say, for every task in the plan, whether it hides a technical choice or follows straight from project convention.
+Done when you can say, for every task number in the plan, whether it hides a technical choice or follows straight from project convention.
 
 ### 2. Take the stack from the repo, not from memory
 
@@ -42,7 +43,7 @@ Done when every version, module and env var you are about to put in the report c
 
 Walk the plan's tasks and keep only the places where a genuine choice exists and the wrong one is expensive to undo: built-in or library, where and in what format data is stored, schema, exchange protocol, module boundary, limits and validation, error strategy, test approach. A task whose answer follows from convention is not a decision point — the report is not a retelling of the plan.
 
-Tag each decision point with the plan phases and tasks it serves.
+Number them `D-1`, `D-2`, … and tag each with the plan tasks it serves (`1.2`, `3.1`). Those numbers are permanent: the plan cites them per phase and `build-phase` reads them per task.
 
 Done when every decision point traces to at least one plan task, and every task a developer could implement two materially different ways is covered by one.
 
@@ -66,7 +67,7 @@ Done when every decision point from step 3 has a named winner, its rejected alte
 
 ### 5. Ask what only the user can decide
 
-Choices the repo cannot answer: which library when the trade-off is a product call, where data lives, what the limits are, anything paid or external, anything that would move the PRD's scope. One `AskUserQuestion` block, each option carrying a recommendation and the consequence of picking it. This is the cheap moment — the same question during implementation costs a rewrite.
+Choices the repo cannot answer: which library when the trade-off is a product call, where data lives, what the limits are, anything paid or external, anything that would move the PRD's scope. `AskUserQuestion`, each option carrying a recommendation and the consequence of picking it — at most four questions per block, four options each, further blocks for the rest, most consequential first. This is the cheap moment — the same question during implementation costs a rewrite.
 
 Skip whatever the PRD, the plan or project convention already answers.
 
@@ -81,30 +82,49 @@ Done when no decision in the draft rests on a preference you invented, and every
 
 Done when every decision point from step 3 has a block, every number implementation needs sits in Parameters, and nothing in the file paraphrases the plan.
 
-### 7. Wire the report into the pipeline
+### 7. Revise the plan, only where a decision changed the work
 
-- Root `CLAUDE.md`, section `## Research reports` (create it above `## Status` when missing) — one line, feature name first:
+Most decisions leave the plan exactly as it is — that is the expected outcome, and section 8 of the report says so in one line. A revision is warranted only when a decision makes the plan **wrong**, in one of three ways:
 
-  ```markdown
-  - **Meeting file upload** — [docs/meeting-file-upload/meeting-file-upload-RESEARCH.md](docs/meeting-file-upload/meeting-file-upload-RESEARCH.md) — storage, limits and validation of uploaded files.
-  ```
+- work the plan is missing (a migration, an env var, a characterization test the chosen mechanism needs);
+- a task the decision makes unnecessary (an existing module already does it);
+- a task that has to split, because one line now covers two mechanisms.
 
-- `docs/<slug>/<slug>-MS.json`, when it exists — `sources.research` gets the report path, so `milestone` finds the decisions. Nothing else in that file changes.
+Those three are yours to write, inside the existing phases, following **Plan versions** in [`../plan-phase/SKILL.md`](../plan-phase/SKILL.md):
 
-Done when both pointers resolve to the file you just wrote and neither one repeats its content.
+- Write `docs/<slug>/<slug>-PLAN-v<N>.md`, carrying every phase and task forward with its number intact. New tasks take the next free number in their phase; dropped tasks stay as `- [~] **2.3** <label> — dropped in v<N>: <reason>`.
+- Each affected phase gains `**Decisions**: D-2, D-4`, so implementation reads the phase and the decision together.
+- The `## Revisions` section gets one line per change, naming the decision that caused it.
+- The superseded version gains `**Status**: superseded by [<slug>-PLAN-v<N>.md](./<slug>-PLAN-v<N>.md)`, and this report's `**Plan**` header points at the version you just wrote.
 
-### 8. Report
+Anything larger is **not yours to write**: a change of phase order, a new phase, a phase that swaps layers, or work that crosses the PRD's scope fence. Show it to the user with the decision behind it and ask — it is often a PRD change wearing a plan's clothes.
 
-The path, each decision as one line, the new dependencies (or "none"), what the user decided, what stays open, and the next command: `/milestone 1`.
+Done when either the plan is untouched and the report says why, or the new version exists with every task number preserved and every change traced to a decision.
+
+### 8. Wire the report into the pipeline
+
+`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and links to its PRD, current plan and this report. A row already there gets its links updated rather than a second row.
+
+Root `CLAUDE.md` gets a single static pointer, added only when it is missing and never extended afterwards:
+
+```markdown
+Feature and refactor documents — PRD, plan, research — are indexed in [`docs/INDEX.md`](docs/INDEX.md).
+```
+
+Done when `docs/INDEX.md` has exactly one row for this feature, its links resolve, and root `CLAUDE.md` carries that one line and no per-feature links.
+
+### 9. Report
+
+The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and into which file, what stays open, and the next command: `/issues docs/<slug>/<slug>-PLAN<-vN>.md`.
 
 ## Template
 
 ```markdown
 # Research: <Feature name>
 
+**Key**: <MFU>
 **PRD**: [<slug>-PRD.md](./<slug>-PRD.md)
 **Plan**: [<slug>-PLAN.md](./<slug>-PLAN.md)
-**Milestones**: [<slug>-MS.json](./<slug>-MS.json)
 **Date**: <YYYY-MM-DD>
 
 ## 1. TL;DR
@@ -117,9 +137,9 @@ The path, each decision as one line, the new dependencies (or "none"), what the 
 
 ## 3. Decisions
 
-### Decision 1. <The choice, written as a question>
+### D-1. <The choice, written as a question>
 
-- **Plan tasks**: <phase and tasks this serves>
+- **Plan tasks**: <1.2, 3.1>
 - **Options**: <table — option · pros · cons · cost to adopt · risk>
 - **Chosen**: <the option, with package version when it is a library>
 - **Why**: <stack, project convention, security, dependency budget>
@@ -143,6 +163,22 @@ The path, each decision as one line, the new dependencies (or "none"), what the 
 ## 7. Risks and open questions
 
 <What could fail and the fallback for it. Only questions that leave the start unblocked — blocking ones were answered in step 5.>
+
+## 8. Plan impact
+
+<"None — the plan stands as written." Or the version written, one line per change with the decision behind it, and anything sent back to the user instead of being revised.>
+```
+
+`docs/INDEX.md`, created on the first research report:
+
+```markdown
+# Docs index
+
+Feature and refactor documents, newest first. A feature keeps one row from its PRD until close-out moves its links into `docs/archive/`.
+
+| Key | Feature             | What it is                                       | Documents                                                                                                                                                                         |
+| --- | ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MFU | meeting-file-upload | Files uploaded, listed and deleted on a meeting. | [PRD](meeting-file-upload/meeting-file-upload-PRD.md) · [Plan](meeting-file-upload/meeting-file-upload-PLAN.md) · [Research](meeting-file-upload/meeting-file-upload-RESEARCH.md) |
 ```
 
 ## Rules
@@ -153,5 +189,6 @@ The path, each decision as one line, the new dependencies (or "none"), what the 
 - The order is fixed: what the repo already has → what the platform ships → a new dependency.
 - Concrete over qualitative — versions, paths, numbers, env var names. "Use a suitable library" is not a decision.
 - Every fact is verified against a source and cited; whatever could not be checked is marked "not verified".
-- The repo stays as it is: no feature code, no installs, no edits to `package.json`, the plan, the PRD or the issues.
+- The code stays as it is: no feature code, no installs, no edits to `package.json` or the PRD.
+- The plan is revised only under step 7, only into a new version, and never by renumbering an existing task.
 - A gap in the plan or PRD that blocks a decision is a question for the user, asked before the report file exists.
