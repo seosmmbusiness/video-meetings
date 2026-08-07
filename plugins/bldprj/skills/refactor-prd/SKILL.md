@@ -9,7 +9,7 @@ A refactor PRD fixes **what stays identical** and **what gets better behind it**
 
 **Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/prd` — this run finds them, and asks rather than absorbing them.
 
-Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) and [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — parity and the test contract come from the first, identity and the question protocol from the second. Neither is repeated here.
 

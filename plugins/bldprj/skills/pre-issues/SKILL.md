@@ -14,7 +14,7 @@ Two failures it exists to catch:
 
 A conflict is not a bug to fix quietly. It is a **ruling**, and the ruling is the user's: sacrificing a control, a promise or a mechanism to ship the business requirement is a trade they own, and this is the stage that puts it to them — while it still costs a paragraph.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → **`pre-issues`** → `issues` → `build-phase`. The last stage before implementation: after it, `issues` mirrors FINAL onto GitHub and `build-phase` builds from it.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → **`pre-issues`** → `issues` → `build-phase` → `close-feature`. The last stage before implementation: after it, `issues` mirrors FINAL onto GitHub and `build-phase` builds from it.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 

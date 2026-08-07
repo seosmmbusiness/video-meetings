@@ -9,7 +9,7 @@ A plan turns one PRD into ordered **phases**. Each phase leaves the repo working
 
 This plan is **preliminary**, and deliberately so: it is cut before any mechanism is known, so a task names the outcome and leaves the library, the schema and the limits to `research`. `research` and `security-analyse` then revise it in place, and `pre-issues` consolidates all four documents into the buildable `docs/<slug>/<slug>-FINAL.md`. Nothing is published to GitHub from this file.
 
-Position in the pipeline: `prd` / `refactor-prd` → **`plan-phase`** → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: `prd` / `refactor-prd` → **`plan-phase`** → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 The plan is where the work gets its **identity**. Phase `1`, task `1.2` — those numbers become the issue title, the commit's issue reference, the phase branch and the row in the log. They are assigned here, once, and nothing downstream renumbers them.
 

@@ -7,7 +7,7 @@ description: 'Writes a feature PRD — goal, user scenarios, scope fence, falsif
 
 A PRD fixes **what** the user gets and **how you will know it is done**. The mechanism — libraries, schema, endpoints, file layout — is chosen later by `research`; a mechanism named here freezes a decision nobody has investigated yet.
 
-Position in the pipeline: **`prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: **`prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, the question protocol and the document rules are defined there and are not repeated here.
 

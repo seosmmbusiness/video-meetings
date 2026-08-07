@@ -2,7 +2,7 @@
 
 The pipeline runs two tracks. A **feature** adds behaviour. A **refactor** keeps behaviour exactly as it is and improves what sits behind it — speed, security, structure, or agreement with the docs.
 
-`refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing. Everything both tracks share — identity, the artifact names, document versions, the question protocol — lives in [`PIPELINE.md`](PIPELINE.md).
+`refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing. Everything both tracks share — identity, the artifact names, document versions, the question protocol — lives in [`PIPELINE.md`](PIPELINE.md).
 
 ## Parity
 
@@ -106,4 +106,4 @@ Sources are the `-REFACTOR-` files, phases are addressed `R<N>` (`/build-phase R
 - **Prove parity in step 7**: the same commands as the baseline, the same result, shown next to the baseline output. Plus the after-number for every internal outcome the phase serves, measured the way the before-number was.
 - The PR body carries the baseline → after table and the evidence that the contract held: `git diff --stat <base>...HEAD -- '**/*.spec.ts' '**/*.e2e-spec.ts'` showing only added characterization tests.
 - Behaviour that has to change for a task to finish is a stop-and-ask. It leaves the refactor and becomes a `/prd` item.
-- Close-out reads `<slug>-REFACTOR-PRD.md`, deletes merged `refactor/<slug>-phase-*` branches, and collapses the log rows in `docs/Refactor.md`.
+- `close-feature` on this track reads `<slug>-REFACTOR-PRD.md`, deletes merged `refactor/<slug>-phase-*` branches, and collapses the log rows in `docs/Refactor.md`.

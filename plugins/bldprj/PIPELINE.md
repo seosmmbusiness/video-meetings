@@ -1,9 +1,9 @@
 # Pipeline
 
-Seven skills, one chain. Each owns one artifact and one class of decision, and reads the artifact the stage before it wrote:
+Eight stages, nine skills, one chain. Each stage owns one artifact and one class of decision, and reads the artifact the stage before it wrote:
 
 ```
-prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase
+prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase  →  close-feature
 ```
 
 | Stage              | Reads                        | Writes                        | Owns                                                    |
@@ -16,6 +16,7 @@ prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  
 | `pre-issues`       | PRD, plan, research, threats | `-FINAL.md`                   | drift against the PRD, and the ruling on every conflict |
 | `issues`           | `-FINAL.md`                  | GitHub, `-MS.json`            | the mirror of the final plan on GitHub                  |
 | `build-phase`      | `-MS.json` and its sources   | code, PR, progress            | one phase, from branch to green PR to closed milestone  |
+| `close-feature`    | the merged base, `-MS.json`  | archive, logs, PRD status     | the proof of every criterion, and the archive           |
 
 A stage never reopens the stage before it: a contradiction goes back to its owner as a question, and the answer arrives as a revision, not as a silent local fix. `pre-issues` is where the contradictions the earlier stages each settled in their own favour are collected and put to the user.
 
@@ -94,6 +95,7 @@ Every skill asks. Each asks inside **its own class**, and hands a question outsi
 | `pre-issues`       | arbitration: which of a promise, a control, a mechanism or the scope gives way, and which reading of a requirement to build         | one per conflict the four documents cannot settle between them                     |
 | `issues`           | the write itself, orphaned issues, a label the repo lacks                                                                           | the go-ahead, before anything is written to GitHub                                 |
 | `build-phase`      | contradictions between its sources, and the stop points its own steps name                                                          | asks only when it stops                                                            |
+| `close-feature`    | a criterion that cannot be proven against the shipped code, live work blocking the archive                                          | asks only when it stops                                                            |
 
 - **Front-load.** The same question costs a paragraph here and a rewrite two stages later.
 - **Every option carries a recommendation and a consequence.** The recommended one comes first, marked `(Recommended)`, and each option says what picking it costs. Where deferring is real, "leave it to `research`" is one of the options.

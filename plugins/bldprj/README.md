@@ -1,9 +1,9 @@
 # bldprj — Build Project Pipeline
 
-The document pipeline a feature or refactor is built through, packaged as one Claude Code plugin. Seven skills, one chain, one artifact per stage:
+The document pipeline a feature or refactor is built through, packaged as one Claude Code plugin. Eight stages, nine skills, one chain, one artifact per stage:
 
 ```
-prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase
+prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase  →  close-feature
 ```
 
 | Skill              | Writes                        | Owns                                                    |
@@ -16,6 +16,7 @@ prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  
 | `pre-issues`       | `-FINAL.md`                   | drift against the PRD, and the ruling on every conflict |
 | `issues`           | GitHub, `-MS.json`            | the mirror of the final plan on GitHub                  |
 | `build-phase`      | code, PR, progress            | one phase, from branch to green PR to closed milestone  |
+| `close-feature`    | archive, logs, PRD status     | the proof of every criterion, and the archive           |
 
 ## Layout
 

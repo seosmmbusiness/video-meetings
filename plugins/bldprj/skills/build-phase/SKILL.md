@@ -7,7 +7,7 @@ description: 'Builds one plan phase end to end — branch, tasks test-first, ful
 
 One run carries exactly one phase from a fresh branch to a **green** pushed PR, and settles the phase before it now that its PR has merged. Tasks from other phases stay untouched however small they look: the phase split is the contract, and a phase that spreads loses the independent verifiability it was cut for.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → **`build-phase`**, run by hand, one phase at a time.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → **`build-phase`** → `close-feature`, run by hand, one phase at a time.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, path resolution and the question protocol are defined there and are not repeated here.
 
@@ -177,11 +177,11 @@ Those file changes ride the branch this run already owns, in one commit — `doc
 
 Done when every settled phase's issues and milestone are closed, its files say `completed`, and any phase still in review is named as such with its PR.
 
-### 10. Close the feature, when the last phase has settled
+### 10. Hand off close-out, when the last phase has settled
 
-Every phase `completed` and no open milestone left for this feature → read [`CLOSEOUT.md`](CLOSEOUT.md) and follow it. Otherwise skip this step.
+Every phase `completed` and no open milestone left for this feature → the report names `/bldprj:close-feature <slug>` as the next command. This run does not start it: close-out reads the MS file from the freshly pulled base branch, so it waits for this run's settle commit to merge first. Otherwise skip this step.
 
-Done when either the close-out ran, or the next open phase is named in the report.
+Done when the report names either the close-out command or the next open phase.
 
 ### 11. Report
 

@@ -9,7 +9,7 @@ Every other stage reads the feature as its author. This one reads it as **whoeve
 
 It runs on a plan whose mechanisms are already settled, so a finding lands as a task in a phase that has not been built yet — the cheapest place a control can be added. Findings are `S-1`, `S-2`, …, and each one names a **control**: the specific guard, validator, limit or scope that closes it, in the idiom this repo already uses.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → **`security-analyse`** → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → **`security-analyse`** → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 

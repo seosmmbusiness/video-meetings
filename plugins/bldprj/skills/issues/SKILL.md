@@ -9,7 +9,7 @@ The final plan is the source; GitHub is the mirror. One milestone per phase, one
 
 This skill invents nothing. Phase numbers, task numbers and labels all come from `docs/<slug>/<slug>-FINAL.md` — "the plan" below means that file — and the only thing it adds is the rendering: a title short enough to read in a list and prefixed so the reading order is obvious.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → **`issues`** → `build-phase`.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → **`issues`** → `build-phase` → `close-feature`.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 

@@ -9,7 +9,7 @@ One pass covers a whole plan, not one task. It closes the plan's **one-way doors
 
 Research decides; it does not build. Feature code, `npm install` and `package.json` stay as they are: this run writes the RESEARCH file, its link in `docs/INDEX.md`, and — only where a decision genuinely changes the work — a revision of the plan.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `security-analyse` → `pre-issues` → `issues` → `build-phase`. It runs while the plan is still **preliminary**, so a decision that reshapes a task costs an edit to that plan rather than a round of edits to published issues.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`. It runs while the plan is still **preliminary**, so a decision that reshapes a task costs an edit to that plan rather than a round of edits to published issues.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 
