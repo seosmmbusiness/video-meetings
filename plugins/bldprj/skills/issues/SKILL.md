@@ -40,14 +40,21 @@ Done when you hold the full list — every phase with its ordered, numbered task
 ```bash
 gh auth status
 gh repo view --json nameWithOwner
-gh label list
+gh label list --limit 100
 gh api repos/{owner}/{repo}/milestones --paginate --jq '.[] | "\(.number) \(.title)"'
 ```
 
 Then reconcile, **by number, never by wording** — the task key `MFU 1.2` is the identity, the label after it is free to change:
 
 - Milestone for phase `N` → an existing milestone whose title starts with `<KEY> <N> ` (`gh api …/milestones`). Present → reuse it, and update its description when the phase's Goal or Done when moved.
-- Issue for task `<N>.<n>` → an existing issue whose title starts with `<KEY> <N>.<n> ` (`gh issue list --search "<KEY> <N>.<n> in:title" --state all --json number,title,state,milestone`). Present with the same label → leave it. Present with a different label → the title gets edited, the body refreshed. Absent → it is created.
+- Issue for task `<N>.<n>` → an existing issue whose title starts with `<KEY> <N>.<n> `. When an MS file exists, its recorded issue numbers are checked first; the rest come from **one** listing, matched locally on the exact title prefix — search tokenization is not trusted with it, since `1.2` must not match `1.20`:
+
+  ```bash
+  gh issue list --search "<KEY> in:title" --state all --limit 200 --json number,title,state,milestone
+  ```
+
+  Present with the same label → leave it. Present with a different label → the title gets edited, the body refreshed. Absent → it is created.
+
 - An issue whose key no longer appears in the plan, or appears as `- [~]` → **report it and ask**. It may have shipped already. Nothing is closed or deleted on your own initiative.
 
 Done when you can name, for every phase and every task, whether it exists on GitHub already, needs its title updated, or has to be created — and what to do with every orphan.
@@ -64,8 +71,10 @@ One per phase, in plan order, titled `<KEY> <phase number> · <phase title>` (`g
 
 ```bash
 gh api repos/{owner}/{repo}/milestones -f title="MFU 1 · Storage service and upload endpoint" \
-  -f description="<phase Goal>. Covers: AC-1, AC-3. Done when: <phase Done when>"
+  -F description=@<a temp file: "<phase Goal>. Covers: AC-1, AC-3. Done when: <phase Done when>">
 ```
+
+Document text goes through files (`-F key=@file`, `--body-file`), never interpolated into the shell line — a quote or backtick in a phase goal must not break or execute a command.
 
 The key makes the title unique across the repo, so two features can both have a phase 1 and matching stays exact.
 
@@ -78,7 +87,7 @@ One per task, in plan order, attached to its phase's milestone:
 ```bash
 gh issue create --title "MFU 1.2 — Store uploads behind StorageService" \
   --milestone "MFU 1 · Storage service and upload endpoint" \
-  --label backend --label test --body "<body below>"
+  --label backend --label test --body-file <a temp file holding the body below>
 ```
 
 **Title**: `<KEY> <phase>.<task> — <the task's label from the plan>`. The label is copied, not rewritten; if the plan's label is over 60 characters, that is a plan bug — say so rather than truncating it here.
@@ -95,7 +104,7 @@ gh issue create --title "MFU 1.2 — Store uploads behind StorageService" \
 **Phase done when**: <the phase's Done when>
 ```
 
-**Labels**: four at most, taken only from what `gh label list` returned, in this priority order — `refactor` on the refactor track, then `backend` / `frontend` from the phase's **Touches**, then the driver (`security` for a phase carrying an `S-<n>` or a task about access control, validation or hardening, `performance`, `documentation` for a doc task), then `test` for a test-writing task. A label the plan needs and the repo lacks → ask before creating it.
+**Labels**: four at most, taken only from what `gh label list` returned, in this priority order — `refactor` on the refactor track, then the layer labels matching the phase's **Touches** (e.g. `backend`, `frontend`), then the driver (`security` for a phase carrying an `S-<n>` or a task about access control, validation or hardening, `performance`, `documentation` for a doc task), then `test` for a test-writing task. A label the plan needs and the repo lacks → ask before creating it.
 
 Done when every live task in the plan has exactly one issue under the right milestone, with its number and URL captured.
 
@@ -118,7 +127,7 @@ Repo, milestone count and issue count, what was reused, what had its title updat
   "feature": "meeting-file-upload",
   "key": "MFU",
   "track": "feature",
-  "repo": "seosmmbusiness/video-meetings",
+  "repo": "acme/app",
   "createdAt": "2026-07-31",
   "sources": {
     "prd": "docs/meeting-file-upload/meeting-file-upload-PRD.md",
@@ -137,7 +146,7 @@ Repo, milestone count and issue count, what was reused, what had its title updat
       "milestone": {
         "number": 1,
         "title": "MFU 1 · Storage service and upload endpoint",
-        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/1",
+        "url": "https://github.com/acme/app/milestone/1",
         "state": "open"
       },
       "issues": [
@@ -145,7 +154,7 @@ Repo, milestone count and issue count, what was reused, what had its title updat
           "task": "1.1",
           "number": 12,
           "title": "MFU 1.1 — Write e2e tests for the upload endpoint",
-          "url": "https://github.com/seosmmbusiness/video-meetings/issues/12",
+          "url": "https://github.com/acme/app/issues/12",
           "labels": ["backend", "test"],
           "state": "OPEN"
         }
@@ -160,7 +169,7 @@ Repo, milestone count and issue count, what was reused, what had its title updat
       "phase": 1,
       "milestone": 1,
       "title": "MFU 1 · Storage service and upload endpoint",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/1"
+      "url": "https://github.com/acme/app/milestone/1"
     }
   }
 }

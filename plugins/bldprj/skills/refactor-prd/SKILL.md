@@ -15,7 +15,7 @@ Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` →
 
 ## Argument
 
-The refactor wish: what to work on and what it should buy (`/bldprj:refactor-prd speed up the meetings dashboard`, `/bldprj:refactor-prd harden apps/api auth`, `/bldprj:refactor-prd check apps/web auth against its module doc`).
+The refactor wish: what to work on and what it should buy (`/bldprj:refactor-prd speed up the meetings dashboard`, `/bldprj:refactor-prd harden the API auth`, `/bldprj:refactor-prd check the web auth module against its doc`).
 
 - No argument → ask which code and which driver, rather than picking a target out of the repo state.
 - A driver with no target ("optimise speed", "improve security") → ask which module, route or page, since a repo-wide refactor has no baseline anyone can hold green.
@@ -26,8 +26,8 @@ The refactor wish: what to work on and what it should buy (`/bldprj:refactor-prd
 
 A refactor PRD describes behaviour that already exists, so the source is the implementation and the docs are a second opinion:
 
-1. Root `CLAUDE.md` — the Status section, for what this code is part of.
-2. `CLAUDE.md` of each app the target sits in, then `.claude/modules/INDEX.md` and the doc of the target module only.
+1. The project's root docs, for what this code is part of.
+2. The docs of each part the target sits in, then the project's module docs — the target module's doc only.
 3. The implementation itself — every file the argument points at, plus its callers: what it exposes, what it returns, what it throws, what it stores.
 
 Where doc and code disagree, that gap is a finding: a driver when the argument asks for doc compliance, a proposal for step 5 otherwise.
@@ -39,8 +39,9 @@ Done when you can state, file by file, what the target does today from the code 
 The suite that covers the target, run now, before any document exists:
 
 ```bash
-npm run test:api          # apps/api
-npm run test:e2e:web      # apps/web
+# the project's own suites and checks, as its scripts name them — e.g.:
+npm run test              # the suite covering the target
+npm run test:e2e          # when the target has an e2e surface
 npm run lint && npm run format:check
 npm run build             # when the target is built output or config
 ```
@@ -114,7 +115,7 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 <The code in scope, by path and module. One line each, with what it does today.>
 
-- `apps/api/src/meetings/meetings.service.ts` — lists a caller's meetings, one query per meeting owner lookup.
+- `src/meetings/meetings.service.ts` — lists a caller's meetings, one query per meeting owner lookup.
 
 ## 3. Behaviour freeze
 
@@ -125,9 +126,9 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 ## 4. Green baseline
 
-| Command            | Covers                       | Result today    |
-| ------------------ | ---------------------------- | --------------- |
-| `npm run test:api` | <what it pins in the target> | <pass, N tests> |
+| Command        | Covers                       | Result today    |
+| -------------- | ---------------------------- | --------------- |
+| `npm run test` | <what it pins in the target> | <pass, N tests> |
 
 **Unprotected**: <behaviour in the freeze that no test would catch changing — the characterization tests phase 1 has to add.>
 

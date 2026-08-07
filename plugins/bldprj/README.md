@@ -21,25 +21,30 @@ prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  
 ## Layout
 
 ```text
-plugins/bldprj/
+bldprj/
 ├── .claude-plugin/plugin.json   # manifest
-├── PIPELINE.md                  # the contract all seven share: identity, versions, asking
+├── PIPELINE.md                  # the contract all stages share: identity, versions, asking
 ├── REFACTOR-TRACK.md            # everything the refactor track does differently
 ├── skills/<name>/SKILL.md       # one skill per stage
-└── scripts/docs-lint.mjs        # the validator behind `npm run docs:lint`
+└── scripts/docs-lint.mjs        # the validator (docs-lint.test.mjs is its node:test suite)
 ```
 
 `PIPELINE.md` and `REFACTOR-TRACK.md` sit at the plugin root because every skill reads them; each `SKILL.md` points at them with `../../PIPELINE.md`.
 
-## How it loads
+## Installing
 
-The plugin's files live here, in `plugins/bldprj/`. Claude Code discovers a plugin when it finds a `.claude-plugin/plugin.json` under a **skills directory**, so this repo keeps a relative symlink pointing at that folder:
+From a marketplace — any repo that carries this plugin and lists it in a `.claude-plugin/marketplace.json` at its root:
 
-```text
-.claude/skills/bldprj -> ../../plugins/bldprj
+```bash
+claude plugin marketplace add <path or URL of that repo>
+claude plugin install bldprj@<marketplace name> --scope project
 ```
 
-That is the whole install: the plugin loads as `bldprj@skills-dir`, in place, with no marketplace, no install command and no cache copy — so an edit to a `SKILL.md` here takes effect in the next session rather than after a plugin update. Its skills are invoked namespaced:
+A marketplace install **copies** the plugin into `~/.claude/plugins/cache`; edits to the source reach that copy only after `claude plugin marketplace update` + `claude plugin update`, and the `version` in `plugin.json` is the update signal — bump it when a skill changes.
+
+The zero-install alternative: symlink this folder into a **skills directory** — `.claude/skills/bldprj` for one project, `~/.claude/skills/bldprj` for every project — and it loads in place, edits taking effect the next session. Don't combine both in one project: the pipeline would load twice.
+
+Either way the skills are invoked namespaced:
 
 ```
 /bldprj:prd meeting file upload
@@ -49,41 +54,28 @@ That is the whole install: the plugin loads as `bldprj@skills-dir`, in place, wi
 Check that it loaded, and validate after editing the manifest or a skill's frontmatter:
 
 ```bash
-claude plugin list                        # → bldprj@skills-dir  ✔ loaded
-claude plugin validate ./plugins/bldprj --strict
+claude plugin list
+claude plugin validate <path to this folder> --strict
 ```
-
-### Using it in another project
-
-The repo root carries a marketplace manifest (`.claude-plugin/marketplace.json`) listing this plugin, so another project on this machine can install it:
-
-```bash
-claude plugin marketplace add /path/to/video-meetings
-claude plugin install bldprj@video-meetings-plugins --scope project
-```
-
-A marketplace install **copies** the plugin into `~/.claude/plugins/cache`, so edits made here reach that copy only after `claude plugin marketplace update` + `claude plugin update`, and the `version` in `plugin.json` is the update signal — bump it when you change a skill. Inside this repo, use the symlink and leave the marketplace alone; installing it here too would load the pipeline twice.
-
-The other zero-install option is personal rather than per-project: symlink this folder into `~/.claude/skills/` and it loads in every project you open.
 
 ## The validator
 
-`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria coverage, plan ↔ final plan ↔ backlog agreement, and resolvable links.
+`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria coverage and duplicates, D-/S- citation integrity, plan ↔ final plan ↔ backlog agreement (including a backlog left behind by a newer FINAL), and resolvable links that stay inside the project.
 
 It reads the project's `docs/` tree, which it cannot infer from its own location inside the plugin, so the project root comes from the first argument, else `$CLAUDE_PROJECT_DIR`, else the working directory:
 
 ```bash
-npm run docs:lint                      # from the project root
-node scripts/docs-lint.mjs ~/code/app  # against another project
+node scripts/docs-lint.mjs ~/code/app       # against any project
+node --test scripts/docs-lint.test.mjs      # the validator's own suite
 ```
 
-Exit code 1 on an error, 0 on warnings only.
+Exit code 1 on an error, 0 on warnings only. A project may wrap it in a `docs:lint` script of its own; the skills' postflight uses that script when it exists and falls back to the plugin's copy (`PIPELINE.md`, Writing a document).
 
 ## What the skills assume about a project
 
-The stages are project-agnostic; these conventions are not, and are what a new project has to provide:
+The stages are project-agnostic: commands, layers, stacks and conventions are **read from the project's own docs** (`CLAUDE.md`, `README.md`, module docs) at run time, and the concrete names inside the skills are examples, not requirements. What a project has to provide:
 
-- `docs/<slug>/` for the documents, `docs/INDEX.md` as their index, `docs/archive/<slug>/` for shipped work, and `docs/Features.md` / `docs/Refactor.md` as the human-readable logs.
-- A `docs:lint` npm script pointing at `scripts/docs-lint.mjs`.
-- `gh` authenticated against the repo, for `issues` and `build-phase`.
-- Repo conventions the skills read rather than impose: root `CLAUDE.md`, per-app `CLAUDE.md`, and module docs indexed in `.claude/modules/INDEX.md`.
+- `docs/` as the documents' home — `docs/<slug>/` per work item, `docs/INDEX.md`, `docs/archive/`, `docs/Features.md` / `docs/Refactor.md`; the skills create each of these on first use.
+- `gh` authenticated against the repo, for `issues`, `build-phase` and `close-feature`.
+- Project docs that actually state its conventions — how to run tests, lint and build, where module docs live — since the skills read them instead of assuming a stack.
+- The labels its backlog uses (e.g. layer labels plus `security`, `test`, `refactor`, `performance`); `issues` applies only labels the repo has and asks before creating a missing one.

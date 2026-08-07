@@ -117,7 +117,7 @@ Every skill asks. Each asks inside **its own class**, and hands a question outsi
   - **Assumed** — <what was taken as given> · <what changes if it is wrong>.
   ```
 
-- **Postflight**: `npm run docs:lint` before reporting. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it.
+- **Postflight**: run the docs linter before reporting — the project's `docs:lint` script when it defines one, else the copy shipping with this plugin: `node ${CLAUDE_PLUGIN_ROOT}/scripts/docs-lint.mjs <project root>`. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, citation integrity, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it.
 
 ## Reporting
 

@@ -54,12 +54,12 @@ Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR
 
 A speed refactor starts from a number, not from a suspicion. Reproduce the cost the PRD names and record how you got it: the command, the input and its size, the environment, the value, and the spread over repeated runs. An optimisation with no before-number cannot be shown to have worked — and that is the usual way a refactor ships a regression believing it shipped a win.
 
-Where the number comes from in this repo:
+Where the number typically comes from — mapped to the project's own stack:
 
-- **Database** — Prisma query logging (`log: ['query']`) for the statements one request actually emits, their count, and `EXPLAIN ANALYZE` on the slow one. The recurring finds are N+1 loops, a missing index on a filtered or sorted column, and a full row fetch where a `select` would do.
+- **Database** — the ORM's query logging (e.g. Prisma `log: ['query']`) for the statements one request actually emits, their count, and `EXPLAIN ANALYZE` on the slow one. The recurring finds are N+1 loops, a missing index on a filtered or sorted column, and a full row fetch where a narrower select would do.
 - **API** — request duration end to end, split into database time and handler time; payload size; and work repeated per request that could be done once at startup (config parsing, key derivation, client construction).
-- **Web** — server render time, the number and waterfall depth of the server-to-server calls a page makes, per-route bundle bytes, and what a client component costs that a server component would not.
-- **Process** — `npm run build` and suite duration, when the driver is developer speed.
+- **Web** — server render time, the number and waterfall depth of the server-to-server calls a page makes, per-route bundle bytes, and, in a server-rendered stack, what a client component costs that a server component would not.
+- **Process** — build and suite duration (e.g. `npm run build`), when the driver is developer speed.
 
 ### Optimisation order
 
@@ -67,7 +67,7 @@ Cheapest and most reversible first; stop at the first level that reaches the PRD
 
 1. **Do less work** — a narrower query, a dropped round trip, work hoisted out of a loop or a request, `Promise.all` where sequential `await`s were serialising independent calls.
 2. **Do it at the right layer** — the database filtering, sorting and paginating instead of the process; the server rendering what the client was assembling.
-3. **Do it once** — memoise per request, then per process. Redis only as a best-effort cache the code still works without (root `CLAUDE.md`'s standing rule), never as a source of truth.
+3. **Do it once** — memoise per request, then per process. An external cache only as best-effort the code still works without (honouring the project's own infra rules), never as a source of truth.
 4. **Do it differently** — another algorithm, another data structure, a schema change. The highest cost and the one that needs the strongest before-number.
 
 A dependency added for speed carries the **dependency budget** like any other, plus its own measured win.
@@ -104,6 +104,6 @@ Sources are the `-REFACTOR-` files, phases are addressed `R<N>` (`/bldprj:build-
 - **Green baseline first.** On the freshly cut branch, before the first line changes, run the PRD's baseline commands and show the output. Red at the start stops the run and goes to the user: a failure inherited from the base branch is not this phase's to absorb.
 - **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves.
 - **Prove parity in step 7**: the same commands as the baseline, the same result, shown next to the baseline output. Plus the after-number for every internal outcome the phase serves, measured the way the before-number was.
-- The PR body carries the baseline → after table and the evidence that the contract held: `git diff --stat <base>...HEAD -- '**/*.spec.ts' '**/*.e2e-spec.ts'` showing only added characterization tests.
+- The PR body carries the baseline → after table and the evidence that the contract held: a diff over the project's test files (e.g. `git diff --stat <base>...HEAD -- '**/*.spec.ts'`) showing only added characterization tests.
 - Behaviour that has to change for a task to finish is a stop-and-ask. It leaves the refactor and becomes a `/bldprj:prd` item.
 - `close-feature` on this track reads `<slug>-REFACTOR-PRD.md`, deletes merged `refactor/<slug>-phase-*` branches, and collapses the log rows in `docs/Refactor.md`.

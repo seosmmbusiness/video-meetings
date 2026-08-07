@@ -38,7 +38,7 @@ Read all four, each against the ones before it:
 3. **RESEARCH** — the decision map, every `D-<n>` with its **Chosen**, **Exposure** and **Fits in at**, the Parameters table verbatim, Dependencies, and section 9's plan impact.
 4. **THREATS** — the threat map, every `S-<n>` with its control, its proof and its disposition, and section 5's plan impact.
 
-Then the repo the documents make claims about: root `CLAUDE.md`, the `CLAUDE.md` of each app they touch, `.claude/modules/INDEX.md` and the docs of the modules this work extends — enough to tell a claim that is already true from one that is still work.
+Then the repo the documents make claims about: the project's root docs, the docs of each part they touch, and the module docs of what this work extends — enough to tell a claim that is already true from one that is still work.
 
 Done when you can state, for every task number in the plan, the `AC-<n>` it serves, the `D-<n>` that constrains it and the `S-<n>` it must close — and, in the other direction, the tasks every `AC-<n>`, `D-<n>` and `S-<n>` lands on.
 
@@ -80,12 +80,12 @@ The same block asks about any requirement with two readings that produce differe
 
 Every ruling gets a `T-<n>` and exactly one destination:
 
-| The side that gives | Where the ruling lands                                                                          |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| the promise         | the `AC-<n>` is amended or retired in the PRD in the user's words, keeping its number           |
-| the control         | the `S-<n>`'s disposition in THREATS becomes `accepted <date>`, pointing at the `T-<n>`         |
-| the mechanism       | the work changes in FINAL, and the report names `/bldprj:research` when the change needs a new `D-<n>` |
-| the scope           | the capability leaves for `/bldprj:prd` or `/bldprj:refactor-prd`, named in the report and in Residual risk   |
+| The side that gives | Where the ruling lands                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| the promise         | the `AC-<n>` is amended or retired in the PRD in the user's words, keeping its number                       |
+| the control         | the `S-<n>`'s disposition in THREATS becomes `accepted <date>`, pointing at the `T-<n>`                     |
+| the mechanism       | the work changes in FINAL, and the report names `/bldprj:research` when the change needs a new `D-<n>`      |
+| the scope           | the capability leaves for `/bldprj:prd` or `/bldprj:refactor-prd`, named in the report and in Residual risk |
 
 An amended criterion keeps its number and its `- [ ]` box, with the new wording in it. A retired one keeps its number too, in the form the rest of the pipeline reads as retired — `- [~] **AC-2** <the promise as it stood> — retired by T-1: <reason>` — so `docs:lint` stops holding phases to it and close-out shows the ruling instead of hunting for evidence.
 
@@ -127,7 +127,7 @@ Nine classes, each taken across all four documents.
 3. **Control against scenario** — a control that changes what the user sees: an input the scenario accepts and the validator rejects, an extra step the scenarios do not have, an error where the PRD promised success.
 4. **Missing work** — a decision or control that needs a migration, an env var, a characterization test, an install or a config change that no task carries. `research` and `security-analyse` each revised the plan for their own; work neither claimed surfaces here.
 5. **Stale citations** — a `Held` disposition naming a task or file the revisions moved, a decision-map row pointing at a task that no longer exists, a `- [~]` task still cited by a `D-<n>` or `S-<n>`, an `AC-<n>` cited by nothing.
-6. **Order** — a phase consuming what a later phase builds: the `apps/web` phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
+6. **Order** — a phase consuming what a later phase builds: a frontend phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
 7. **Phase integrity** — the revisions left every phase still shippable: five live tasks at most, one layer, and a stop after it leaves the repo working.
 8. **Unproven control** — an `S-<n>` whose **Proven by** test no task writes, or whose control lands in a task that never mentions it. `build-phase` checks a finding against the control its task carries; a control with no test is a control nobody notices losing.
 9. **Silence** — a decision marked "not verified", a risk with no fallback, a finding with no disposition, a task whose description leaves the mechanism open. Each one reaches implementation as an invention.
@@ -158,7 +158,7 @@ Nine classes, each taken across all four documents.
 ## Phase 1. <Name, 50 chars at most>
 
 **Goal**: <what works after this phase that did not work before>
-**Touches**: <apps/api · apps/web · database>
+**Touches**: <api · web · database>
 **Covers**: <AC-1, AC-3>
 **Decisions**: <D-1, D-3>
 **Threats**: <S-2>
@@ -166,7 +166,7 @@ Nine classes, each taken across all four documents.
 
 - [ ] **1.1** <label, imperative, 60 chars at most> — <what must be true when it is done, the parameters it copies verbatim from the research, and the control it carries>
 
-**Done when**: <the command or observation, with the result it must give — `npm run test:api` green, `POST /meetings/:id/files` returning 201>
+**Done when**: <the command or observation, with the result it must give — the API suite green, `POST /meetings/:id/files` returning 201>
 
 ## Checks
 

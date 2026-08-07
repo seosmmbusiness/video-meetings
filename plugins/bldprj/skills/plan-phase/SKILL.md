@@ -33,7 +33,7 @@ Done when you can say, for each acceptance criterion, what has to exist for it t
 
 ### 2. Ground the phases in the repo
 
-Read root `CLAUDE.md` and `README.md`, the `CLAUDE.md` of each app the PRD touches, `.claude/modules/INDEX.md`, then the docs of the modules this feature extends. What already exists shortens phases, and the project's workflow shapes them: `apps/api` is written test-first and phases land green, `apps/web` is verified with Playwright e2e.
+Read the project's root docs, the docs of each part the PRD touches, and its module docs where it keeps them — then the docs of the modules this feature extends. What already exists shortens phases, and the project's workflow shapes them: how each layer is written and verified is the project docs' to say (e.g. an API developed test-first, a frontend verified with e2e specs).
 
 Done when you can name, for every phase you are about to write, the existing module it extends or the new one it creates.
 
@@ -75,11 +75,11 @@ The path, each phase as one line with its layer and covered criteria, whatever t
 - **Phase 1 is a tracer bullet**: the thinnest slice that proves the path works, taken through the layer that owns it. The layer that consumes it follows in its own phase.
 - Every phase leaves the repo working and verified — a stop after any phase is a usable stop.
 - Five tasks per phase at most; a sixth task is the signal to split the phase in two.
-- One layer per phase: `apps/api` phases run first and go green, the `apps/web` phase consuming them comes after.
+- One layer per phase: the layer that owns the data or API runs first and goes green, the phase consuming it comes after (e.g. backend phases before the frontend that calls them).
 - Every task traces to a PRD acceptance criterion, and whatever the PRD put Out of scope stays out of the plan. A phase's **Covers** lists the criteria its tasks serve.
 - Phases name outcomes, not mechanisms — "store the uploaded file and return its id", not "store it with library X".
 - A phase's name is short enough to read inside a milestone title: **50 characters at most**, the same discipline as a task's 60-character label — `issues` renders it as `<KEY> <phase> · <phase name>`.
-- A phase's **Done when** is a command or an observation: `npm run test:api` green, `POST /meetings/:id/files` returning 201, a Playwright spec passing. Where the mechanism that would name it exactly is still `research`'s to choose, write the observation and leave the exact route, command or number to `pre-issues`, which hardens it in FINAL.
+- A phase's **Done when** is a command or an observation: the layer's test suite green, `POST /meetings/:id/files` returning 201, an e2e spec passing. Where the mechanism that would name it exactly is still `research`'s to choose, write the observation and leave the exact route, command or number to `pre-issues`, which hardens it in FINAL.
 - Docs move with the code: the phase that changes a module updates that module's doc, JSDoc and Swagger annotations. There is no trailing documentation phase.
 
 ## Task lines
@@ -108,7 +108,7 @@ A task is three things in one line — **number**, **label**, **description**:
 ## Phase 1. <Name, 50 chars at most — the tracer bullet>
 
 **Goal**: <what works after this phase that did not work before>
-**Touches**: <apps/api · apps/web · database>
+**Touches**: <the layers this phase moves — e.g. api · web · database>
 **Covers**: <AC-1, AC-3>
 **Tasks**:
 

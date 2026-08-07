@@ -45,8 +45,8 @@ Read, before any code:
 3. `sources.research` — the `D-<n>` blocks this phase's tasks cite, plus Parameters and Dependencies. Limits, package versions, env var names and error codes are copied **verbatim**, and FINAL is where the copy already sits.
 4. `sources.threats` — each `S-<n>` this phase carries, with the control that closes it and the proof it needs.
 5. `sources.prd` — the goal and Out of scope.
-6. Root `CLAUDE.md` plus the `CLAUDE.md` of each app the phase touches.
-7. `.claude/modules/INDEX.md`, then the docs of only the modules this phase touches or that already solve a close problem — extending one beats creating a duplicate.
+6. The project's root docs plus the docs of each part the phase touches.
+7. The project's module-docs index, where it keeps one, then the docs of only the modules this phase touches or that already solve a close problem — extending one beats creating a duplicate.
 
 No `sources.final` in the MS file, or a task that hides a technical choice (library, storage format, limits) → say so and offer `/bldprj:pre-issues` or `/bldprj:research` first, rather than picking a library on the spot.
 
@@ -71,7 +71,7 @@ Done when you can state the branch this phase starts from, why, and which earlie
 
 - `git status` — the tree must be clean. Uncommitted changes → show them and ask what to do with them; nothing is reset or stashed on your own initiative.
 - Base branch by git flow: `develop` when it exists, otherwise `main`. Bring it current: `git checkout <base> && git pull --ff-only`.
-- Infrastructure the phase's tasks need: `npm install` when the lock file moved, `npm run db:up` and `npm run prisma:migrate:dev` when the phase touches the database or its tests need Postgres.
+- Infrastructure the phase's tasks need, as the project README names it: dependency install when the lock file moved (e.g. `npm install`), local services and migrations when the phase touches the database or its tests need one (e.g. `npm run db:up`, the migrate script).
 
 Done when the tree is clean, the starting branch from step 2 is current, and the commands this phase's tests run under actually work.
 
@@ -94,9 +94,9 @@ Done when `git branch --show-current` prints the phase branch and the MS file sa
 Plan order encodes the dependencies: tests before implementation, model before routes, backend before frontend. On the refactor track, the track file's `build-phase` section sets this step's rhythm instead — green baseline first, then code that keeps the suite as it is. Per task:
 
 1. Match it against its research decision, the findings it has to close, and the app's conventions.
-2. Write it in the surrounding code's style — `apps/api` goes Red/Green/Refactor (a failing test first, implementation second, refactors only from a green baseline); `apps/web` gets a Playwright e2e over the user scenario. Tests keep their teeth: rewriting or weakening one to reach green is agreed with the user first.
-3. Honour the repo's standing conventions: JSDoc on every function, provider and component, Swagger annotations on new `apps/api` routes and DTOs, and no secrets, storage paths or other users' data in responses or markup.
-4. Run that task's tests immediately — `npm run test:api` for backend work, `npm run test:e2e:web` for frontend work — rather than saving them for the end of the phase.
+2. Write it in the surrounding code's style and the testing idiom the project docs prescribe per layer — e.g. an API goes Red/Green/Refactor (a failing test first, implementation second, refactors only from a green baseline), a web app gets an e2e spec over the user scenario. Tests keep their teeth: rewriting or weakening one to reach green is agreed with the user first.
+3. Honour the repo's standing conventions as its docs state them (e.g. doc comments on every function, API annotations on new routes and DTOs), and no secrets, storage paths or other users' data in responses or markup.
+4. Run that task's tests immediately — the touched layer's own suite, as the project scripts name it — rather than saving them for the end of the phase.
 5. Commit the task in the format below, and tick it off only once those tests are green.
 
 A task that cannot be done as written, or that contradicts the research → stop and ask, rather than substituting your own reading of it.
@@ -107,32 +107,32 @@ Done when every issue in the phase has its code and green tests, or is named exp
 
 ### 6. Move the docs with the code
 
-Part of the phase, not a follow-up — root `CLAUDE.md` requires it:
+Part of the phase, not a follow-up — the project's own doc rules require it:
 
-- `.claude/modules/module-<app>-<name>.md` — a new module gets its doc plus a line in `.claude/modules/INDEX.md`; a changed module gets only the functions and gotchas that actually changed.
-- The one-line pointer in the app's `CLAUDE.md` — only for a new module or a changed one-line purpose.
-- `README.md`, root `CLAUDE.md`, `.env.example` — when scripts, env vars, infrastructure or architecture moved.
+- The project's module docs, where it keeps them: a new module gets its doc plus its index line; a changed module gets only the functions and gotchas that actually changed.
+- The pointer lines the project's doc conventions require — only for a new module or a changed one-line purpose.
+- `README.md`, the root docs, env samples — when scripts, env vars, infrastructure or architecture moved.
 
 Done when a teammate reading only the docs would find every function, endpoint and env var this phase added.
 
 ### 7. Prove the phase green
 
-Run the full set and show the user the actual output:
+Run the project's full check set, as its docs name it, and show the user the actual output — for an npm monorepo that reads like:
 
 ```bash
 npm run lint
 npm run format:check
-npm run test:api
-npm run test:e2e:web   # when the phase touched apps/web
+npm run test           # every suite the phase's layers own
 npm run build          # when configs, dependencies or a public API moved
-npm run docs:lint      # when this run settled an earlier phase or touched a doc under docs/
 ```
+
+plus the pipeline's docs linter (**Writing a document** in `PIPELINE.md`) when this run settled an earlier phase or touched a doc under `docs/`.
 
 Then walk the phase's **Done when** from FINAL point by point, each backed by a fact — a test name, command output, a response you actually saw — not by reasoning. A refactor phase adds its parity evidence here: the baseline output and this run's output, side by side, plus the after-number for the phase's outcome.
 
 **Red does not get pushed.** Fix the cause; a stubborn failure goes to the user with its output instead of a silenced test.
 
-A phase carrying an `S-<n>` finding, or touching user input, other users' data, files or authorization, gets a review before the push: `/security-review` for the security pass, `requesting-code-review` otherwise. Each `S-<n>` this phase carries is checked against its control, with the test that proves it.
+A phase carrying an `S-<n>` finding, or touching user input, other users' data, files or authorization, gets a review before the push: the security pass (e.g. `/security-review`), or the project's code-review habit otherwise. Each `S-<n>` this phase carries is checked against its control, with the test that proves it.
 
 Done when every command above is green, every clause of **Done when** has its evidence, and every finding this phase carries has its control in place.
 
@@ -210,7 +210,7 @@ Refs #<issue number>
 - `type` and `scope` follow the repo's history (`feat(api)`, `test(web)`, `docs`, `build`).
 - Two tasks share a commit only when they physically cannot be split — a Red→Green step where test and code land together — and then `Refs` lists both issues.
 - `Refs` on task commits, `Closes` in the PR body: the issue closes when the code lands on the base branch, not when a commit is written.
-- The Husky pre-commit hook runs lint and `test:api`. A commit it rejects means fixing the cause; the hook stays in the loop (`--no-verify` is off the table).
+- The project's pre-commit hook, when it has one, runs its checks. A commit it rejects means fixing the cause; the hook stays in the loop (`--no-verify` is off the table).
 
 ## Shipped-work log
 
