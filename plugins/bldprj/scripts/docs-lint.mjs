@@ -2,10 +2,12 @@
 /**
  * Checks the invariants this plugin's pipeline (`../PIPELINE.md`) states in prose:
  * key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria
- * coverage, plan ↔ final ↔ backlog agreement, and resolvable links.
+ * coverage and duplicates, D-/S- citation integrity, plan ↔ final ↔ backlog
+ * agreement (including a backlog published from a superseded FINAL), and
+ * resolvable links that stay inside the project.
  *
- * Usage: `npm run docs:lint`, or `node docs-lint.mjs [project-dir]` — exits 1 when an
- * error is found, 0 on warnings only.
+ * Usage: `node docs-lint.mjs [project-dir]` — exits 1 when an error is found,
+ * 0 on warnings only.
  *
  * The script ships inside the plugin, so it cannot infer the project from its own
  * location: the project root is the first argument, else `$CLAUDE_PROJECT_DIR`, else
@@ -13,7 +15,7 @@
  */
 
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, dirname, resolve, relative, basename } from 'node:path';
+import { join, dirname, resolve, relative, basename, sep } from 'node:path';
 
 const ROOT = resolve(
   process.argv[2] ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
@@ -69,7 +71,17 @@ function readLines(file) {
  */
 function header(lines, field) {
   const match = lines.find((line) => line.startsWith(`**${field}**:`));
-  return match ? match.slice(field.length + 6).trim() : null;
+  return match ? match.slice(match.indexOf(':') + 1).trim() : null;
+}
+
+/**
+ * Resolves a path written in a document against the project root.
+ * @param {string} path Relative path as a document states it.
+ * @returns {string | null} The absolute path, or null when it escapes the root.
+ */
+function insideRoot(path) {
+  const abs = resolve(ROOT, path);
+  return abs === ROOT || abs.startsWith(ROOT + sep) ? abs : null;
 }
 
 /**
@@ -260,12 +272,16 @@ function checkCoverage(prd, buildable, phases) {
   const { lines } = readLines(prd);
   const defined = new Set();
   const retired = new Set();
-  for (const raw of lines) {
-    const match = raw.match(/\*\*(AC-\d+)\*\*/);
-    if (!match) continue;
-    defined.add(match[1]);
-    if (/^\s*-\s+\[~\]/.test(raw)) retired.add(match[1]);
-  }
+  lines.forEach((raw, index) => {
+    const match = raw.match(/^\s*-\s+\[( |x|~)\]\s+\*\*(AC-\d+)\*\*/);
+    if (!match) return;
+    const [, state, criterion] = match;
+    if (defined.has(criterion)) {
+      report('error', prd, index + 1, `${criterion} is defined twice`);
+    }
+    defined.add(criterion);
+    if (state === '~') retired.add(criterion);
+  });
   if (defined.size === 0) {
     report('warn', prd, null, 'no `**AC-<n>**` acceptance criteria found');
     return;
@@ -341,11 +357,16 @@ function checkBacklog(ms, phases) {
     return;
   }
   for (const [name, path] of Object.entries(data.sources ?? {})) {
-    if (
-      typeof path === 'string' &&
-      path.endsWith('.md') &&
-      !existsSync(join(ROOT, path))
-    ) {
+    if (typeof path !== 'string' || !path.endsWith('.md')) continue;
+    const abs = insideRoot(path);
+    if (!abs) {
+      report(
+        'error',
+        ms,
+        null,
+        `sources.${name} points at ${path}, which escapes the project root`,
+      );
+    } else if (!existsSync(abs)) {
       report(
         'error',
         ms,
@@ -445,6 +466,64 @@ function checkLinks(file) {
 }
 
 /**
+ * Checks that every D-/S- id the buildable document cites is actually defined
+ * where it is minted, so build-phase never loads a phase against a dangling id.
+ * @param {string} buildable Absolute path of the plan or FINAL later stages read.
+ * @param {string | null} research Absolute path of the research file, when present.
+ * @param {string | null} threats Absolute path of the threats file, when present.
+ * @returns {void}
+ */
+function checkCitations(buildable, research, threats) {
+  /**
+   * Collects the ids a document defines as `### <id>.` blocks.
+   * @param {string | null} file Absolute path of the defining document.
+   * @param {RegExp} pattern Pattern with the id in group 1.
+   * @returns {Set<string>} The defined ids, empty when the file is absent.
+   */
+  const ids = (file, pattern) =>
+    file
+      ? new Set(
+          [...readLines(file).text.matchAll(pattern)].map((match) => match[1]),
+        )
+      : new Set();
+  const sources = {
+    D: {
+      known: ids(research, /^###\s+(D-\d+)\./gm),
+      file: research,
+      stage: 'research',
+    },
+    S: {
+      known: ids(threats, /^###\s+(S-\d+)\./gm),
+      file: threats,
+      stage: 'threats',
+    },
+  };
+  readLines(buildable).lines.forEach((raw, index) => {
+    if (!raw.startsWith('**Decisions**:') && !raw.startsWith('**Threats**:'))
+      return;
+    for (const match of raw.matchAll(/\b([DS]-\d+)\b/g)) {
+      const id = match[1];
+      const { known, file, stage } = sources[id[0]];
+      if (!file) {
+        report(
+          'error',
+          buildable,
+          index + 1,
+          `cites ${id} but there is no ${stage} file beside it`,
+        );
+      } else if (!known.has(id)) {
+        report(
+          'error',
+          buildable,
+          index + 1,
+          `cites ${id}, which ${basename(file)} does not define`,
+        );
+      }
+    }
+  });
+}
+
+/**
  * Checks that a document carries the map the stages after it read.
  * @param {string | null} file Absolute path of the research or threats file.
  * @param {string} mapName Heading the map sits under.
@@ -529,19 +608,29 @@ function checkTrack(track, keys) {
       report('warn', file, null, 'has no `## Asked & assumed` section');
     }
   }
-  if (track.plans.length === 0) return;
+  if (track.plans.length === 0 && track.finals.length === 0) return;
 
-  const currentPlan = track.plans[track.plans.length - 1];
+  // The plan is exactly one file, revised in place (PIPELINE.md, Versions):
+  // a versioned plan file is a leftover from a retired contract.
+  for (const plan of track.plans.filter((p) => /-PLAN-v\d+\.md$/.test(p))) {
+    report(
+      'error',
+      plan,
+      null,
+      'plan versions are not part of the contract — the plan is revised in place, with its history in ## Revisions',
+    );
+  }
+  const currentPlan =
+    track.plans.find((p) => !/-PLAN-v\d+\.md$/.test(p)) ??
+    track.plans[track.plans.length - 1] ??
+    null;
   const currentFinal = track.finals[track.finals.length - 1] ?? null;
 
-  // Every plan version is replaced by the next one, and the last plan by the
-  // final plan `pre-issues` consolidated it into.
+  // The plan is superseded by the FINAL `pre-issues` consolidated it into,
+  // and every FINAL version by the next one.
   /** @type {[string, string][]} */
   const superseded = [];
-  track.plans.forEach((plan, index) => {
-    const next = track.plans[index + 1] ?? currentFinal;
-    if (next) superseded.push([plan, next]);
-  });
+  if (currentPlan && currentFinal) superseded.push([currentPlan, currentFinal]);
   track.finals.slice(0, -1).forEach((final, index) => {
     superseded.push([final, track.finals[index + 1]]);
   });
@@ -555,8 +644,17 @@ function checkTrack(track, keys) {
       );
     }
   }
-  const planPhases = parsePlan(currentPlan);
-  checkPlanShape(currentPlan, planPhases);
+  const planPhases = currentPlan ? parsePlan(currentPlan) : null;
+  if (currentPlan) {
+    checkPlanShape(currentPlan, planPhases);
+  } else {
+    report(
+      'warn',
+      currentFinal,
+      null,
+      'has no plan beside it — the preliminary cut is part of the record',
+    );
+  }
 
   // The final plan supersedes the preliminary one: once it exists, it is the
   // document `issues` publishes and `build-phase` builds from.
@@ -564,18 +662,37 @@ function checkTrack(track, keys) {
   const phases = currentFinal ? parsePlan(currentFinal) : planPhases;
   if (currentFinal) {
     checkPlanShape(currentFinal, phases);
-    checkCarriedTasks(currentPlan, planPhases, currentFinal, phases);
+    if (currentPlan) {
+      checkCarriedTasks(currentPlan, planPhases, currentFinal, phases);
+    }
   }
   checkCoverage(track.prd, buildable, phases);
+  checkCitations(buildable, track.research, track.threats);
   checkMap(track.research, 'Decision map', phases);
   checkMap(track.threats, 'Threat map', phases);
   if (track.ms) {
-    const data = JSON.parse(readFileSync(track.ms, 'utf8'));
-    const source = data.sources?.final ?? data.sources?.plan;
-    const published = source ? join(ROOT, source) : buildable;
+    let data = null;
+    try {
+      data = JSON.parse(readFileSync(track.ms, 'utf8'));
+    } catch {
+      data = null; // checkBacklog reports the parse failure itself.
+    }
+    const publishedFinal = data?.sources?.final
+      ? insideRoot(data.sources.final)
+      : null;
+    if (publishedFinal && currentFinal && publishedFinal !== currentFinal) {
+      report(
+        'error',
+        track.ms,
+        null,
+        `sources.final points at ${basename(publishedFinal)} while ${basename(currentFinal)} is current — re-run /bldprj:issues on it`,
+      );
+    }
+    const source = data?.sources?.final ?? data?.sources?.plan;
+    const published = typeof source === 'string' ? insideRoot(source) : null;
     checkBacklog(
       track.ms,
-      existsSync(published) ? parsePlan(published) : phases,
+      published && existsSync(published) ? parsePlan(published) : phases,
     );
   }
 }

@@ -7,15 +7,15 @@ description: 'Writes a refactor PRD — behaviour frozen at parity, measurable i
 
 A refactor PRD fixes **what stays identical** and **what gets better behind it**. Its subject is code that already works: the user is handed the same product afterwards, and the win lands in speed, security, structure or doc accuracy.
 
-**Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/prd` — this run finds them, and asks rather than absorbing them.
+**Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/bldprj:prd` — this run finds them, and asks rather than absorbing them.
 
-Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) and [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — parity and the test contract come from the first, identity and the question protocol from the second. Neither is repeated here.
 
 ## Argument
 
-The refactor wish: what to work on and what it should buy (`/refactor-prd speed up the meetings dashboard`, `/refactor-prd harden apps/api auth`, `/refactor-prd check apps/web auth against its module doc`).
+The refactor wish: what to work on and what it should buy (`/bldprj:refactor-prd speed up the meetings dashboard`, `/bldprj:refactor-prd harden the API auth`, `/bldprj:refactor-prd check the web auth module against its doc`).
 
 - No argument → ask which code and which driver, rather than picking a target out of the repo state.
 - A driver with no target ("optimise speed", "improve security") → ask which module, route or page, since a repo-wide refactor has no baseline anyone can hold green.
@@ -26,8 +26,8 @@ The refactor wish: what to work on and what it should buy (`/refactor-prd speed 
 
 A refactor PRD describes behaviour that already exists, so the source is the implementation and the docs are a second opinion:
 
-1. Root `CLAUDE.md` — the Status section, for what this code is part of.
-2. `CLAUDE.md` of each app the target sits in, then `.claude/modules/INDEX.md` and the doc of the target module only.
+1. The project's root docs, for what this code is part of.
+2. The docs of each part the target sits in, then the project's module docs — the target module's doc only.
 3. The implementation itself — every file the argument points at, plus its callers: what it exposes, what it returns, what it throws, what it stores.
 
 Where doc and code disagree, that gap is a finding: a driver when the argument asks for doc compliance, a proposal for step 5 otherwise.
@@ -39,8 +39,9 @@ Done when you can state, file by file, what the target does today from the code 
 The suite that covers the target, run now, before any document exists:
 
 ```bash
-npm run test:api          # apps/api
-npm run test:e2e:web      # apps/web
+# the project's own suites and checks, as its scripts name them — e.g.:
+npm run test              # the suite covering the target
+npm run test:e2e          # when the target has an e2e surface
 npm run lint && npm run format:check
 npm run build             # when the target is built output or config
 ```
@@ -84,7 +85,7 @@ Done when every improvement you found sits in exactly one list — a driver, or 
 - **Path**: `docs/<slug>/<slug>-REFACTOR-PRD.md`, creating `docs/<slug>/` if it does not exist.
 - **Shape**: the template below, section for section.
 
-Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by an acceptance criterion, and every criterion is falsifiable.
+Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by a numbered `AC-<n>`, and every criterion is falsifiable.
 
 ### 7. Open the refactor's row in the index
 
@@ -94,7 +95,7 @@ Done when this work has exactly one row in `docs/INDEX.md` and its link resolves
 
 ### 8. Report
 
-The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
+The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/bldprj:plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
 
 ## Template
 
@@ -114,7 +115,7 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 <The code in scope, by path and module. One line each, with what it does today.>
 
-- `apps/api/src/meetings/meetings.service.ts` — lists a caller's meetings, one query per meeting owner lookup.
+- `src/meetings/meetings.service.ts` — lists a caller's meetings, one query per meeting owner lookup.
 
 ## 3. Behaviour freeze
 
@@ -125,9 +126,9 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 ## 4. Green baseline
 
-| Command            | Covers                       | Result today    |
-| ------------------ | ---------------------------- | --------------- |
-| `npm run test:api` | <what it pins in the target> | <pass, N tests> |
+| Command        | Covers                       | Result today    |
+| -------------- | ---------------------------- | --------------- |
+| `npm run test` | <what it pins in the target> | <pass, N tests> |
 
 **Unprotected**: <behaviour in the freeze that no test would catch changing — the characterization tests phase 1 has to add.>
 
@@ -149,10 +150,10 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 ## 7. Acceptance criteria
 
-<Falsifiable statements. At least one per freeze line and one per outcome; each names the observation that would prove it wrong.>
+<Falsifiable statements, numbered **AC-1**, **AC-2**, … exactly as in a feature PRD — the numbers are permanent: phases cite them in **Covers**, the linter holds the plan to them, and close-out proves them one by one. At least one per freeze line and one per outcome; each names the observation that would prove it wrong.>
 
-- [ ] `npm run test:api` passes with the same test count and no test file changed.
-- [ ] `GET /meetings` emits 2 queries per request, down from 1 + N, measured by Prisma query logging.
+- [ ] **AC-1** The full test suite passes with the same test count and no test file changed.
+- [ ] **AC-2** The listing endpoint emits 2 queries per request, down from 1 + N, measured by query logging.
 
 ## Asked & assumed
 

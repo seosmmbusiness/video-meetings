@@ -14,17 +14,16 @@ Two failures it exists to catch:
 
 A conflict is not a bug to fix quietly. It is a **ruling**, and the ruling is the user's: sacrificing a control, a promise or a mechanism to ship the business requirement is a trade they own, and this is the stage that puts it to them — while it still costs a paragraph.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → **`pre-issues`** → `issues` → `build-phase`. The last stage before implementation: after it, `issues` mirrors FINAL onto GitHub and `build-phase` builds from it.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → `security-analyse` → **`pre-issues`** → `issues` → `build-phase` → `close-feature`. The last stage before implementation: after it, `issues` mirrors FINAL onto GitHub and `build-phase` builds from it.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 
 ## Argument
 
-Path to a plan (`/pre-issues docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
+Path to a plan (`/bldprj:pre-issues docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` that have a research and a threats file beside them, and ask which one to finalise.
-- Several versions of the same plan → take the current one and say which file you took.
-- No `-RESEARCH.md` or no `-THREATS.md` beside it → say so and offer `/research` or `/security-analyse` first: with a mechanism or a control still missing there is nothing to consolidate.
+- No argument → list the plans under `docs/*/*-PLAN.md` that have a research and a threats file beside them, and ask which one to finalise.
+- No `-RESEARCH.md` or no `-THREATS.md` beside it → say so and offer `/bldprj:research` or `/bldprj:security-analyse` first: with a mechanism or a control still missing there is nothing to consolidate.
 - A `-FINAL.md` already sits there → **Versions** in `PIPELINE.md` decides whether this run rewrites it or writes the next version.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `pre-issues` section adds parity to the conflict classes and names the file this run writes.
 
@@ -39,7 +38,7 @@ Read all four, each against the ones before it:
 3. **RESEARCH** — the decision map, every `D-<n>` with its **Chosen**, **Exposure** and **Fits in at**, the Parameters table verbatim, Dependencies, and section 9's plan impact.
 4. **THREATS** — the threat map, every `S-<n>` with its control, its proof and its disposition, and section 5's plan impact.
 
-Then the repo the documents make claims about: root `CLAUDE.md`, the `CLAUDE.md` of each app they touch, `.claude/modules/INDEX.md` and the docs of the modules this work extends — enough to tell a claim that is already true from one that is still work.
+Then the repo the documents make claims about: the project's root docs, the docs of each part they touch, and the module docs of what this work extends — enough to tell a claim that is already true from one that is still work.
 
 Done when you can state, for every task number in the plan, the `AC-<n>` it serves, the `D-<n>` that constrains it and the `S-<n>` it must close — and, in the other direction, the tasks every `AC-<n>`, `D-<n>` and `S-<n>` lands on.
 
@@ -81,12 +80,12 @@ The same block asks about any requirement with two readings that produce differe
 
 Every ruling gets a `T-<n>` and exactly one destination:
 
-| The side that gives | Where the ruling lands                                                                          |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| the promise         | the `AC-<n>` is amended or retired in the PRD in the user's words, keeping its number           |
-| the control         | the `S-<n>`'s disposition in THREATS becomes `accepted <date>`, pointing at the `T-<n>`         |
-| the mechanism       | the work changes in FINAL, and the report names `/research` when the change needs a new `D-<n>` |
-| the scope           | the capability leaves for `/prd` or `/refactor-prd`, named in the report and in Residual risk   |
+| The side that gives | Where the ruling lands                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| the promise         | the `AC-<n>` is amended or retired in the PRD in the user's words, keeping its number                       |
+| the control         | the `S-<n>`'s disposition in THREATS becomes `accepted <date>`, pointing at the `T-<n>`                     |
+| the mechanism       | the work changes in FINAL, and the report names `/bldprj:research` when the change needs a new `D-<n>`      |
+| the scope           | the capability leaves for `/bldprj:prd` or `/bldprj:refactor-prd`, named in the report and in Residual risk |
 
 An amended criterion keeps its number and its `- [ ]` box, with the new wording in it. A retired one keeps its number too, in the form the rest of the pipeline reads as retired — `- [~] **AC-2** <the promise as it stood> — retired by T-1: <reason>` — so `docs:lint` stops holding phases to it and close-out shows the ruling instead of hunting for evidence.
 
@@ -96,7 +95,7 @@ Done when every conflict from step 4 carries its `T-<n>`, the user's words and i
 
 ### 6. Write the final plan
 
-- **Path**: `docs/<slug>/<slug>-FINAL.md`, next to the plan, reusing its slug exactly.
+- **Path**: `docs/<slug>/<slug>-FINAL.md`, next to the plan, reusing its slug exactly. A re-run that must version (an `-MS.json` exists — **Versions** in `PIPELINE.md`) writes `docs/<slug>/<slug>-FINAL-v<N>.md` instead, and gives the version it replaces `**Status**: superseded by [<slug>-FINAL-v<N>.md](./<slug>-FINAL-v<N>.md)`.
 - **Shape**: the template below — the plan's phase blocks, so `issues`, `build-phase` and `docs:lint` read FINAL exactly as they read a plan.
 
 Three things make it the buildable document rather than a summary:
@@ -110,14 +109,14 @@ Done when every live task from the plan appears with its number, every phase car
 ### 7. Close the plan and open FINAL's place in the index
 
 - The plan this run consolidated gains `**Status**: superseded by [<slug>-FINAL.md](./<slug>-FINAL.md)`. The preliminary cut stays as history, and nothing downstream reads it again.
-- `docs/INDEX.md` — this feature's row: its `Final —` placeholder becomes the link to the file just written (a row opened before this stage existed gains the segment).
-- `npm run docs:lint`.
+- `docs/INDEX.md` — this feature's row: its `Final` segment links the file just written — the `Final —` placeholder on a first run, the previous version's link on a version bump (a row opened before this stage existed gains the segment).
+- The docs linter (**Writing a document** in `PIPELINE.md`).
 
 Done when the plan says what superseded it, every link in the feature's row resolves, and docs:lint is clean or its findings are named in the report.
 
 ### 8. Report
 
-The verdict first — **ready** with the FINAL path, or **blocked** and on which conflicts. Then: one line per gap from steps 2–4 with what happened to it, one line per `T-<n>` with the side that gave way and what it costs, what stays unprotected, what was handed back to an earlier stage, and the next command: `/issues docs/<slug>/<slug>-FINAL.md`.
+The verdict first — **ready** with the FINAL path, or **blocked** and on which conflicts. Then: one line per gap from steps 2–4 with what happened to it, one line per `T-<n>` with the side that gave way and what it costs, what stays unprotected, what was handed back to an earlier stage, and the next command: `/bldprj:issues docs/<slug>/<slug>-FINAL.md`.
 
 ## Conflict classes
 
@@ -128,7 +127,7 @@ Nine classes, each taken across all four documents.
 3. **Control against scenario** — a control that changes what the user sees: an input the scenario accepts and the validator rejects, an extra step the scenarios do not have, an error where the PRD promised success.
 4. **Missing work** — a decision or control that needs a migration, an env var, a characterization test, an install or a config change that no task carries. `research` and `security-analyse` each revised the plan for their own; work neither claimed surfaces here.
 5. **Stale citations** — a `Held` disposition naming a task or file the revisions moved, a decision-map row pointing at a task that no longer exists, a `- [~]` task still cited by a `D-<n>` or `S-<n>`, an `AC-<n>` cited by nothing.
-6. **Order** — a phase consuming what a later phase builds: the `apps/web` phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
+6. **Order** — a phase consuming what a later phase builds: a frontend phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
 7. **Phase integrity** — the revisions left every phase still shippable: five live tasks at most, one layer, and a stop after it leaves the repo working.
 8. **Unproven control** — an `S-<n>` whose **Proven by** test no task writes, or whose control lands in a task that never mentions it. `build-phase` checks a finding against the control its task carries; a control with no test is a control nobody notices losing.
 9. **Silence** — a decision marked "not verified", a risk with no fallback, a finding with no disposition, a task whose description leaves the mechanism open. Each one reaches implementation as an invention.
@@ -144,7 +143,7 @@ Nine classes, each taken across all four documents.
 **Research**: [<slug>-RESEARCH.md](./<slug>-RESEARCH.md)
 **Threats**: [<slug>-THREATS.md](./<slug>-THREATS.md)
 **Date**: <YYYY-MM-DD>
-**Status**: ready for /issues
+**Status**: ready for /bldprj:issues
 
 ## What ships
 
@@ -159,7 +158,7 @@ Nine classes, each taken across all four documents.
 ## Phase 1. <Name, 50 chars at most>
 
 **Goal**: <what works after this phase that did not work before>
-**Touches**: <apps/api · apps/web · database>
+**Touches**: <api · web · database>
 **Covers**: <AC-1, AC-3>
 **Decisions**: <D-1, D-3>
 **Threats**: <S-2>
@@ -167,7 +166,7 @@ Nine classes, each taken across all four documents.
 
 - [ ] **1.1** <label, imperative, 60 chars at most> — <what must be true when it is done, the parameters it copies verbatim from the research, and the control it carries>
 
-**Done when**: <the command or observation, with the result it must give — `npm run test:api` green, `POST /meetings/:id/files` returning 201>
+**Done when**: <the command or observation, with the result it must give — the API suite green, `POST /meetings/:id/files` returning 201>
 
 ## Checks
 
@@ -188,7 +187,7 @@ Nine classes, each taken across all four documents.
 
 ## Residual risk
 
-<What stays knowingly unprotected after the rulings, and every capability handed to /prd or /refactor-prd.>
+<What stays knowingly unprotected after the rulings, and every capability handed to /bldprj:prd or /bldprj:refactor-prd.>
 
 ## Asked & assumed
 
@@ -201,7 +200,7 @@ Nine classes, each taken across all four documents.
 - FINAL is what `issues` publishes and `build-phase` builds from; the plan behind it becomes history the moment step 7 marks it superseded.
 - Task numbers are inherited, never reissued: `plan-phase` minted them, dropped tasks stay `- [~]`, and new work takes the next free number in its phase.
 - Every conflict is ruled on by the user and written down with what it costs — including the ones where the ruling is to ship the requirement and carry the risk.
-- This run consolidates; it does not decide the work. A missing mechanism belongs to `/research`, a new finding to `/security-analyse` — named in the report, not invented here.
+- This run consolidates; it does not decide the work. A missing mechanism belongs to `/bldprj:research`, a new finding to `/bldprj:security-analyse` — named in the report, not invented here.
 - The only edits outside FINAL are the ones a ruling made: an `AC-<n>` the user amended in the PRD, a disposition the user accepted in THREATS, and the plan's superseded line.
 - Every number in FINAL is copied verbatim from the PRD or the research Parameters table; a value that appears in neither is either a `T-<n>` or a mistake.
 - A task is startable from FINAL alone. The reasoning stays in RESEARCH and THREATS, and the identifiers point at it.

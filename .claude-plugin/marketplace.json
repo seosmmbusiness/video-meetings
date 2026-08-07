@@ -10,7 +10,7 @@
     {
       "name": "bldprj",
       "source": "./plugins/bldprj",
-      "description": "The document pipeline a feature or refactor is built through: PRD, preliminary phase plan, research, threat analysis, final plan, GitHub backlog, phase builds.",
+      "description": "The document pipeline a feature or refactor is built through: PRD, preliminary phase plan, research, threat analysis, final plan, GitHub backlog, phase builds, close-out.",
       "category": "workflow",
       "tags": ["planning", "prd", "backlog", "tdd"]
     }

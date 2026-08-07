@@ -7,13 +7,13 @@ description: 'Writes a feature PRD — goal, user scenarios, scope fence, falsif
 
 A PRD fixes **what** the user gets and **how you will know it is done**. The mechanism — libraries, schema, endpoints, file layout — is chosen later by `research`; a mechanism named here freezes a decision nobody has investigated yet.
 
-Position in the pipeline: **`prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: **`prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, the question protocol and the document rules are defined there and are not repeated here.
 
 ## Argument
 
-A feature name or description (`/prd meeting file upload`).
+A feature name or description (`/bldprj:prd meeting file upload`).
 
 - No argument → ask which feature to write up, rather than inferring one from the repo state.
 
@@ -23,10 +23,9 @@ A feature name or description (`/prd meeting file upload`).
 
 Read, before drafting a line:
 
-1. Root `CLAUDE.md` — the Status section above all: what already exists, so the PRD asks for the delta instead of for what is already built.
-2. `README.md` — scripts, setup, available infrastructure.
-3. `CLAUDE.md` of each app the feature touches (`apps/web`, `apps/api`).
-4. `.claude/modules/INDEX.md`, then the docs of only those modules the feature extends.
+1. The project's root docs — `CLAUDE.md` and `README.md`: what already exists, so the PRD asks for the delta instead of for what is already built; scripts, setup, available infrastructure.
+2. The docs of each part the feature touches, as the root docs point at them (e.g. a per-app `CLAUDE.md` in a monorepo).
+3. The project's module docs, where it keeps them (e.g. an index like `.claude/modules/INDEX.md`) — then only those modules the feature extends.
 
 Done when every statement you are about to make about current behaviour traces to a file you just read, and you can name the existing modules this feature builds on.
 
@@ -63,7 +62,7 @@ Done when every section is filled, every scenario is covered by at least one acc
 
 ### 6. Open the feature's row in the index
 
-`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and its documents. This run fills the PRD link and leaves the rest as `—`; `research`, `security-analyse` and `pre-issues` fill theirs when they run, and close-out moves them all into `docs/archive/`.
+`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and its documents. This run fills the PRD link and leaves the rest as `—`; `plan-phase`, `research`, `security-analyse` and `pre-issues` fill theirs when they run, and close-out moves them all into `docs/archive/`.
 
 Root `CLAUDE.md` gets a single static pointer, added only when it is missing and never extended afterwards:
 
@@ -75,7 +74,7 @@ Done when `docs/INDEX.md` has exactly one row for this feature, its PRD link res
 
 ### 7. Report
 
-The path, the key, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/plan-phase docs/<slug>/<slug>-PRD.md`.
+The path, the key, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/bldprj:plan-phase docs/<slug>/<slug>-PRD.md`.
 
 ## Template
 

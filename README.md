@@ -37,7 +37,6 @@ npm run db:up
 | `npm run lint:api`           | Lint apps/api only                                              |
 | `npm run format`             | Format apps/** with Prettier                                    |
 | `npm run format:check`       | Check formatting without writing                                |
-| `npm run docs:lint`          | Check the `docs/` feature documents against the pipeline rules  |
 | `npm run test:api`           | Run NestJS unit tests                                           |
 | `npm run test:e2e:web`       | Run Playwright e2e tests (apps/web)                             |
 | `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)                         |
@@ -74,4 +73,3 @@ npm run db:down         # stop
 - Node version is pinned via `.nvmrc`.
 - **apps/api** is developed test-first (TDD), following Red/Green/Refactor: end-to-end tests are written/extended and their cases reviewed before implementation (red), functional changes are checked against the test suite afterward (green), refactors start only from a green baseline and re-run the suite after each step, and any test rewrite is confirmed with the requester first rather than done silently. See `apps/api/CLAUDE.md`.
 - **apps/api** documents its HTTP surface with `@nestjs/swagger` (Swagger UI); every controller/route/DTO is annotated, and the generated docs are checked after adding or changing endpoints. See `apps/api/CLAUDE.md`.
-- Features and refactors are specified before they are built — PRD, preliminary phase plan, research, threat analysis, then the final plan those three are consolidated into, and a GitHub backlog built from it one phase at a time. The documents live in `docs/<slug>/`, are indexed in `docs/INDEX.md`, and `npm run docs:lint` checks them. The skills that write them ship as the `bldprj` Claude Code plugin (`/bldprj:prd`, `/bldprj:plan-phase`, …) — see [`plugins/bldprj/README.md`](plugins/bldprj/README.md) and the root `CLAUDE.md`.

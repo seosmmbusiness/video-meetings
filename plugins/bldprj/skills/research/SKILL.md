@@ -9,16 +9,15 @@ One pass covers a whole plan, not one task. It closes the plan's **one-way doors
 
 Research decides; it does not build. Feature code, `npm install` and `package.json` stay as they are: this run writes the RESEARCH file, its link in `docs/INDEX.md`, and — only where a decision genuinely changes the work — a revision of the plan.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `security-analyse` → `pre-issues` → `issues` → `build-phase`. It runs while the plan is still **preliminary**, so a decision that reshapes a task costs an edit to that plan rather than a round of edits to published issues.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`. It runs while the plan is still **preliminary**, so a decision that reshapes a task costs an edit to that plan rather than a round of edits to published issues.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 
 ## Argument
 
-Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
+Path to a plan (`/bldprj:research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to research, rather than picking one.
-- Several versions of the same plan → take the current one and say which file you took.
+- No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to research, rather than picking one.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
 
 ## Steps
@@ -31,11 +30,11 @@ Done when you can say, for every task number in the plan, whether it hides a tec
 
 ### 2. Take the stack from the repo, not from memory
 
-Read root `CLAUDE.md` and `README.md`, the `CLAUDE.md` of each app the plan touches, `.claude/modules/INDEX.md`, then the docs of the modules this feature extends or that already solve a close problem. Then the facts:
+Read the project's root docs, the docs of each part the plan touches, and its module docs where it keeps them — then the modules this feature extends or that already solve a close problem. Then the facts:
 
-- `package.json` at the root and in each app touched — real framework versions and what is already installed; `npm ls <package>` for a transitive dependency you could use without installing anything.
-- `.nvmrc` — the Node version, which decides which built-ins are available.
-- `docker-compose.yml` and `.env.example` — the infrastructure that already runs and the env var names already taken.
+- The manifest and lock file of each part touched (e.g. `package.json`) — real framework versions and what is already installed, including a transitive dependency you could use without installing anything (e.g. `npm ls <package>`).
+- The runtime pin (e.g. `.nvmrc`) — which platform version, and so which built-ins, are available.
+- The infrastructure that already runs and the env var names already taken (e.g. a compose file, `.env.example`).
 - The code that already solves a nearby problem: how this repo does validation, config, errors, guards, tests. The decision should read as a continuation of that code.
 
 Done when every version, module and env var you are about to put in the report came from a file you just read.
@@ -50,19 +49,19 @@ Done when every decision point traces to at least one plan task, and every task 
 
 ### 4. Settle each decision, in this order
 
-1. **Already in the repo** — an existing module, service, utility or convention to extend. Best outcome, and `.claude/modules/INDEX.md` is where you look first.
-2. **Already on the platform** — Node built-ins (`node:crypto`, `node:fs/promises`, `node:stream`, `node:path`, Web Crypto, `AbortSignal`), what NestJS or Next.js ships, an installed transitive dependency.
-3. **A new dependency** — only where 1 and 2 leave the task unsolved. Per candidate: current version and last release date, compatibility with the Node and framework versions from step 2, license, dependency weight, TypeScript types, maintenance, and the cost of dropping it later.
+1. **Already in the repo** — an existing module, service, utility or convention to extend. Best outcome, and the project's module-docs index is where you look first.
+2. **Already on the platform** — what the runtime and the project's frameworks ship (e.g. Node built-ins such as `node:crypto`, `node:fs/promises`, `node:stream`; what the API or web framework bundles), or an installed transitive dependency.
+3. **A new dependency** — only where 1 and 2 leave the task unsolved. Per candidate: current version and last release date, compatibility with the runtime and framework versions from step 2, license, dependency weight, type definitions where the language needs them, maintenance, and the cost of dropping it later.
 
 The **dependency budget** is flat: the count of third-party libraries should not visibly grow. Each new one carries its justification and an answer to "what happens without it" — and when a reasonable amount of our own code replaces it, that is the answer.
 
-Versions, APIs and limits are **verified, not remembered**: `npm view <package> version time.modified`, the official docs, the repository. Cite the source; write "not verified" for anything you could not check.
+Versions, APIs and limits are **verified, not remembered**: the package registry (e.g. `npm view <package> version time.modified`), the official docs, the repository. Cite the source; write "not verified" for anything you could not check.
 
 Each decision also gets:
 
 - **Exposure** — what this mechanism hands an attacker: injection, path traversal, authorization bypass, leaking other people's data or the fact it exists, DoS by size, count or time, secrets in logs and API responses. One option is rejected over another here; the feature-wide pass belongs to `security-analyse`, which reads these blocks.
 - **Replaceability** — an interface plus configuration, so swapping the implementation later leaves calling code untouched.
-- **Testability** — how it is proven in this repo's style: test-first for `apps/api`, Playwright e2e for `apps/web`.
+- **Testability** — how it is proven in this repo's style, as its docs prescribe per layer (e.g. test-first on the API, e2e specs on the web app).
 
 Done when every decision point from step 3 has a named winner, its rejected alternatives, and a source behind every version and limit claimed.
 
@@ -103,7 +102,7 @@ Done when the row's links all resolve and the feature still has exactly one row.
 
 ### 9. Report
 
-The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/security-analyse docs/<slug>/<slug>-PLAN.md`.
+The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/bldprj:security-analyse docs/<slug>/<slug>-PLAN.md`.
 
 ## Template
 
@@ -154,7 +153,7 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 
 ## 7. Architecture impact
 
-<New modules and their boundaries, existing modules touched, and the docs implementation will update: `.claude/modules/`, CLAUDE.md, README.md, .env.example.>
+<New modules and their boundaries, existing modules touched, and the docs implementation will update: the project's module docs, CLAUDE.md, README.md, env samples.>
 
 ## 8. Risks and open questions
 

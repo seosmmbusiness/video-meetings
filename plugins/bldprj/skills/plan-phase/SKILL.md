@@ -9,7 +9,7 @@ A plan turns one PRD into ordered **phases**. Each phase leaves the repo working
 
 This plan is **preliminary**, and deliberately so: it is cut before any mechanism is known, so a task names the outcome and leaves the library, the schema and the limits to `research`. `research` and `security-analyse` then revise it in place, and `pre-issues` consolidates all four documents into the buildable `docs/<slug>/<slug>-FINAL.md`. Nothing is published to GitHub from this file.
 
-Position in the pipeline: `prd` / `refactor-prd` → **`plan-phase`** → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: `prd` / `refactor-prd` → **`plan-phase`** → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 The plan is where the work gets its **identity**. Phase `1`, task `1.2` — those numbers become the issue title, the commit's issue reference, the phase branch and the row in the log. They are assigned here, once, and nothing downstream renumbers them.
 
@@ -17,7 +17,7 @@ The plan is where the work gets its **identity**. Phase `1`, task `1.2` — thos
 
 ## Argument
 
-Path to a PRD (`/plan-phase docs/meeting-file-upload/meeting-file-upload-PRD.md`).
+Path to a PRD (`/bldprj:plan-phase docs/meeting-file-upload/meeting-file-upload-PRD.md`).
 
 - No argument → list the PRDs under `docs/*/*-PRD.md` and ask which one to plan, rather than picking one.
 - A `-REFACTOR-PRD.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `plan-phase` section replaces the tracer bullet and the layer rule below, and names the file this run writes.
@@ -33,7 +33,7 @@ Done when you can say, for each acceptance criterion, what has to exist for it t
 
 ### 2. Ground the phases in the repo
 
-Read root `CLAUDE.md` and `README.md`, the `CLAUDE.md` of each app the PRD touches, `.claude/modules/INDEX.md`, then the docs of the modules this feature extends. What already exists shortens phases, and the project's workflow shapes them: `apps/api` is written test-first and phases land green, `apps/web` is verified with Playwright e2e.
+Read the project's root docs, the docs of each part the PRD touches, and its module docs where it keeps them — then the docs of the modules this feature extends. What already exists shortens phases, and the project's workflow shapes them: how each layer is written and verified is the project docs' to say (e.g. an API developed test-first, a frontend verified with e2e specs).
 
 Done when you can name, for every phase you are about to write, the existing module it extends or the new one it creates.
 
@@ -60,20 +60,26 @@ Done when the phase order is the user's, and no phase rests on a requirement you
 
 Done when every phase block carries all five fields, every task has its number and its label, and every PRD acceptance criterion appears in at least one phase's **Covers**.
 
-### 6. Report
+### 6. Add the plan to the index
 
-The path, each phase as one line with its layer and covered criteria, whatever the PRD left open, which parts of the cut are provisional until `research` settles their mechanism, and the next command: `/research docs/<slug>/<slug>-PLAN.md`.
+`docs/INDEX.md` — this work's row, opened by its PRD: replace its `Plan —` placeholder with a link to the file this run wrote.
+
+Done when the row's links all resolve and the work still has exactly one row.
+
+### 7. Report
+
+The path, each phase as one line with its layer and covered criteria, whatever the PRD left open, which parts of the cut are provisional until `research` settles their mechanism, and the next command: `/bldprj:research docs/<slug>/<slug>-PLAN.md`.
 
 ## Phasing rules
 
 - **Phase 1 is a tracer bullet**: the thinnest slice that proves the path works, taken through the layer that owns it. The layer that consumes it follows in its own phase.
 - Every phase leaves the repo working and verified — a stop after any phase is a usable stop.
 - Five tasks per phase at most; a sixth task is the signal to split the phase in two.
-- One layer per phase: `apps/api` phases run first and go green, the `apps/web` phase consuming them comes after.
+- One layer per phase: the layer that owns the data or API runs first and goes green, the phase consuming it comes after (e.g. backend phases before the frontend that calls them).
 - Every task traces to a PRD acceptance criterion, and whatever the PRD put Out of scope stays out of the plan. A phase's **Covers** lists the criteria its tasks serve.
 - Phases name outcomes, not mechanisms — "store the uploaded file and return its id", not "store it with library X".
 - A phase's name is short enough to read inside a milestone title: **50 characters at most**, the same discipline as a task's 60-character label — `issues` renders it as `<KEY> <phase> · <phase name>`.
-- A phase's **Done when** is a command or an observation: `npm run test:api` green, `POST /meetings/:id/files` returning 201, a Playwright spec passing. Where the mechanism that would name it exactly is still `research`'s to choose, write the observation and leave the exact route, command or number to `pre-issues`, which hardens it in FINAL.
+- A phase's **Done when** is a command or an observation: the layer's test suite green, `POST /meetings/:id/files` returning 201, an e2e spec passing. Where the mechanism that would name it exactly is still `research`'s to choose, write the observation and leave the exact route, command or number to `pre-issues`, which hardens it in FINAL.
 - Docs move with the code: the phase that changes a module updates that module's doc, JSDoc and Swagger annotations. There is no trailing documentation phase.
 
 ## Task lines
@@ -102,7 +108,7 @@ A task is three things in one line — **number**, **label**, **description**:
 ## Phase 1. <Name, 50 chars at most — the tracer bullet>
 
 **Goal**: <what works after this phase that did not work before>
-**Touches**: <apps/api · apps/web · database>
+**Touches**: <the layers this phase moves — e.g. api · web · database>
 **Covers**: <AC-1, AC-3>
 **Tasks**:
 

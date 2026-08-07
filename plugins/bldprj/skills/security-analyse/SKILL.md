@@ -9,7 +9,7 @@ Every other stage reads the feature as its author. This one reads it as **whoeve
 
 It runs on a plan whose mechanisms are already settled, so a finding lands as a task in a phase that has not been built yet — the cheapest place a control can be added. Findings are `S-1`, `S-2`, …, and each one names a **control**: the specific guard, validator, limit or scope that closes it, in the idiom this repo already uses.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → **`security-analyse`** → `pre-issues` → `issues` → `build-phase`.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research` → **`security-analyse`** → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
 **Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 
@@ -17,20 +17,19 @@ This is the design-level pass. `/security-review` is the diff-level one that `bu
 
 ## Argument
 
-Path to a plan (`/security-analyse docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
+Path to a plan (`/bldprj:security-analyse docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
-- No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to analyse, rather than picking one.
-- Several versions of the same plan → take the current one and say which file you took.
-- No `-RESEARCH.md` next to the plan → say so and offer `/research` first: a control can only be named in the idiom of a mechanism that has been chosen.
+- No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to analyse, rather than picking one.
+- No `-RESEARCH.md` next to the plan → say so and offer `/bldprj:research` first: a control can only be named in the idiom of a mechanism that has been chosen.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `security-analyse` section decides the disposition of every finding against parity.
 
 ## Steps
 
 ### 1. Learn the controls this repo already has
 
-Read the PRD (scenarios, Out of scope, the criteria — the one naming who may **not** reach the data above all), the plan (every phase and task), and the research (each `D-<n>` with its **Exposure** line). Then the code those controls live in — the JWT guard, the DTO validation and its global pipe, the session cookie, the rate limiter, how Prisma is called, how errors are shaped: `.claude/modules/INDEX.md` first, then `module-api-auth`, `module-web-auth` and the module this feature extends.
+Read the PRD (scenarios, Out of scope, the criteria — the one naming who may **not** reach the data above all), the plan (every phase and task), and the research (each `D-<n>` with its **Exposure** line). Then the code those controls live in — the auth guard, the input validation and where it is enforced, the session mechanism, the rate limiter, how the database layer is called, how errors are shaped: the project's module docs first (auth and the module this feature extends above all), then the code itself.
 
-A control named in the abstract cannot be implemented; a control named as "the guard in `apps/api/src/auth/jwt-auth.guard.ts`, applied to the new controller" can.
+A control named in the abstract cannot be implemented; a control named as "the guard in `src/auth/jwt-auth.guard.ts`, applied to the new controller" can.
 
 Done when you can name, file by file, every existing control this feature will sit behind, and every place the research chose a mechanism that has one.
 
@@ -40,7 +39,7 @@ Three lists, taken from the plan rather than from imagination:
 
 - **Assets** — what is worth reaching: stored rows and whose they are, file bytes, credentials and tokens, secrets, and the ability to spend disk, CPU, quota or money.
 - **Entry points** — every place this plan adds or touches where something from outside arrives: HTTP routes and their DTOs, Server Actions, form fields, uploaded bytes and their filenames, query and path parameters, cookies and headers, callbacks from a third party, config read from env.
-- **Trust boundaries** — where data crosses authorities: browser → `apps/web`, `apps/web` → `apps/api`, `apps/api` → Postgres, Redis or disk, `apps/api` → anything external.
+- **Trust boundaries** — where data crosses authorities (e.g. browser → web app, web app → API, API → database, cache or disk, API → anything external).
 
 Every entry point carries **who may reach it** — anonymous, any signed-in user, or the owner of the thing — and the assets it can touch, and the plan task that builds it.
 
@@ -65,7 +64,7 @@ Done when every finding states its caller, its input and its asset, and carries 
 Exactly one of four, and the fourth is the user's:
 
 - **Held** — an existing control or a task already in the plan closes it. Name the file or the task number; no new work.
-- **Work** — the plan is missing the control. It becomes a task in the phase that owns the entry point, written into the next plan version in step 8.
+- **Work** — the plan is missing the control. It becomes a task in the phase that owns the entry point, written into the plan in step 8.
 - **Promise** — the control is something the user was never promised, so there is nothing for a test to hold. It needs an `AC-<n>` in the PRD.
 - **Accepted** — the user takes the risk knowingly, with the date and their words recorded.
 
@@ -106,21 +105,21 @@ Done when either no finding became work and the report says so, or the plan carr
 
 `docs/INDEX.md` — replace this feature's `Threats —` placeholder with a link to the file.
 
-Then: the path, one line per finding with its severity and disposition, what the user accepted or promised, whether the plan was revised and what moved in it, what stays open, and the next command: `/pre-issues docs/<slug>/<slug>-PLAN.md`.
+Then: the path, one line per finding with its severity and disposition, what the user accepted or promised, whether the plan was revised and what moved in it, what stays open, and the next command: `/bldprj:pre-issues docs/<slug>/<slug>-PLAN.md`.
 
 ## Checklist
 
-Ten classes, each with what already holds it in this repo. An entry point is taken through all ten.
+Ten classes, each read against the controls the project already has. An entry point is taken through all ten.
 
-1. **Ownership** — a route that takes an id answers "whose is it?" before anything else. `apps/api`'s meetings module scopes every query to the caller; a new route that drops the scope hands one user another's row. The answer to a request for someone else's object is the same as for one that does not exist.
-2. **Authentication** — which routes the JWT guard covers and which are deliberately public. A new controller is public until it says otherwise, and that is worth stating per route.
-3. **Input** — every field arrives through a DTO with class-validator, bounded in size and count, unknown properties stripped. A value read straight off the request body is the finding.
-4. **Injection and traversal** — Prisma parameterises what it builds; `$queryRaw` does not. A filename or id from the user never becomes a path — the server picks the stored name, `node:path` resolves it, and the result is checked to still sit under the storage root. A URL from the user that the server fetches is the same class.
-5. **Spend** — what one caller can consume before anything stops them: body and file size, upload count, page size, an unbounded loop, a query without a limit. `apps/api` already rate-limits auth, and the same treatment fits any expensive route.
-6. **Exposure** — the fields that leave: password hashes, tokens, internal ids, storage paths, another user's email. In `apps/web`, everything a Server Component hands to a client component ships to the browser as markup, whether it is rendered or not.
-7. **Secrets** — env vars stay server-side (`NEXT_PUBLIC_` is publication), and tokens, passwords and connection strings stay out of logs, error messages and API responses.
-8. **Session and browser** — the `httpOnly` session cookie's flags and lifetime, what a Server Action accepts and from whom, the `CORS_ORIGIN` the API allows, and any redirect target taken from input.
-9. **Storage and dependencies** — where bytes land and with what permissions, Redis holding nothing that must be true (it is best-effort infra by project rule, so a control that depends on it is not a control), and `npm audit` on anything the research added.
+1. **Ownership** — a route that takes an id answers "whose is it?" before anything else. The project's existing modules show the scoping idiom (e.g. every query filtered by the caller's id); a new route that drops the scope hands one user another's row. The answer to a request for someone else's object is the same as for one that does not exist.
+2. **Authentication** — which routes the project's auth guard covers and which are deliberately public. A new controller is public until it says otherwise, and that is worth stating per route.
+3. **Input** — every field arrives through the project's validation idiom (e.g. a DTO layer behind a global validation pipe, a schema validator), bounded in size and count, unknown properties stripped. A value read straight off the request body is the finding.
+4. **Injection and traversal** — the query layer parameterises what it builds; raw-query APIs do not (e.g. Prisma's `$queryRaw`). A filename or id from the user never becomes a path — the server picks the stored name, resolves it, and the result is checked to still sit under the storage root. A URL from the user that the server fetches is the same class.
+5. **Spend** — what one caller can consume before anything stops them: body and file size, upload count, page size, an unbounded loop, a query without a limit. A project that already rate-limits its auth routes has set the pattern for any expensive route.
+6. **Exposure** — the fields that leave: password hashes, tokens, internal ids, storage paths, another user's email. In a server-rendered frontend, everything the server hands a client component ships to the browser as markup, whether it is rendered or not.
+7. **Secrets** — env vars stay server-side (a public-prefix convention such as `NEXT_PUBLIC_` is publication), and tokens, passwords and connection strings stay out of logs, error messages and API responses.
+8. **Session and browser** — the session cookie's flags and lifetime, what a server-side action accepts and from whom, the CORS origin the API allows, and any redirect target taken from input.
+9. **Storage and dependencies** — where bytes land and with what permissions, best-effort infrastructure holding nothing that must be true (a cache the project's rules let vanish is not a control), and a vulnerability audit (e.g. `npm audit`) on anything the research added.
 10. **Errors and timing** — the same failure looks the same from outside: a wrong email and a wrong password answer identically, and an object the caller may not see is missing rather than forbidden.
 
 ## Template
@@ -153,7 +152,7 @@ Ten classes, each with what already holds it in this repo. An entry point is tak
 | -------------------------- | -------------------- | ------------------- | ---- |
 | `POST /meetings/:id/files` | any signed-in caller | the meeting's files | 1.3  |
 
-**Trust boundaries**: <browser → apps/web → apps/api → Postgres · disk>
+**Trust boundaries**: <browser → web app → API → database · disk>
 
 ## 4. Findings
 
@@ -165,7 +164,7 @@ Ten classes, each with what already holds it in this repo. An entry point is tak
 - **Severity**: <high · medium · low, and what makes it that>
 - **Control**: <the guard, validator, limit or scope that closes it, and the file it lives in>
 - **Proven by**: <the test that fails without the control>
-- **Disposition**: <held by … · work: task 2.4 in v2 · promise: AC-7 · accepted 2026-08-05 by the user>
+- **Disposition**: <held by … · work: task 2.4 · promise: AC-7 · accepted 2026-08-05 by the user>
 
 ## 5. Plan impact
 
@@ -183,7 +182,7 @@ Ten classes, each with what already holds it in this repo. An entry point is tak
 - Controls are named where they will live — a file, a guard, a decorator, a limit from the research Parameters table — so a task can be written from one.
 - Findings land in the phase that builds their entry point, so the control ships with the code it guards.
 - This run writes documents. Feature code, installs and `package.json` stay as they are, and the only edit outside its own file is the plan revision in step 8 and an acceptance criterion the user approved.
-- Whatever the PRD put Out of scope stays out: a finding in code this plan does not touch is recorded and handed to `/refactor-prd` as a security driver.
+- Whatever the PRD put Out of scope stays out: a finding in code this plan does not touch is recorded and handed to `/bldprj:refactor-prd` as a security driver.
 - An accepted risk is written down with its date and the user's words — an accepted finding stays visible in the file rather than disappearing from it.
 - `S-<n>` numbers are permanent: `pre-issues` rules on them, `issues` labels from them, `build-phase` checks the code against them, and `/security-review` reads them.
 - A finding the user later trades away is not deleted: `pre-issues` writes the accepted disposition onto it, with the ruling that bought it.
