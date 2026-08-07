@@ -110,7 +110,7 @@ Done when every live task from the plan appears with its number, every phase car
 
 - The plan this run consolidated gains `**Status**: superseded by [<slug>-FINAL.md](./<slug>-FINAL.md)`. The preliminary cut stays as history, and nothing downstream reads it again.
 - `docs/INDEX.md` — this feature's row: its `Final` segment links the file just written — the `Final —` placeholder on a first run, the previous version's link on a version bump (a row opened before this stage existed gains the segment).
-- `npm run docs:lint`.
+- The docs linter (**Writing a document** in `PIPELINE.md`).
 
 Done when the plan says what superseded it, every link in the feature's row resolves, and docs:lint is clean or its findings are named in the report.
 

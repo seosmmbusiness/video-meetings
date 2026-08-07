@@ -22,7 +22,7 @@ A stage never reopens the stage before it: a contradiction goes back to its owne
 
 The plan is **preliminary** until `pre-issues` consolidates it: `plan-phase` cuts the phases before any mechanism is known, `research` and `security-analyse` revise them, and `-FINAL.md` is the buildable document `issues` publishes and `build-phase` builds from.
 
-Two tracks run through the same seven skills. **Feature** adds behaviour; **refactor** keeps behaviour identical and improves what sits behind it — [`REFACTOR-TRACK.md`](REFACTOR-TRACK.md) holds everything the refactor track does differently, and every skill reads its track off the file name.
+Two tracks run through the same skills. **Feature** adds behaviour; **refactor** keeps behaviour identical and improves what sits behind it — [`REFACTOR-TRACK.md`](REFACTOR-TRACK.md) holds everything the refactor track does differently, and every skill reads its track off the file name.
 
 ## Identity
 
