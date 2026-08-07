@@ -1,24 +1,25 @@
 ---
 name: research
-description: 'Settles the technical decisions a plan leaves open — built-in or library, storage, schema, limits, access rules, and on a refactor plan the measured optimisation path — into docs/<slug>/<slug>-RESEARCH.md, revising the plan when a decision changes the work. Use when a plan is ready and implementation would otherwise pick its mechanisms at random, or when another skill needs the research that issues and build-phase consume.'
+description: 'Settles the technical decisions a plan leaves open — built-in or library, storage, schema, limits, access rules, and on a refactor plan the measured optimisation path — into docs/<slug>/<slug>-RESEARCH.md, revising the plan when a decision changes the work. Use when a plan is ready and implementation would otherwise pick its mechanisms at random, or when another skill needs the research that security-analyse, pre-issues and build-phase consume.'
 ---
 
 # Research
 
 One pass covers a whole plan, not one task. It closes the plan's **one-way doors** — the choices that are expensive to undo once code exists — so implementation reads a decision instead of inventing one mid-task.
 
-Research decides; it does not build. Feature code, `npm install` and `package.json` stay as they are: this run writes the RESEARCH file, its line in `docs/INDEX.md`, and — only where a decision genuinely changes the work — the next version of the plan.
+Research decides; it does not build. Feature code, `npm install` and `package.json` stay as they are: this run writes the RESEARCH file, its link in `docs/INDEX.md`, and — only where a decision genuinely changes the work — a revision of the plan.
 
-Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `issues` → `build-phase`. It runs **before** the backlog exists, so a decision that reshapes a task costs a plan revision rather than a round of edits to published issues.
+Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`research`** → `security-analyse` → `pre-issues` → `issues` → `build-phase`. It runs while the plan is still **preliminary**, so a decision that reshapes a task costs an edit to that plan rather than a round of edits to published issues.
+
+**Read [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — identity, versions, the question protocol and the document rules are defined there and are not repeated here.
 
 ## Argument
 
 Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
 - No argument → list the plans under `docs/*/*-PLAN*.md` and ask which one to research, rather than picking one.
-- Several versions of the same plan → take the current one per **Plan versions** in [`../plan-phase/SKILL.md`](../plan-phase/SKILL.md), and say which file you took.
-- A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
-- A `-RESEARCH.md` already sits next to that plan → ask whether to update it in place or start a new iteration. Never overwrite silently.
+- Several versions of the same plan → take the current one and say which file you took.
+- A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
 
 ## Steps
 
@@ -59,7 +60,7 @@ Versions, APIs and limits are **verified, not remembered**: `npm view <package> 
 
 Each decision also gets:
 
-- **Security** — what user input does here: injection, path traversal, authorization bypass, leaking other people's data or the fact it exists, DoS by size, count or time, secrets in logs and API responses.
+- **Exposure** — what this mechanism hands an attacker: injection, path traversal, authorization bypass, leaking other people's data or the fact it exists, DoS by size, count or time, secrets in logs and API responses. One option is rejected over another here; the feature-wide pass belongs to `security-analyse`, which reads these blocks.
 - **Replaceability** — an interface plus configuration, so swapping the implementation later leaves calling code untouched.
 - **Testability** — how it is proven in this repo's style: test-first for `apps/api`, Playwright e2e for `apps/web`.
 
@@ -67,55 +68,42 @@ Done when every decision point from step 3 has a named winner, its rejected alte
 
 ### 5. Ask what only the user can decide
 
-Choices the repo cannot answer: which library when the trade-off is a product call, where data lives, what the limits are, anything paid or external, anything that would move the PRD's scope. `AskUserQuestion`, each option carrying a recommendation and the consequence of picking it — at most four questions per block, four options each, further blocks for the rest, most consequential first. This is the cheap moment — the same question during implementation costs a rewrite.
-
-Skip whatever the PRD, the plan or project convention already answers.
+This skill's class in `PIPELINE.md`: which library when the trade-off is a product call, where data lives, what the limits are, anything paid or external, anything that would move the PRD's scope. **Every new dependency is a question** — the budget is the user's, not yours. This is the cheap moment: the same question during implementation costs a rewrite.
 
 Done when no decision in the draft rests on a preference you invented, and every user answer is recorded in the report as agreed.
 
 ### 6. Write the file
 
 - **Path**: next to its plan, `docs/<slug>/<slug>-RESEARCH.md`, reusing the plan's slug exactly.
-- **Date**: read from `date +%F` — the real date, not a remembered one.
-- **Language**: English.
 - **Shape**: the template below, one block per decision.
 
-Done when every decision point from step 3 has a block, every number implementation needs sits in Parameters, and nothing in the file paraphrases the plan.
+Section 2 is the **decision map** — phase, its tasks, and the decisions those tasks carry. It is written on every run, whether or not the plan is revised: `issues` renders it into issue bodies and `build-phase` reads it to load a phase's decisions, so a decision that reaches neither is a decision implementation will not see.
+
+Done when every decision point from step 3 has a block, every phase appears in the decision map, every number implementation needs sits in Parameters, and nothing in the file paraphrases the plan.
 
 ### 7. Revise the plan, only where a decision changed the work
 
-Most decisions leave the plan exactly as it is — that is the expected outcome, and section 8 of the report says so in one line. A revision is warranted only when a decision makes the plan **wrong**, in one of three ways:
+Most decisions leave the plan exactly as it is — that is the expected outcome, and section 9 of the report says so in one line. A revision is warranted only when a decision makes the plan **wrong**, in one of three ways:
 
 - work the plan is missing (a migration, an env var, a characterization test the chosen mechanism needs);
 - a task the decision makes unnecessary (an existing module already does it);
 - a task that has to split, because one line now covers two mechanisms.
 
-Those three are yours to write, inside the existing phases, following **Plan versions** in [`../plan-phase/SKILL.md`](../plan-phase/SKILL.md):
-
-- Write `docs/<slug>/<slug>-PLAN-v<N>.md`, carrying every phase and task forward with its number intact. New tasks take the next free number in their phase; dropped tasks stay as `- [~] **2.3** <label> — dropped in v<N>: <reason>`.
-- Each affected phase gains `**Decisions**: D-2, D-4`, so implementation reads the phase and the decision together.
-- The `## Revisions` section gets one line per change, naming the decision that caused it.
-- The superseded version gains `**Status**: superseded by [<slug>-PLAN-v<N>.md](./<slug>-PLAN-v<N>.md)`, and this report's `**Plan**` header points at the version you just wrote.
+Those three are yours to write, inside the existing phases, following **Versions** in `PIPELINE.md`. Each affected phase also gains `**Decisions**: D-2, D-4`, so implementation reads the phase and the decision together, and each `## Revisions` line names the decision that caused it.
 
 Anything larger is **not yours to write**: a change of phase order, a new phase, a phase that swaps layers, or work that crosses the PRD's scope fence. Show it to the user with the decision behind it and ask — it is often a PRD change wearing a plan's clothes.
 
-Done when either the plan is untouched and the report says why, or the new version exists with every task number preserved and every change traced to a decision.
+Done when either the plan is untouched and the report says why, or it carries the revision with every task number preserved and every change traced to a decision.
 
-### 8. Wire the report into the pipeline
+### 8. Add the report to the index
 
-`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and links to its PRD, current plan and this report. A row already there gets its links updated rather than a second row.
+`docs/INDEX.md` — this feature's row already exists, opened by its PRD. Replace its `Research —` placeholder with a link to the file this run wrote.
 
-Root `CLAUDE.md` gets a single static pointer, added only when it is missing and never extended afterwards:
-
-```markdown
-Feature and refactor documents — PRD, plan, research — are indexed in [`docs/INDEX.md`](docs/INDEX.md).
-```
-
-Done when `docs/INDEX.md` has exactly one row for this feature, its links resolve, and root `CLAUDE.md` carries that one line and no per-feature links.
+Done when the row's links all resolve and the feature still has exactly one row.
 
 ### 9. Report
 
-The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and into which file, what stays open, and the next command: `/issues docs/<slug>/<slug>-PLAN<-vN>.md`.
+The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/security-analyse docs/<slug>/<slug>-PLAN.md`.
 
 ## Template
 
@@ -131,11 +119,19 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 
 <5–10 lines: what was chosen, what gets installed and what does not. Enough on its own to start Phase 1.>
 
-## 2. Stack as found
+## 2. Decision map
+
+| Phase | Tasks         | Decisions |
+| ----- | ------------- | --------- |
+| 1     | 1.1, 1.2, 1.3 | D-1, D-3  |
+| 2     | 2.1, 2.2      | D-2       |
+| 3     | 3.1           | —         |
+
+## 3. Stack as found
 
 <Actual versions, the existing modules and conventions being reused, and which plan tasks they already cover without new code.>
 
-## 3. Decisions
+## 4. Decisions
 
 ### D-1. <The choice, written as a question>
 
@@ -144,51 +140,44 @@ The path, each decision as one line with its id, the new dependencies (or "none"
 - **Chosen**: <the option, with package version when it is a library>
 - **Why**: <stack, project convention, security, dependency budget>
 - **Rejected**: <one line per alternative>
-- **Security**: <what is protected, and by what>
+- **Exposure**: <what this mechanism hands an attacker, and what holds it>
 - **Fits in at**: <repo path, the interface it hides behind, what can be swapped later>
 - **Sources**: <links>
 
-## 4. Parameters and limits
+## 5. Parameters and limits
 
 <Table of values implementation copies verbatim: sizes, counts, timeouts, allowed formats and MIME types, env var names and defaults, schema changes, error codes.>
 
-## 5. Dependencies
+## 6. Dependencies
 
 <Table — package · version · purpose · weight and license · why nothing already present does the job. None → "No new dependencies required.">
 
-## 6. Architecture impact
+## 7. Architecture impact
 
 <New modules and their boundaries, existing modules touched, and the docs implementation will update: `.claude/modules/`, CLAUDE.md, README.md, .env.example.>
 
-## 7. Risks and open questions
+## 8. Risks and open questions
 
 <What could fail and the fallback for it. Only questions that leave the start unblocked — blocking ones were answered in step 5.>
 
-## 8. Plan impact
+## 9. Plan impact
 
-<"None — the plan stands as written." Or the version written, one line per change with the decision behind it, and anything sent back to the user instead of being revised.>
-```
+<"None — the plan stands as written." Or one line per change made to it with the decision behind it, and anything sent back to the user instead of being revised.>
 
-`docs/INDEX.md`, created on the first research report:
+## Asked & assumed
 
-```markdown
-# Docs index
-
-Feature and refactor documents, newest first. A feature keeps one row from its PRD until close-out moves its links into `docs/archive/`.
-
-| Key | Feature             | What it is                                       | Documents                                                                                                                                                                         |
-| --- | ------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| MFU | meeting-file-upload | Files uploaded, listed and deleted on a meeting. | [PRD](meeting-file-upload/meeting-file-upload-PRD.md) · [Plan](meeting-file-upload/meeting-file-upload-PLAN.md) · [Research](meeting-file-upload/meeting-file-upload-RESEARCH.md) |
+- **Asked** — <the question> → <what the user chose>.
+- **Assumed** — <what was taken as given> · <what changes if it is wrong>.
 ```
 
 ## Rules
 
 - One research pass per plan, not per task.
 - Decisions, not implementation: code appears only as an illustrative fragment — an interface signature, an `.env` line, a response shape — never a finished module.
-- Every decision names its plan tasks, and whatever the PRD put Out of scope stays out: research settles the plan, it does not grow the feature or rewrite it.
+- Every decision names its plan tasks and reaches implementation through the decision map; whatever the PRD put Out of scope stays out.
 - The order is fixed: what the repo already has → what the platform ships → a new dependency.
 - Concrete over qualitative — versions, paths, numbers, env var names. "Use a suitable library" is not a decision.
 - Every fact is verified against a source and cited; whatever could not be checked is marked "not verified".
 - The code stays as it is: no feature code, no installs, no edits to `package.json` or the PRD.
-- The plan is revised only under step 7, only into a new version, and never by renumbering an existing task.
+- The plan is revised only under step 7, in place, and never by renumbering an existing task.
 - A gap in the plan or PRD that blocks a decision is a question for the user, asked before the report file exists.

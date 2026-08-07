@@ -25,6 +25,7 @@
     "lint:api": "npm run lint --workspace apps/api",
     "format": "prettier --write \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docs:lint": "node plugins/bldprj/scripts/docs-lint.mjs",
     "test:api": "npm run test --workspace apps/api",
     "test:e2e:web": "npm run test:e2e --workspace apps/web",
     "prisma:generate": "npm run prisma:generate --workspace apps/api",

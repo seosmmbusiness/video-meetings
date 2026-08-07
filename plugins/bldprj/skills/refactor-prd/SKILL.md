@@ -9,9 +9,9 @@ A refactor PRD fixes **what stays identical** and **what gets better behind it**
 
 **Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/prd` — this run finds them, and asks rather than absorbing them.
 
-Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `issues` → `build-phase`.
+Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase`.
 
-**Read [`../REFACTOR-TRACK.md`](../REFACTOR-TRACK.md) before step 1** — parity, the test contract and the track's file names are defined there and are not repeated here.
+**Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) and [`../../PIPELINE.md`](../../PIPELINE.md) before step 1** — parity and the test contract come from the first, identity and the question protocol from the second. Neither is repeated here.
 
 ## Argument
 
@@ -19,7 +19,6 @@ The refactor wish: what to work on and what it should buy (`/refactor-prd speed 
 
 - No argument → ask which code and which driver, rather than picking a target out of the repo state.
 - A driver with no target ("optimise speed", "improve security") → ask which module, route or page, since a repo-wide refactor has no baseline anyone can hold green.
-- `docs/<slug>/<slug>-REFACTOR-PRD.md` already exists → ask whether to update it in place or start a new iteration. Never overwrite silently.
 
 ## Steps
 
@@ -68,7 +67,7 @@ Done when every driver has its symptom in the code and an outcome that a measure
 
 ### 5. Ask before promoting anything into the work
 
-Reading the target surfaces improvements — a missing validation, a clearer error, an index that changes result order, an endpoint that is obviously absent. Each one is a **proposal**, and its home is the user's call: one `AskUserQuestion` block, each option carrying a recommendation and its consequence.
+Reading the target surfaces improvements — a missing validation, a clearer error, an index that changes result order, an endpoint that is obviously absent. Each one is a **proposal**, and its home is the user's call.
 
 Ask, at minimum:
 
@@ -80,16 +79,20 @@ Done when every improvement you found sits in exactly one list — a driver, or 
 
 ### 6. Write the file
 
-- **Slug**: target plus driver, in English kebab-case (`ускорить дашборд встреч` → `meetings-dashboard-speed`). It names this file and later the PLAN, RESEARCH and MS files. A target that already has a `docs/<slug>/` folder → reuse that folder; the `-REFACTOR-` infix keeps the two tracks apart.
-- **Key**: reusing an existing `docs/<slug>/` folder → reuse the `**Key**` already on its `-PRD.md` or `-REFACTOR-PRD.md`, since it is the same feature. A brand-new slug mints one the way `prd` does: 2–4 uppercase letters, the slug's initials (`meetings-dashboard-speed` → `MDS`), checked unique against the `**Key**` line of every `docs/*/*-PRD.md` and `docs/*/*-REFACTOR-PRD.md` (and their `docs/archive/` counterparts) — lengthen on a collision.
+- **Slug**: target plus driver, in English kebab-case (`ускорить дашборд встреч` → `meetings-dashboard-speed`). A target that already has a `docs/<slug>/` folder → reuse that folder; the `-REFACTOR-` infix keeps the two tracks apart.
+- **Key**: reusing an existing `docs/<slug>/` folder → reuse the `**Key**` already on its `-PRD.md` or `-REFACTOR-PRD.md`, since it is the same feature. A brand-new slug mints one per `PIPELINE.md`'s Identity section.
 - **Path**: `docs/<slug>/<slug>-REFACTOR-PRD.md`, creating `docs/<slug>/` if it does not exist.
-- **Date**: read from `date +%F` — the real date, not a remembered one.
-- **Language**: English, whatever language the request came in.
 - **Shape**: the template below, section for section.
 
 Done when every section is filled, the key is fixed and either freshly unique or correctly reused, every freeze line and every outcome is covered by an acceptance criterion, and every criterion is falsifiable.
 
-### 7. Report
+### 7. Open the refactor's row in the index
+
+`docs/INDEX.md`, per the template in [`../prd/SKILL.md`](../prd/SKILL.md). A refactor of a feature that already has a row adds its documents to that row rather than opening a second one; a brand-new slug opens a row of its own. Root `CLAUDE.md`'s one-line pointer is added only when it is missing.
+
+Done when this work has exactly one row in `docs/INDEX.md` and its link resolves.
+
+### 8. Report
 
 The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
 
@@ -150,6 +153,11 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 
 - [ ] `npm run test:api` passes with the same test count and no test file changed.
 - [ ] `GET /meetings` emits 2 queries per request, down from 1 + N, measured by Prisma query logging.
+
+## Asked & assumed
+
+- **Asked** — <the question> → <what the user chose>.
+- **Assumed** — <what was taken as given> · <what changes if it is wrong>.
 ```
 
 ## Rules
@@ -160,4 +168,3 @@ The path, the key, the target, one line per driver with its outcome, the baselin
 - Every outcome is measured the same way twice: the method is written down in the PRD, so the after-number is comparable to the before-number.
 - An improvement that changes behaviour is recorded and asked about, never folded in quietly.
 - Mechanism stays with `research`: this document says the query count must drop, not which index or library drops it.
-- The feature key is an identifier, not decoration: reused when the same `docs/<slug>/` is refactored again, checked for uniqueness across every PRD and refactor PRD when it is not.

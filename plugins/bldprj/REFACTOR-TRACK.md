@@ -2,7 +2,7 @@
 
 The pipeline runs two tracks. A **feature** adds behaviour. A **refactor** keeps behaviour exactly as it is and improves what sits behind it — speed, security, structure, or agreement with the docs.
 
-`refactor-prd` → `plan-phase` → `research` → `issues` → `build-phase` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing.
+`refactor-prd` → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` is the same pipeline as the feature track, run by the same skills. Each reads the track off the file name and applies its section below **on top of** its own steps: this file overrides where it speaks and leaves the rest standing. Everything both tracks share — identity, the artifact names, document versions, the question protocol — lives in [`PIPELINE.md`](PIPELINE.md).
 
 ## Parity
 
@@ -25,22 +25,6 @@ The tests that already exist are the only proof that parity held, so they run ex
 - Behaviour no test covers has no parity signal. Pin it with a **characterization test** — written against the current implementation and passing before that implementation moves — and land it first.
 - A test that goes red under a refactor names a behaviour that changed: return the code to parity. Where the test itself looks wrong, that is a conversation with the user before a single assertion is touched.
 
-## File names
-
-The `-REFACTOR-` infix marks the track everywhere, so both tracks can share one `docs/<slug>/` folder:
-
-| Feature track                       | Refactor track                       |
-| ----------------------------------- | ------------------------------------ |
-| `docs/<slug>/<slug>-PRD.md`         | `docs/<slug>/<slug>-REFACTOR-PRD.md` |
-| `<slug>-PLAN.md`                    | `<slug>-REFACTOR-PLAN.md`            |
-| `<slug>-RESEARCH.md`                | `<slug>-REFACTOR-RESEARCH.md`        |
-| `<slug>-MS.json`                    | `<slug>-REFACTOR-MS.json`            |
-| branch `feature/<slug>-phase-<N>`   | branch `refactor/<slug>-phase-<N>`   |
-| `docs/Features.md`                  | `docs/Refactor.md`                   |
-| milestone/issue title `<KEY> <N> …` | `<KEY> R<N> …`                       |
-
-A `docs/*/*-PRD.md` listing matches both tracks — the infix in the path says which one you picked up.
-
 ## `plan-phase` on a refactor
 
 Input `docs/<slug>/<slug>-REFACTOR-PRD.md`, output `docs/<slug>/<slug>-REFACTOR-PLAN.md`. The PRD's **Behaviour freeze**, **Green baseline** and **Internal outcomes** are the plan's target, the way acceptance criteria are on the feature track. These phasing rules replace the tracer bullet and the one-layer-per-phase rule:
@@ -55,7 +39,7 @@ Template delta: the header links `<slug>-REFACTOR-PRD.md`, and each phase block 
 
 ## `issues` on a refactor
 
-Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `build-phase` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
+Input `docs/<slug>/<slug>-REFACTOR-FINAL.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `build-phase` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
 
 - Milestone and issue titles carry the same `<KEY> <phase>.<task>` identity as the feature track, with the phase number prefixed `R` so the two tracks never collide when they share a Key (a refactor reusing a feature's `docs/<slug>/` folder reuses its Key too): `MFU R1 · Characterization tests for the meetings query`, `MFU R1.2 — <label>`. `issues` reconciles by that prefix, exactly as it matches `<KEY> <N>` on the feature track.
 - Labels: `refactor` on every issue, plus the driver's label (`performance`, `security`, `documentation`) and `backend`/`frontend` from **Touches** — the same priority order and four-label cap as `issues`' own Labels rule.
@@ -90,14 +74,32 @@ A dependency added for speed carries the **dependency budget** like any other, p
 
 ### Security and doc-compliance drivers
 
-- **Security** — name the finding, the input path that reaches it, and the fix in this repo's existing idiom (guard, DTO validation, Prisma parameterisation, rate limit). Then its parity consequence: hardening that starts rejecting requests the API accepts today is behaviour change, and goes back as a proposal rather than into the plan.
+- **Security** — the finding-by-finding pass belongs to `security-analyse`; research settles the mechanism each control is built from — which guard, which validator, which limit — and judges it against parity like any other option.
 - **Doc compliance** — a mismatch table, one row per gap: doc claim · what the code does · which one is wrong. Where the code is right, the doc is fixed. Where the doc is right, aligning the code is behaviour change unless the doc describes internals only.
 
 Template delta: section 4 carries a **Baseline** table — metric · how it was measured · value today · target — and every decision block gains **Parity**: what proves this option leaves behaviour identical.
 
-## `build-phase` on a refactor
+## `security-analyse` on a refactor
 
-Sources are the `-REFACTOR-` files, the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-THREATS.md`. The surface it maps is the one that exists today, and **parity decides the disposition of every finding**:
+
+- A control the code already has, weakened or bypassed by the planned change → a finding for this plan, closed inside it.
+- A finding in behaviour the refactor keeps → hardening that starts rejecting requests the API accepts today is a behaviour change. It leaves as a `/prd` proposal, and its `S-<n>` records where it went.
+- A driver the refactor PRD already named as security → the findings are its outcomes, and each carries the measurement that proves it closed.
+
+## `pre-issues` on a refactor
+
+Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-FINAL.md`, phases addressed `R<N>`. The **Behaviour freeze** and the **Internal outcomes** take the place of `AC-<n>` throughout: the Trace table's first column is a freeze line or an outcome, and its **Proven by** column is the baseline command that would catch the freeze breaking, or the measurement that produces the after-number.
+
+Parity is a tenth conflict class, and it outranks the rest:
+
+- A task that could only be finished by editing an existing test, a control that starts rejecting requests the API accepts today, a decision whose option moves a response, an error or a screen — each is a behaviour change hiding in the plan. It leaves for `/prd` as a proposal, and the `T-<n>` records where it went.
+- Every internal outcome has a before-number from the research **Baseline** table and a named command that produces the after-number the same way. An outcome with no before-number is the silence class: it cannot be shown to have worked.
+- Every freeze line is covered either by a baseline command or by a characterization-test task in phase `R1`. A freeze line with neither is a promise nothing would catch breaking.
+
+A phase's **Done when** in FINAL names the baseline commands with the result they must give, plus the before → after number for the outcome that phase serves.
+
+Sources are the `-REFACTOR-` files, phases are addressed `R<N>` (`/build-phase R2`), the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
 
 - **Green baseline first.** On the freshly cut branch, before the first line changes, run the PRD's baseline commands and show the output. Red at the start stops the run and goes to the user: a failure inherited from the base branch is not this phase's to absorb.
 - **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves.

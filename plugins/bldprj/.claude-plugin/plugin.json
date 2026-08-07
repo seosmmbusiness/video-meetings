@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "bldprj",
+  "displayName": "Build Project Pipeline",
+  "version": "1.0.0",
+  "description": "The document pipeline a feature or refactor is built through: PRD, preliminary phase plan, research, threat analysis, the final plan those three consolidate into, the GitHub backlog, and one phase build at a time.",
+  "author": {
+    "name": "Kirill Ivanov",
+    "email": "kirill84ivanov@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "prd",
+    "planning",
+    "research",
+    "threat-model",
+    "backlog",
+    "github-issues",
+    "tdd"
+  ]
+}
