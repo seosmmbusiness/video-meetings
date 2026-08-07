@@ -75,11 +75,11 @@ A `docs/*/*-PRD.md` listing matches both tracks — the infix in the path says w
 Two documents carry phases and tasks. The plan is the **preliminary** one and is revised in place; FINAL is the **published** one and is versioned, because `issues` has turned it into a GitHub backlog and `build-phase` closes work against it.
 
 - **The plan** — `research` and `security-analyse` revise it where a decision or a finding changes the work: edit it in place, keeping every phase and task number intact, and log the change in its `## Revisions` section, citing the `D-<n>` or `S-<n>` behind it. New tasks take the next free number in their phase; a dropped task stays as `- [~] **2.3** <label> — dropped: <reason>`. Once `pre-issues` has consolidated it, it carries `**Status**: superseded by [<slug>-FINAL.md](./<slug>-FINAL.md)` and no later stage reads it again.
-- **FINAL** — no `-MS.json` beside it → a re-run of `/pre-issues` rewrites it in place. An `-MS.json` exists → write the next version, `docs/<slug>/<slug>-FINAL-v<N>.md`, carrying every phase and task forward with its number intact, and the version it replaces gains `**Status**: superseded by [<slug>-FINAL-v<N>.md](./<slug>-FINAL-v<N>.md)`.
+- **FINAL** — no `-MS.json` beside it → a re-run of `/bldprj:pre-issues` rewrites it in place. An `-MS.json` exists → write the next version, `docs/<slug>/<slug>-FINAL-v<N>.md`, carrying every phase and task forward with its number intact, and the version it replaces gains `**Status**: superseded by [<slug>-FINAL-v<N>.md](./<slug>-FINAL-v<N>.md)`.
 
 **Anything larger belongs to the user**: a change of phase order, a new phase, a phase that swaps layers, or work that crosses the PRD's scope fence — show it with the reason and ask, since it is usually a PRD change wearing a plan's clothes.
 
-**After a revision the backlog is stale.** Re-run `/pre-issues`, then `/issues` on the FINAL it wrote: `issues` reconciles by task number, tops up what is missing, and reports the issues whose task no longer exists rather than closing them.
+**After a revision the backlog is stale.** Re-run `/bldprj:pre-issues`, then `/bldprj:issues` on the FINAL it wrote: `issues` reconciles by task number, tops up what is missing, and reports the issues whose task no longer exists rather than closing them.
 
 ## Asking
 
@@ -121,4 +121,4 @@ Every skill asks. Each asks inside **its own class**, and hands a question outsi
 
 ## Reporting
 
-Close every run with the path it wrote, the identifiers it minted, what the user decided, what stays open, and the **next command** in the chain. Facts as they came out: a check that did not run and a step that was skipped are named outright, with the output.
+Close every run with the path it wrote, the identifiers it minted, what the user decided, what stays open, and the **next command** in the chain — on the refactor track its argument is the `-REFACTOR-` file. Facts as they came out: a check that did not run and a step that was skipped are named outright, with the output.

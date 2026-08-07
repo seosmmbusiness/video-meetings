@@ -17,10 +17,10 @@ This is the design-level pass. `/security-review` is the diff-level one that `bu
 
 ## Argument
 
-Path to a plan (`/security-analyse docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
+Path to a plan (`/bldprj:security-analyse docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
 - No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to analyse, rather than picking one.
-- No `-RESEARCH.md` next to the plan → say so and offer `/research` first: a control can only be named in the idiom of a mechanism that has been chosen.
+- No `-RESEARCH.md` next to the plan → say so and offer `/bldprj:research` first: a control can only be named in the idiom of a mechanism that has been chosen.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `security-analyse` section decides the disposition of every finding against parity.
 
 ## Steps
@@ -105,7 +105,7 @@ Done when either no finding became work and the report says so, or the plan carr
 
 `docs/INDEX.md` — replace this feature's `Threats —` placeholder with a link to the file.
 
-Then: the path, one line per finding with its severity and disposition, what the user accepted or promised, whether the plan was revised and what moved in it, what stays open, and the next command: `/pre-issues docs/<slug>/<slug>-PLAN.md`.
+Then: the path, one line per finding with its severity and disposition, what the user accepted or promised, whether the plan was revised and what moved in it, what stays open, and the next command: `/bldprj:pre-issues docs/<slug>/<slug>-PLAN.md`.
 
 ## Checklist
 
@@ -182,7 +182,7 @@ Ten classes, each with what already holds it in this repo. An entry point is tak
 - Controls are named where they will live — a file, a guard, a decorator, a limit from the research Parameters table — so a task can be written from one.
 - Findings land in the phase that builds their entry point, so the control ships with the code it guards.
 - This run writes documents. Feature code, installs and `package.json` stay as they are, and the only edit outside its own file is the plan revision in step 8 and an acceptance criterion the user approved.
-- Whatever the PRD put Out of scope stays out: a finding in code this plan does not touch is recorded and handed to `/refactor-prd` as a security driver.
+- Whatever the PRD put Out of scope stays out: a finding in code this plan does not touch is recorded and handed to `/bldprj:refactor-prd` as a security driver.
 - An accepted risk is written down with its date and the user's words — an accepted finding stays visible in the file rather than disappearing from it.
 - `S-<n>` numbers are permanent: `pre-issues` rules on them, `issues` labels from them, `build-phase` checks the code against them, and `/security-review` reads them.
 - A finding the user later trades away is not deleted: `pre-issues` writes the accepted disposition onto it, with the ruling that bought it.

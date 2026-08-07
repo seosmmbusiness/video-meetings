@@ -17,7 +17,7 @@ The plan is where the work gets its **identity**. Phase `1`, task `1.2` — thos
 
 ## Argument
 
-Path to a PRD (`/plan-phase docs/meeting-file-upload/meeting-file-upload-PRD.md`).
+Path to a PRD (`/bldprj:plan-phase docs/meeting-file-upload/meeting-file-upload-PRD.md`).
 
 - No argument → list the PRDs under `docs/*/*-PRD.md` and ask which one to plan, rather than picking one.
 - A `-REFACTOR-PRD.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `plan-phase` section replaces the tracer bullet and the layer rule below, and names the file this run writes.
@@ -60,9 +60,15 @@ Done when the phase order is the user's, and no phase rests on a requirement you
 
 Done when every phase block carries all five fields, every task has its number and its label, and every PRD acceptance criterion appears in at least one phase's **Covers**.
 
-### 6. Report
+### 6. Add the plan to the index
 
-The path, each phase as one line with its layer and covered criteria, whatever the PRD left open, which parts of the cut are provisional until `research` settles their mechanism, and the next command: `/research docs/<slug>/<slug>-PLAN.md`.
+`docs/INDEX.md` — this work's row, opened by its PRD: replace its `Plan —` placeholder with a link to the file this run wrote.
+
+Done when the row's links all resolve and the work still has exactly one row.
+
+### 7. Report
+
+The path, each phase as one line with its layer and covered criteria, whatever the PRD left open, which parts of the cut are provisional until `research` settles their mechanism, and the next command: `/bldprj:research docs/<slug>/<slug>-PLAN.md`.
 
 ## Phasing rules
 

@@ -13,7 +13,7 @@ Position in the pipeline: **`prd`** → `plan-phase` → `research` → `securit
 
 ## Argument
 
-A feature name or description (`/prd meeting file upload`).
+A feature name or description (`/bldprj:prd meeting file upload`).
 
 - No argument → ask which feature to write up, rather than inferring one from the repo state.
 
@@ -63,7 +63,7 @@ Done when every section is filled, every scenario is covered by at least one acc
 
 ### 6. Open the feature's row in the index
 
-`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and its documents. This run fills the PRD link and leaves the rest as `—`; `research`, `security-analyse` and `pre-issues` fill theirs when they run, and close-out moves them all into `docs/archive/`.
+`docs/INDEX.md` — the docs table of contents, created from the template below when missing. One row per feature: key, name, one line on what it is, and its documents. This run fills the PRD link and leaves the rest as `—`; `plan-phase`, `research`, `security-analyse` and `pre-issues` fill theirs when they run, and close-out moves them all into `docs/archive/`.
 
 Root `CLAUDE.md` gets a single static pointer, added only when it is missing and never extended afterwards:
 
@@ -75,7 +75,7 @@ Done when `docs/INDEX.md` has exactly one row for this feature, its PRD link res
 
 ### 7. Report
 
-The path, the key, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/plan-phase docs/<slug>/<slug>-PRD.md`.
+The path, the key, the goal in one line, the Out of scope list, every decision that came from a user answer, and the next command: `/bldprj:plan-phase docs/<slug>/<slug>-PRD.md`.
 
 ## Template
 

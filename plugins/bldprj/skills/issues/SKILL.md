@@ -15,11 +15,11 @@ Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → `research`
 
 ## Argument
 
-Path to a final plan (`/issues docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
+Path to a final plan (`/bldprj:issues docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 - No argument → list the final plans under `docs/*/*-FINAL*.md` and ask which one to publish, rather than picking one.
 - Several versions of the same final plan → take the current one and name the file you took in step 3's confirmation.
-- A `-PLAN.md` path, or no `-FINAL.md` beside it → say so and offer `/pre-issues` first: a preliminary plan is one whose contradictions with the PRD, the research and the threats nobody has ruled on yet, and publishing it is what the FINAL stage exists to avoid.
+- A `-PLAN.md` path, or no `-FINAL.md` beside it → say so and offer `/bldprj:pre-issues` first: a preliminary plan is one whose contradictions with the PRD, the research and the threats nobody has ruled on yet, and publishing it is what the FINAL stage exists to avoid.
 - A `-REFACTOR-FINAL.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `issues` section sets the key, milestone titles, labels, issue body and map file this run writes.
 - An `-MS.json` already sits next to it → read it and treat this run as a **reconciliation**, per step 2.
 
@@ -109,7 +109,7 @@ Done when every milestone and issue in this run appears in the file with its tas
 
 ### 7. Report
 
-Repo, milestone count and issue count, what was reused, what had its title updated, every orphan and what the user decided about it, any label question left open, the MS file path, and the next command: `/build-phase 1`.
+Repo, milestone count and issue count, what was reused, what had its title updated, every orphan and what the user decided about it, any label question left open, the MS file path, and the next command: `/bldprj:build-phase 1`.
 
 ## MS file
 

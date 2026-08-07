@@ -15,7 +15,7 @@ Position in the pipeline: `prd` / `refactor-prd` → `plan-phase` → **`researc
 
 ## Argument
 
-Path to a plan (`/research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
+Path to a plan (`/bldprj:research docs/meeting-file-upload/meeting-file-upload-PLAN.md`).
 
 - No argument → list the plans under `docs/*/*-PLAN.md` and ask which one to research, rather than picking one.
 - A `-REFACTOR-PLAN.md` path → the refactor track. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `research` section adds the measurement pass and the optimisation order every decision below is then judged against.
@@ -102,7 +102,7 @@ Done when the row's links all resolve and the feature still has exactly one row.
 
 ### 9. Report
 
-The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/security-analyse docs/<slug>/<slug>-PLAN.md`.
+The path, each decision as one line with its id, the new dependencies (or "none"), what the user decided, whether the plan was revised and what moved in it, what stays open, and the next command: `/bldprj:security-analyse docs/<slug>/<slug>-PLAN.md`.
 
 ## Template
 

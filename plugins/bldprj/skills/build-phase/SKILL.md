@@ -21,11 +21,11 @@ Sources of truth, in priority order when they disagree:
 
 The preliminary `-PLAN.md` is history: FINAL superseded it, and nothing in this run reads it.
 
-A contradiction that survives — FINAL against the research it cites, or against the PRD — is a question for the user and a `/pre-issues` re-run, never a silent pick.
+A contradiction that survives — FINAL against the research it cites, or against the PRD — is a question for the user and a `/bldprj:pre-issues` re-run, never a silent pick.
 
 ## Argument
 
-A phase number or milestone title (`/build-phase 2`, `/build-phase R1`, `/build-phase "Phase 2. Upload and list meeting files"`), optionally followed by the MS file path (`/build-phase 2 docs/meeting-file-upload/meeting-file-upload-MS.json`).
+A phase number or milestone title (`/bldprj:build-phase 2`, `/bldprj:build-phase R1`, `/bldprj:build-phase "Phase 2. Upload and list meeting files"`), optionally followed by the MS file path (`/bldprj:build-phase 2 docs/meeting-file-upload/meeting-file-upload-MS.json`).
 
 - No argument → list the open phases from `docs/*/*-MS.json` with their status and ask which one to build, rather than picking one.
 - A `-REFACTOR-MS.json` map file, or one carrying `"track": "refactor"` → the refactor track. Its phases are addressed `R<N>`. **Read [`../../REFACTOR-TRACK.md`](../../REFACTOR-TRACK.md) before step 1**: its `build-phase` section opens the phase with a green baseline instead of a failing test, and closes it on parity evidence.
@@ -48,7 +48,7 @@ Read, before any code:
 6. Root `CLAUDE.md` plus the `CLAUDE.md` of each app the phase touches.
 7. `.claude/modules/INDEX.md`, then the docs of only the modules this phase touches or that already solve a close problem — extending one beats creating a duplicate.
 
-No `sources.final` in the MS file, or a task that hides a technical choice (library, storage format, limits) → say so and offer `/pre-issues` or `/research` first, rather than picking a library on the spot.
+No `sources.final` in the MS file, or a task that hides a technical choice (library, storage format, limits) → say so and offer `/bldprj:pre-issues` or `/bldprj:research` first, rather than picking a library on the spot.
 
 Done when you can name, for every issue in the phase, the FINAL task it implements and the decisions and findings that constrain it, or that there are none.
 
@@ -63,6 +63,7 @@ gh pr view <the phase's pr url> --json state,mergedAt,mergeCommit
 - **`in-review` and merged** → settle it now, per step 9, on this run's branch once step 4 cuts it. That is the normal path: a phase's completion record rides the next phase's PR.
 - **`in-review` and open** → show it and ask which base to take: the base branch anyway, or `feature/<slug>-phase-<N-1>` so this phase can see that code. Running a phase out of turn silently is not an option.
 - **`in-progress`** → an earlier run stopped mid-phase. Show its branch and ask whether to finish it first.
+- **`pending`** — there is no PR to check — → an earlier phase nobody has built. Building out of turn is the user's call: show the phase order and ask whether to build that phase first.
 
 Done when you can state the branch this phase starts from, why, and which earlier phase this run will settle.
 
@@ -173,7 +174,7 @@ For this run's phase once its PR is merged, and for the earlier phase step 2 fou
 
 Those file changes ride the branch this run already owns, in one commit — `docs: settle phase <N>`. A settle run holding no branch of its own cuts `chore/<slug>-phase-<N>-done` from the current base and opens a small PR for it.
 
-**The PR is still open** → nothing is closed and nothing is settled. The run ends with the phase `in-review`, and the report names the command that finishes it: `/build-phase <N>` again, once the PR is merged.
+**The PR is still open** → nothing is closed and nothing is settled. The run ends with the phase `in-review`, and the report names the command that finishes it: `/bldprj:build-phase <N>` again, once the PR is merged.
 
 Done when every settled phase's issues and milestone are closed, its files say `completed`, and any phase still in review is named as such with its PR.
 
@@ -193,7 +194,7 @@ Facts, briefly:
 - the phase's **Done when**, clause by clause, with the evidence;
 - the PR URL and its state — merged and settled, or open and awaiting the merge;
 - what closed on GitHub and what stayed open;
-- the next command — `/build-phase <N+1>` when this phase settled, `/build-phase <N>` when it is waiting on the merge;
+- the next command — `/bldprj:build-phase <N+1>` when this phase settled, `/bldprj:build-phase <N>` when it is waiting on the merge;
 - open questions and anything left out of scope.
 
 ## Commit format

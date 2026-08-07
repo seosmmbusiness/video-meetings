@@ -7,7 +7,7 @@ description: 'Writes a refactor PRD — behaviour frozen at parity, measurable i
 
 A refactor PRD fixes **what stays identical** and **what gets better behind it**. Its subject is code that already works: the user is handed the same product afterwards, and the win lands in speed, security, structure or doc accuracy.
 
-**Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/prd` — this run finds them, and asks rather than absorbing them.
+**Parity** is the whole discipline, and it is what makes this document different from a PRD: same inputs, same outputs, same errors, same screens, same public surface. Improvements that a user could notice belong to `/bldprj:prd` — this run finds them, and asks rather than absorbing them.
 
 Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` → `security-analyse` → `pre-issues` → `issues` → `build-phase` → `close-feature`.
 
@@ -15,7 +15,7 @@ Position in the pipeline: **`refactor-prd`** → `plan-phase` → `research` →
 
 ## Argument
 
-The refactor wish: what to work on and what it should buy (`/refactor-prd speed up the meetings dashboard`, `/refactor-prd harden apps/api auth`, `/refactor-prd check apps/web auth against its module doc`).
+The refactor wish: what to work on and what it should buy (`/bldprj:refactor-prd speed up the meetings dashboard`, `/bldprj:refactor-prd harden apps/api auth`, `/bldprj:refactor-prd check apps/web auth against its module doc`).
 
 - No argument → ask which code and which driver, rather than picking a target out of the repo state.
 - A driver with no target ("optimise speed", "improve security") → ask which module, route or page, since a repo-wide refactor has no baseline anyone can hold green.
@@ -94,7 +94,7 @@ Done when this work has exactly one row in `docs/INDEX.md` and its link resolves
 
 ### 8. Report
 
-The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
+The path, the key, the target, one line per driver with its outcome, the baseline commands and their result today, the proposals the user deferred and where they went, and the next command: `/bldprj:plan-phase docs/<slug>/<slug>-REFACTOR-PRD.md`.
 
 ## Template
 
