@@ -1,6 +1,6 @@
 # Pipeline
 
-Eight stages, nine skills, one chain. Each stage owns one artifact and one class of decision, and reads the artifact the stage before it wrote:
+Eight stages, nine skills, one chain. Each stage owns one artifact and one class of decision, and reads the artifact the stage before it wrote. A tenth skill, `status`, sits outside the chain and only reports on it:
 
 ```
 prd | refactor-prd  →  plan-phase  →  research  →  security-analyse  →  pre-issues  →  issues  →  build-phase  →  close-feature
@@ -31,7 +31,7 @@ Seven identifiers carry work through the chain. Each is minted once by the stage
 | Id                | Minted by              | Shape                                               |
 | ----------------- | ---------------------- | --------------------------------------------------- |
 | **slug**          | `prd`                  | English kebab-case, names the folder and every file |
-| **Key**           | `prd`                  | 2–4 uppercase letters, the slug's initials — `MFU`  |
+| **Key**           | `prd`                  | 2–6 uppercase letters, the slug's initials — `MFU`  |
 | **`AC-<n>`**      | `prd` / `refactor-prd` | one acceptance criterion                            |
 | **`<phase>.<n>`** | `plan-phase`           | one task, counted from 1 inside its phase           |
 | **`D-<n>`**       | `research`             | one technical decision                              |
@@ -39,7 +39,7 @@ Seven identifiers carry work through the chain. Each is minted once by the stage
 | **`T-<n>`**       | `pre-issues`           | one trade-off ruled on by the user                  |
 
 - Numbers are **never reused and never renumbered**. A dropped item keeps its number, retired, so the issue, commit or log row that cites it still resolves.
-- A **Key** is unique across the repo, both tracks and the archive included. Mint it against what already exists, and lengthen it on a collision (`MFU` taken → `MFUP`):
+- A **Key** is unique across the repo, both tracks and the archive included. Mint it against what already exists, and lengthen it on a collision, up to six letters (`MFU` taken → `MFUP`) — it prefixes every milestone and issue title, so the shortest one that is still free is the right one:
 
   ```bash
   grep -h '^\*\*Key\*\*' docs/*/*-PRD.md docs/*/*-REFACTOR-PRD.md docs/archive/*/*-PRD.md docs/archive/*/*-REFACTOR-PRD.md 2>/dev/null | sort -u
@@ -81,6 +81,21 @@ Two documents carry phases and tasks. The plan is the **preliminary** one and is
 
 **After a revision the backlog is stale.** Re-run `/bldprj:pre-issues`, then `/bldprj:issues` on the FINAL it wrote: `issues` reconciles by task number, tops up what is missing, and reports the issues whose task no longer exists rather than closing them.
 
+## Re-running a stage
+
+The chain runs forward once, and that single pass is complete on its own: nothing in this section is needed for a feature to reach `issues`.
+
+A stage run again on a document it already wrote is a **revision pass**, not a rewrite. It is detected rather than asked for — its own artifact exists, and the artifact of a stage after it is newer — and `research` and `security-analyse` each carry the closed list of triggers that says what it may touch.
+
+- **Read backwards first**: its own previous output, then what the later stage wrote against it, then the plan's `## Revisions`.
+- **Change only what a trigger fires on.** Everything else is left byte-identical. A block rewritten in different words, or a decision re-taken the same way under a new number, is the failure this contract exists to prevent — a revision pass that touches nothing is the expected outcome.
+- **Record the round** in the document's own `## Revisions`, one line per change, citing the identifier from the other stage behind it: `2026-08-07 — round 2: D-3 superseded by D-7 (chosen storage cannot scope by owner) — S-1.`
+- **Converged is a result, not a failure.** No trigger fired → the file gains one `## Revisions` line naming the round and what was re-read, nothing else moves, and the report says so plainly and names the next command in the chain.
+- **Numbers survive a reversal.** A superseded decision or a retired finding keeps its `### D-3.` / `### S-2.` heading, so every citation and the linter still resolve, and gains `**Superseded by**: D-7 — <reason>, round <N>` as the block's first line. It is never deleted and never renumbered; replacement work takes the next free number.
+- **The plan is revised exactly as on the first pass** — in place, every task number intact, each `## Revisions` line naming the `D-<n>` or `S-<n>` behind it.
+
+**Two rounds is the budget** — `research` → `security-analyse` → `research` → `security-analyse`. What survives that is a trade-off rather than a technical gap, and a trade-off is `pre-issues`' to rule on: at the end of round 2 each skill recommends `/bldprj:pre-issues` and names what stays open. A further round asked for by hand still runs, and still runs as a revision pass — the skill does the work, says the budget is past, and names the conflict it believes arbitration would settle more cheaply.
+
 ## Asking
 
 Every skill asks. Each asks inside **its own class**, and hands a question outside that class to the stage that owns it — named in the report, so it is asked at the stage that can answer it cheaply:
@@ -117,7 +132,7 @@ Every skill asks. Each asks inside **its own class**, and hands a question outsi
   - **Assumed** — <what was taken as given> · <what changes if it is wrong>.
   ```
 
-- **Postflight**: run the docs linter before reporting — the project's `docs:lint` script when it defines one, else the copy shipping with this plugin: `node ${CLAUDE_PLUGIN_ROOT}/scripts/docs-lint.mjs <project root>`. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, citation integrity, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it.
+- **Postflight**: run the docs linter before reporting. The project's own entry point comes first where its docs name one, in whatever form the project runs commands (an npm `docs:lint` script, a make target, a task runner recipe); otherwise the copy shipping with this plugin, which needs Node on the machine: `node ${CLAUDE_PLUGIN_ROOT}/scripts/docs-lint.mjs <project root>`. It checks what this file makes mechanical — key uniqueness, task numbering, label and title lengths, acceptance-criteria coverage, citation integrity both ways, plan ↔ backlog agreement, resolvable links. A finding is fixed before the report, or named in it; a linter that could not run at all is named too, with what stopped it, and never passed off as clean.
 
 ## Reporting
 

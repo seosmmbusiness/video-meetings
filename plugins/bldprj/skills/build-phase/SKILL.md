@@ -61,6 +61,9 @@ gh pr view <the phase's pr url> --json state,mergedAt,mergeCommit
 ```
 
 - **`in-review` and merged** → settle it now, per step 9, on this run's branch once step 4 cuts it. That is the normal path: a phase's completion record rides the next phase's PR.
+
+  It also means that record only lands if **this** PR lands. A phase whose PR is closed unmerged takes the settle commit of the phase before it with the branch, leaving that phase `in-review` in the MS file with its issues and milestone still open. Nothing is lost: `/bldprj:build-phase <N-1>` sees the status and runs as a settle run, cutting `chore/<slug>-phase-<N-1>-done` for it. Say so in the report whenever this run is carrying somebody else's settle commit, so the recovery is known before it is needed.
+
 - **`in-review` and open** → show it and ask which base to take: the base branch anyway, or `feature/<slug>-phase-<N-1>` so this phase can see that code. Running a phase out of turn silently is not an option.
 - **`in-progress`** → an earlier run stopped mid-phase. Show its branch and ask whether to finish it first.
 - **`pending`** — there is no PR to check — → an earlier phase nobody has built. Building out of turn is the user's call: show the phase order and ask whether to build that phase first.
@@ -194,6 +197,7 @@ Facts, briefly:
 - the phase's **Done when**, clause by clause, with the evidence;
 - the PR URL and its state — merged and settled, or open and awaiting the merge;
 - what closed on GitHub and what stayed open;
+- the earlier phase this run settled, if any, and that its record rides this PR — with `/bldprj:build-phase <N-1>` as the way back should this PR never merge;
 - the next command — `/bldprj:build-phase <N+1>` when this phase settled, `/bldprj:build-phase <N>` when it is waiting on the merge;
 - open questions and anything left out of scope.
 
