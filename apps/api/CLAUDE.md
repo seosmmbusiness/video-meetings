@@ -36,6 +36,12 @@ This app is developed test-first (design → test → develop), following **Red/
 
 **Security test cases are mandatory, not optional.** Alongside functional behavior, step 1's e2e specs for a feature/endpoint must also cover: authorization boundaries (a caller can't read/modify another user's resources — IDOR); auth bypass (missing, malformed, or expired JWT against a protected route); injection/mass-assignment edge cases (extra/unexpected fields are rejected by `ValidationPipe`'s `whitelist`, not silently accepted); and rate-limiting/brute-force protection on sensitive endpoints (login, register, etc.). These are required cases in the Red/Green/Refactor cycle above, written before implementation like any other — not bolted on after. See `apps/web/CLAUDE.md`'s Development workflow section for the frontend-side equivalent.
 
+**The red state gets committed, not just passed through.** Step 1's specs land in their own `test(api): …` commit, failing, before the `feat(api): …` commit that makes them pass — one task, two commits. A cycle whose specs and implementation arrive together is indistinguishable afterwards from tests written last, and `git log` is the only place that distinction survives.
+
+That is what the git hooks are split for: **`.husky/pre-commit` runs `npm run lint` only**, so a deliberately red spec commits, and **`.husky/pre-push` runs `npm run test:api`**, so nothing red leaves the machine. Red is allowed inside a branch's history; the branch tip is green.
+
+Note which suite each gate sees. `npm run test:api` is the **unit** config (`rootDir: src`, `testRegex: .*\.spec\.ts$`), so it never picks up `test/*.e2e-spec.ts` — the e2e suite runs via `npm run test:e2e --workspace apps/api` and needs Postgres up (`npm run db:up`). Since this app is **e2e-first**, the red commit of step 1 is normally an e2e spec and passes `pre-push` untouched; a unit spec left red would block the push instead, which is the boundary working as intended.
+
 ## Commands
 
 Run from this directory, or via the root's `npm run dev:api` / `build:api` / `lint:api` / `test:api`:
