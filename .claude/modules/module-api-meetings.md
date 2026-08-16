@@ -10,7 +10,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - `MeetingsController` (`meetings.controller.ts`) is guarded at the class level with `@UseGuards(JwtAuthGuard)`, so every route requires `Authorization: Bearer <token>`. Swagger-annotated (`@ApiTags('meetings')`, `@ApiBearerAuth()`, per-route `@ApiOperation`/response decorators). Pure pass-through to `MeetingsService`, reading the caller's id via the `@CurrentUser()` decorator.
 - `MeetingsService` (`meetings.service.ts`) does the Prisma reads/writes, all scoped by `ownerId`.
 - `dto/` — `CreateMeetingDto`, `MeetingResponseDto`.
-- Prisma `Meeting` model (`prisma/schema.prisma`): `title`, optional `description`, `date`, `participants: String[]` (plain email strings, not a join to `User` — participants need not be registered users), `ownerId` (FK to `User`, `onDelete: Restrict`).
+- Prisma `Meeting` model (`prisma/schema.prisma`): `title`, optional `description`, `date`, `participants: String[]` (plain email strings, not a join to `User` — participants need not be registered users), `ownerId` (FK to `User`, `onDelete: Restrict`), indexed (`@@index([ownerId])`, added alongside the `MeetingFile` model — see `.claude/modules/module-api-files.md` — for its owner-quota aggregate). `files MeetingFile[]` is the reverse relation; nothing in this module reads it directly.
 
 ## Auth guard added alongside this module (lives in `src/auth`, not here)
 

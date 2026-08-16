@@ -8,7 +8,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 
 - `PrismaModule` (`prisma.module.ts`) — `@Global()` module, provides and exports `PrismaService` only. Because it's global, any module can inject `PrismaService` without listing `PrismaModule` in its own `imports`.
 - `PrismaService` (`prisma.service.ts`) — `extends PrismaClient`, implements `OnModuleInit`/`OnModuleDestroy` to connect/disconnect in step with the Nest module lifecycle. Constructed with a `PrismaPg` driver adapter (`@prisma/adapter-pg`) pointed at `DATABASE_URL` (via `ConfigService.getOrThrow`, so a missing URL fails startup loudly, not at first query).
-- `prisma/schema.prisma` (repo root of `apps/api`, not under `src/`) — defines the `User` model. Generator is pinned to `prisma-client-js` (see Gotchas).
+- `prisma/schema.prisma` (repo root of `apps/api`, not under `src/`) — defines the `User`, `Meeting` and `MeetingFile` models. Generator is pinned to `prisma-client-js` (see Gotchas).
 - `prisma.config.ts` (`apps/api` root) — supplies `DATABASE_URL` to the Prisma **CLI** (not the app itself), loading the monorepo-root `.env` two levels up since CLI commands run with cwd = `apps/api`.
 - Generated client output: `apps/api/generated/prisma` (gitignored; produced by `npm run prisma:generate`).
 

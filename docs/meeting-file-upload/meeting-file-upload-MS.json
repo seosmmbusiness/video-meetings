@@ -17,7 +17,13 @@
       "phase": 1,
       "title": "Store a meeting file and serve it back",
       "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18"],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/meeting-file-upload-phase-1",
+      "pr": {
+        "number": 115,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/115",
+        "state": "open"
+      },
       "milestone": {
         "number": 18,
         "title": "MFU 1 · Store a meeting file and serve it back",
@@ -334,12 +340,12 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [],
-    "currentPhase": null,
+    "currentPhase": 1,
     "nextPhase": {
-      "phase": 1,
-      "milestone": 18,
-      "title": "MFU 1 · Store a meeting file and serve it back",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/18"
+      "phase": 2,
+      "milestone": 19,
+      "title": "MFU 2 · Enforce the upload limits",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/19"
     }
   }
 }
