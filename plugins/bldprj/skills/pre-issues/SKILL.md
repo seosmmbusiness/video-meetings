@@ -34,7 +34,7 @@ Path to a plan (`/bldprj:pre-issues docs/meeting-file-upload/meeting-file-upload
 Read all four, each against the ones before it:
 
 1. **PRD** — goal, every scenario, In scope, **Out of scope**, technical constraints, and every `AC-<n>` in its exact wording, numbers included.
-2. **The current plan** — every phase with its **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Done when**, every task with its number and label, the `- [~]` dropped ones, and `## Revisions`.
+2. **The current plan** — every phase with its **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Verified by**, **Done when**, every task with its number and label, the `tests:` and `- [~]` dropped ones, and `## Revisions`.
 3. **RESEARCH** — the decision map, every `D-<n>` with its **Chosen**, **Exposure** and **Fits in at**, the Parameters table verbatim, Dependencies, section 9's plan impact, and `## Revisions` where a revision pass wrote one.
 4. **THREATS** — the threat map, every `S-<n>` with its control, its proof and its disposition, section 5's plan impact, and `## Revisions` where a revision pass wrote one.
 
@@ -103,10 +103,11 @@ Done when every conflict from step 4 carries its `T-<n>`, the user's words and i
 Three things make it the buildable document rather than a summary:
 
 - **Numbers carry over.** Every task keeps the number `plan-phase` gave it. A task a ruling dropped stays as `- [~] **2.3** <label> — dropped in FINAL: <reason, T-<n>>`. New work approved in step 5 takes the next free number in its phase.
-- **Startable alone.** Each task carries what a person needs to begin: the parameter values copied verbatim from the research table, the control from its finding, the file it touches — with `D-<n>` and `S-<n>` pointing back at the reasoning. A task that sends the reader to another file to learn what to build is not finished here.
+- **Startable alone.** Each task carries what a person needs to begin: the parameter values copied verbatim from the research table, the control from its finding, the file it touches — with `D-<n>` and `S-<n>` pointing back at the reasoning. A task that sends the reader to another file to learn what to build is not finished here. A `tests:` task keeps its marker, so `issues` and the linter still read it as one.
 - **Done when is hardened.** `plan-phase` wrote it before any mechanism existed; here it names the actual command, route, status code or spec, with the result it must give.
+- **Verified by is carried and hardened too.** It comes from the plan, never from your own reading of the project, and gains what the research settled: the suite command, the spec file the cases go in, the order the layer's docs mandate. Losing it here is how a workflow the project mandates stops reaching the commit — the failure class 10 exists to catch.
 
-Done when every live task from the plan appears with its number, every phase carries its **Covers**, **Decisions** and **Threats** lines, every phase's **Done when** names a command or an observation with its expected result, the Trace table has a row per `AC-<n>`, and Checks has a line per conflict class.
+Done when every live task from the plan appears with its number, every phase carries its **Covers**, **Decisions**, **Threats** and **Verified by** lines, every phase's **Done when** names a command or an observation with its expected result, the Trace table has a row per `AC-<n>`, and Checks has a line per conflict class.
 
 ### 7. Close the plan and open FINAL's place in the index
 
@@ -122,7 +123,7 @@ The verdict first — **ready** with the FINAL path, or **blocked** and on which
 
 ## Conflict classes
 
-Nine classes, each taken across all four documents.
+Ten classes, each taken across all four documents.
 
 1. **Numbers** — every limit, size, count, timeout and retention period in the PRD, in the research Parameters table and inside a control is the same value, or is a ruling. A control rejecting at 25 MB where `AC-2` promises 100 MB is a conflict, not a rounding.
 2. **Mechanism against promise** — the chosen mechanism can actually produce the observable a criterion names. Storage that cannot list by owner will not serve a criterion about the owner's list.
@@ -130,9 +131,10 @@ Nine classes, each taken across all four documents.
 4. **Missing work** — a decision or control that needs a migration, an env var, a characterization test, an install or a config change that no task carries. `research` and `security-analyse` each revised the plan for their own; work neither claimed surfaces here.
 5. **Stale citations** — a `Held` disposition naming a task or file the revisions moved, a decision-map row pointing at a task that no longer exists, a `- [~]` task still cited by a `D-<n>` or `S-<n>`, an `AC-<n>` cited by nothing, and a phase or task still citing a `D-<n>` or `S-<n>` whose block carries `**Superseded by**` — the citation moves to the replacement, and the superseded block stays where it is.
 6. **Order** — a phase consuming what a later phase builds: a frontend phase before the API it calls, a task using an env var a later task adds, a control landing after the entry point it guards.
-7. **Phase integrity** — the revisions left every phase still shippable: five live tasks at most, one layer, and a stop after it leaves the repo working.
+7. **Phase integrity** — the revisions left every phase still shippable: five live building tasks at most (a `tests:` task is exempt), one layer, and a stop after it leaves the repo working.
 8. **Unproven control** — an `S-<n>` whose **Proven by** test no task writes, or whose control lands in a task that never mentions it. `build-phase` checks a finding against the control its task carries; a control with no test is a control nobody notices losing.
 9. **Silence** — a decision marked "not verified", a risk with no fallback, a finding with no disposition, a task whose description leaves the mechanism open. Each one reaches implementation as an invention.
+10. **Workflow** — the way the project's own docs say a layer is written and verified reaches the work. A phase with no **Verified by**; a line that no longer matches the project docs it cites; a project mandating test-first whose phase has no `tests:` task and no other task naming the specs; a `D-<n>` that changed how a layer can be proven while the line still describes the old way. A workflow that lives only in the project's `CLAUDE.md` is one every implementation run has to rediscover, and the run that does not rediscover it ships untested work that nothing in the chain notices.
 
 ## Template
 
@@ -164,9 +166,10 @@ Nine classes, each taken across all four documents.
 **Covers**: <AC-1, AC-3>
 **Decisions**: <D-1, D-3>
 **Threats**: <S-2>
+**Verified by**: <the plan's line, hardened — the workflow, the suite command and the spec file the cases go in>
 **Tasks**:
 
-- [ ] **1.1** <label, imperative, 60 chars at most> — <what must be true when it is done, the parameters it copies verbatim from the research, and the control it carries>
+- [ ] **1.1** <label, imperative, 60 chars at most> — <what must be true when it is done, the parameters it copies verbatim from the research, and the control it carries; a test-only task keeps its `tests:` marker>
 
 **Done when**: <the command or observation, with the result it must give — the API suite green, `POST /meetings/:id/files` returning 201>
 
@@ -176,6 +179,7 @@ Nine classes, each taken across all four documents.
 
 - Numbers — consistent: 25 MB in AC-2, in Parameters and in the S-3 control.
 - Order — T-2: the web phase read an env var phase 3 adds.
+- Workflow — consistent: every phase carries **Verified by**, and each API phase opens with its `tests:` task.
 
 ## Rulings
 

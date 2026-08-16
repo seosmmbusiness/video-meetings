@@ -41,7 +41,7 @@ A phase number or milestone title (`/bldprj:build-phase 2`, `/bldprj:build-phase
 Read, before any code:
 
 1. `docs/<slug>/<slug>-MS.json` — this phase's block: `status`, milestone number and URL, and its issues with numbers, titles and labels. That is the task → issue map every later step closes work against, and its `sources` block names every other file this run reads.
-2. The final plan named in `sources.final` — this phase's block whole: **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Tasks**, **Done when** — plus its **Rulings** table, since a ruling is why a limit or a control reads the way it does.
+2. The final plan named in `sources.final` — this phase's block whole: **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Verified by**, **Tasks**, **Done when** — plus its **Rulings** table, since a ruling is why a limit or a control reads the way it does. **Verified by** is how this phase's code gets written, not a note about it: step 5 works to it.
 3. `sources.research` — the `D-<n>` blocks this phase's tasks cite, plus Parameters and Dependencies. Limits, package versions, env var names and error codes are copied **verbatim**, and FINAL is where the copy already sits.
 4. `sources.threats` — each `S-<n>` this phase carries, with the control that closes it and the proof it needs.
 5. `sources.prd` — the goal and Out of scope.
@@ -97,12 +97,14 @@ Done when `git branch --show-current` prints the phase branch and the MS file sa
 Plan order encodes the dependencies: tests before implementation, model before routes, backend before frontend. On the refactor track, the track file's `build-phase` section sets this step's rhythm instead — green baseline first, then code that keeps the suite as it is. Per task:
 
 1. Match it against its research decision, the findings it has to close, and the app's conventions.
-2. Write it in the surrounding code's style and the testing idiom the project docs prescribe per layer — e.g. an API goes Red/Green/Refactor (a failing test first, implementation second, refactors only from a green baseline), a web app gets an e2e spec over the user scenario. Tests keep their teeth: rewriting or weakening one to reach green is agreed with the user first.
+2. Write it in the surrounding code's style and in the workflow the phase's **Verified by** names — that line is the project's own rule, already read out of its docs and hardened, so it is followed as written rather than re-derived here. Where it names a test-first cycle, the specs go in first and are **seen red** before a line of implementation exists; where it names an e2e spec over a user scenario, that spec is what the task is finished against. Tests keep their teeth: rewriting or weakening one to reach green is agreed with the user first.
 3. Honour the repo's standing conventions as its docs state them (e.g. doc comments on every function, API annotations on new routes and DTOs), and no secrets, storage paths or other users' data in responses or markup.
 4. Run that task's tests immediately — the touched layer's own suite, as the project scripts name it — rather than saving them for the end of the phase.
-5. Commit the task in the format below, and tick it off only once those tests are green.
+5. Commit the task on its own, in the format below, and tick it off only once those tests are green.
 
-A task that cannot be done as written, or that contradicts the research → stop and ask, rather than substituting your own reading of it.
+**A red state that was never committed cannot be shown to have happened.** On a test-first layer the specs land in their own `test(...)` commit, failing, before the `feat(...)` commit that makes them pass — one task, two commits, the second naming the first. Keep the failing output: step 7's evidence and the PR body both quote it, and it is the only proof the cycle ran in the order the project mandates. A phase whose specs and implementation arrive together leaves nobody able to tell test-first from test-after, which is the same as not having the rule.
+
+A task that cannot be done as written, or that contradicts the research → stop and ask, rather than substituting your own reading of it. **Verified by** contradicting the project's current docs is the same kind of stop: it goes to the user and back to `/bldprj:pre-issues`, never quietly replaced with what the docs say today.
 
 Anything beyond the phase's tasks stays out of this branch: drive-by refactors, "while I'm here" fixes to neighbouring modules, and improvements the PRD put out of scope.
 
@@ -133,7 +135,9 @@ plus the pipeline's docs linter (**Writing a document** in `PIPELINE.md`) when t
 
 Then walk the phase's **Done when** from FINAL point by point, each backed by a fact — a test name, command output, a response you actually saw — not by reasoning. A refactor phase adds its parity evidence here: the baseline output and this run's output, side by side, plus the after-number for the phase's outcome.
 
-**Red does not get pushed.** Fix the cause; a stubborn failure goes to the user with its output instead of a silenced test.
+**Verified by** is evidenced the same way: on a test-first layer, `git log --oneline` for this branch showing each task's `test(...)` commit ahead of its `feat(...)` one, with the red output the first was committed at. A phase that cannot show it says so outright here rather than in the PR body.
+
+**Red does not get pushed as the branch's tip.** A `test(...)` commit inside the history is meant to be red — that is the record step 5 exists to leave — but the commit the PR is opened on is green. Fix the cause; a stubborn failure goes to the user with its output instead of a silenced test.
 
 A phase carrying an `S-<n>` finding, or touching user input, other users' data, files or authorization, gets a review before the push: the security pass (e.g. `/security-review`), or the project's code-review habit otherwise. Each `S-<n>` this phase carries is checked against its control, with the test that proves it.
 
@@ -147,7 +151,7 @@ gh pr create --base <base> --head feature/<slug>-phase-<N> \
   --title "<KEY> <N>. <phase title>" --milestone "<the phase's milestone title from the MS file>" --body "<body>"
 ```
 
-PR body: the phase **Goal**, one line per task with its issue number and commit, the **Done when** evidence from step 7, a link to the RESEARCH and THREATS files, and one `Closes #<issue number>` line per implemented issue — the merge is what closes them, so an unmerged PR never leaves a closed issue behind.
+PR body: the phase **Goal**, one line per task with its issue number and its commits, the **Done when** evidence from step 7, the phase's **Verified by** with the evidence that it was followed, a link to the RESEARCH and THREATS files, and one `Closes #<issue number>` line per implemented issue — the merge is what closes them, so an unmerged PR never leaves a closed issue behind.
 
 Then record the review state and commit it on this branch, so the PR carries it: MS phase `"status": "in-review"` with its `"pr"` block, and FINAL's tasks for this phase ticked `- [x]` with `**Status**: in review — PR <url>` on the block. Commit as `docs: phase <N> in review`, push, and the open PR updates.
 
@@ -192,8 +196,9 @@ Done when the report names either the close-out command or the next open phase.
 Facts, briefly:
 
 - branch, its base, and the commits;
-- task → issue → commit for what was implemented;
+- task → issue → commits for what was implemented;
 - test and check results as they came out, including anything skipped and why;
+- the phase's **Verified by** and how this run followed it — for a test-first layer, the red commit ahead of the green one, per task;
 - the phase's **Done when**, clause by clause, with the evidence;
 - the PR URL and its state — merged and settled, or open and awaiting the merge;
 - what closed on GitHub and what stayed open;
@@ -203,7 +208,7 @@ Facts, briefly:
 
 ## Commit format
 
-One commit per task, so each commit maps to one issue and stays revertable:
+One commit per task — never fewer — so each commit maps to one issue, stays revertable, and can be read back as the order the work actually happened in:
 
 ```
 <type>(<scope>): <what was done>
@@ -212,9 +217,10 @@ Refs #<issue number>
 ```
 
 - `type` and `scope` follow the repo's history (`feat(api)`, `test(web)`, `docs`, `build`).
-- Two tasks share a commit only when they physically cannot be split — a Red→Green step where test and code land together — and then `Refs` lists both issues.
+- **A commit never carries two tasks.** One `Refs`, one issue, one task — a commit whose subject names a range (`tasks 2.1-2.5`) is the phase arriving as a single blob, and with it goes every signal about the order its parts were written in. A task too large to commit on its own was mis-cut: say so and ask, rather than merging it into its neighbour.
+- **A task may need two commits, and on a test-first layer it does**: `test(<scope>)` with the failing specs, then `feat(<scope>)` making them pass, both carrying the same `Refs`. That pair is what makes Red→Green legible in `git log` months later.
 - `Refs` on task commits, `Closes` in the PR body: the issue closes when the code lands on the base branch, not when a commit is written.
-- The project's pre-commit hook, when it has one, runs its checks. A commit it rejects means fixing the cause; the hook stays in the loop (`--no-verify` is off the table).
+- The project's pre-commit hook, when it has one, runs its checks. A commit it rejects means fixing the cause; the hook stays in the loop (`--no-verify` is off the table). A hook that refuses the red `test(...)` commit is a real conflict between two project rules — take it to the user, and never reach for `--no-verify` to settle it.
 
 ## Shipped-work log
 
@@ -249,7 +255,9 @@ Shipped features, newest first. Phase rows collect under **In progress** while a
 - Nothing outside the PRD's scope. A worthwhile improvement spotted in passing becomes its own task, not a commit in this branch.
 - Work happens on `feature/<slug>-phase-<N>` (`refactor/<slug>-phase-<N>` on the refactor track) cut from `develop`/`main` (or from the previous phase's branch, per step 2). The base branch receives no commits.
 - The branch slug matches the slug of the PRD/PLAN/MS files.
-- Tests run after every task and in full before the push; red never gets pushed.
+- The phase's **Verified by** is the workflow this run writes code in, followed as FINAL states it; a conflict with the project's docs is a stop, not a substitution.
+- One commit per task at least, and never one commit for two tasks — a test-first task lands as a red `test(...)` commit and the `feat(...)` commit that greens it.
+- Tests run after every task and in full before the push; the branch tip is green, whatever red the history records on the way there.
 - Tests are not rewritten or weakened to reach green; any test rewrite is agreed with the user first.
 - Done means merged: issues, milestones and the log row wait for the PR to land on the base branch.
 - Docs — module docs, JSDoc, Swagger, `CLAUDE.md`, `README.md`, `.env.example` — land in the same phase as the code.

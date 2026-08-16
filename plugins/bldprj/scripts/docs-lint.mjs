@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * Checks the invariants this plugin's pipeline (`../PIPELINE.md`) states in prose:
- * key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria
+ * key uniqueness, task numbering, label and phase-title lengths, the building-task
+ * ceiling, every phase naming the workflow it is **Verified by**, acceptance-criteria
  * coverage and duplicates, D-/S- citation integrity in both directions (a cited id
  * resolves to a live block, a defined one reaches implementation), plan ↔ final ↔
  * backlog agreement (including a backlog published from a superseded FINAL), and
@@ -52,6 +53,15 @@ function subdirs(dir) {
   return readdirSync(dir)
     .map((name) => join(dir, name))
     .filter((path) => statSync(path).isDirectory());
+}
+
+/**
+ * Says whether a document belongs to a feature `close-feature` already archived.
+ * @param {string} file Absolute path of the document.
+ * @returns {boolean} True when it sits under `docs/archive/`.
+ */
+function isArchived(file) {
+  return file.startsWith(join(DOCS, 'archive') + sep);
 }
 
 /**
@@ -142,13 +152,17 @@ function docVersion(name, pattern) {
 
 /**
  * Parses a plan into phases with their tasks.
+ *
+ * A task's description runs from the first ` — ` to the next line that is not an
+ * indented continuation, so a `tests:` marker is still found when the label wrapped.
  * @param {string} file Absolute path of the plan.
- * @returns {{ number: string, title: string, line: number, covers: string[], tasks: { number: string, label: string, state: string, line: number }[] }[]} The phases in file order.
+ * @returns {{ number: string, title: string, line: number, covers: string[], verifiedBy: string, tasks: { number: string, label: string, state: string, line: number, description: string, testOnly: boolean }[] }[]} The phases in file order.
  */
 function parsePlan(file) {
   const { lines } = readLines(file);
   const phases = [];
   let current = null;
+  let task = null;
   lines.forEach((raw, index) => {
     const phaseMatch = raw.match(/^##\s+Phase\s+(R?\d+)\.\s*(.+?)\s*$/);
     if (phaseMatch) {
@@ -157,25 +171,49 @@ function parsePlan(file) {
         title: phaseMatch[2],
         line: index + 1,
         covers: [],
+        verifiedBy: '',
         tasks: [],
       };
+      task = null;
       phases.push(current);
       return;
     }
     if (!current) return;
-    if (raw.startsWith('**Covers**:')) {
-      current.covers = [...raw.matchAll(/AC-\d+/g)].map((match) => match[0]);
-      return;
-    }
     const taskMatch = raw.match(
       /^\s*-\s+\[( |x|~)\]\s+\*\*(R?\d+\.\d+)\*\*\s+(.*)$/,
     );
     if (taskMatch) {
       const [, state, number, rest] = taskMatch;
-      const label = rest.split(' — ')[0].trim();
-      current.tasks.push({ number, label, state, line: index + 1 });
+      const cut = rest.indexOf(' — ');
+      task = {
+        number,
+        label: (cut === -1 ? rest : rest.slice(0, cut)).trim(),
+        state,
+        line: index + 1,
+        description: cut === -1 ? '' : rest.slice(cut + 3).trim(),
+        testOnly: false,
+      };
+      current.tasks.push(task);
+      return;
+    }
+    if (task && /^\s{2,}\S/.test(raw)) {
+      task.description = `${task.description} ${raw.trim()}`.trim();
+      return;
+    }
+    task = null;
+    if (raw.startsWith('**Covers**:')) {
+      current.covers = [...raw.matchAll(/AC-\d+/g)].map((match) => match[0]);
+      return;
+    }
+    if (raw.startsWith('**Verified by**:')) {
+      current.verifiedBy = raw.slice(raw.indexOf(':') + 1).trim();
     }
   });
+  for (const phase of phases) {
+    for (const item of phase.tasks) {
+      item.testOnly = /^\*{0,2}tests:/i.test(item.description);
+    }
+  }
   return phases;
 }
 
@@ -199,17 +237,30 @@ function checkPlanShape(file, phases) {
         `phase title is ${phase.title.length} chars, over the ${MAX_PHASE_TITLE} a milestone title allows`,
       );
     }
+    // A test-only task is work the project's own workflow demands rather than
+    // scope the phase chose, so it never pushes a phase over the split threshold.
     const live = phase.tasks.filter((task) => task.state !== '~');
-    if (live.length > MAX_TASKS_PER_PHASE) {
+    const building = live.filter((task) => !task.testOnly);
+    if (building.length > MAX_TASKS_PER_PHASE) {
       report(
         'error',
         file,
         phase.line,
-        `phase ${phase.number} carries ${live.length} live tasks, over the ${MAX_TASKS_PER_PHASE} a phase allows`,
+        `phase ${phase.number} carries ${building.length} live building tasks, over the ${MAX_TASKS_PER_PHASE} a phase allows`,
       );
     }
     if (phase.tasks.length === 0) {
       report('warn', file, phase.line, `phase ${phase.number} has no tasks`);
+    }
+    // Archived work predates whatever the contract gained since it shipped:
+    // a field added later is not a finding against a feature already closed out.
+    if (!phase.verifiedBy && !isArchived(file)) {
+      report(
+        'warn',
+        file,
+        phase.line,
+        `phase ${phase.number} has no **Verified by** — how its layers are written and verified stops here`,
+      );
     }
     const seen = new Set();
     const indexes = [];

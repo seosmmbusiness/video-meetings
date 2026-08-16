@@ -37,6 +37,8 @@ Input `docs/<slug>/<slug>-REFACTOR-PRD.md`, output `docs/<slug>/<slug>-REFACTOR-
 
 Template delta: the header links `<slug>-REFACTOR-PRD.md`, each phase's **Covers** cites the refactor PRD's `AC-<n>` exactly as on the feature track, and each phase block gains **Parity check** (the commands that must stay green, plus what to observe by hand) and **Measures** (before → target for this phase).
 
+**Verified by** is carried on this track too, and says the track's own idiom rather than the project's test-first cycle: green baseline → change → green, no existing test edited, and the characterization tests this phase's own tasks name. Those tasks carry the `tests:` marker like any test-only task, so they sit outside the five-task ceiling and take the `test` label — the marker says the task's output is test code, not that the project writes tests first.
+
 ## `issues` on a refactor
 
 Input `docs/<slug>/<slug>-REFACTOR-FINAL.md`, map file `docs/<slug>/<slug>-REFACTOR-MS.json` — same shape, with `"track": "refactor"` beside `"feature"` so `build-phase` reads the track without parsing paths, and `sources` pointing at the `-REFACTOR-` files.
@@ -91,7 +93,7 @@ Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR
 
 Input `docs/<slug>/<slug>-REFACTOR-PLAN.md`, output `docs/<slug>/<slug>-REFACTOR-FINAL.md`, phases addressed `R<N>`. Every freeze line and every internal outcome already fronts an `AC-<n>` in the refactor PRD, so the Trace table reads exactly as on the feature track — one row per criterion — and its **Proven by** column is the baseline command that would catch the freeze breaking, or the measurement that produces the after-number.
 
-Parity is a tenth conflict class, and it outranks the rest:
+Parity is an eleventh conflict class, and it outranks the rest:
 
 - A task that could only be finished by editing an existing test, a control that starts rejecting requests the API accepts today, a decision whose option moves a response, an error or a screen — each is a behaviour change hiding in the plan. It leaves for `/bldprj:prd` as a proposal, and the `T-<n>` records where it went.
 - Every internal outcome has a before-number from the research **Baseline** table and a named command that produces the after-number the same way. An outcome with no before-number is the silence class: it cannot be shown to have worked.
@@ -102,7 +104,7 @@ A phase's **Done when** in FINAL names the baseline commands with the result the
 Sources are the `-REFACTOR-` files, phases are addressed `R<N>` (`/bldprj:build-phase R2`), the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
 
 - **Green baseline first.** On the freshly cut branch, before the first line changes, run the PRD's baseline commands and show the output. Red at the start stops the run and goes to the user: a failure inherited from the base branch is not this phase's to absorb.
-- **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves.
+- **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves. So `build-phase`'s red-then-green commit pair has nothing to record here: a characterization task commits once, green, and the one-commit-per-task floor stands as it does on the feature track.
 - **Prove parity in step 7**: the same commands as the baseline, the same result, shown next to the baseline output. Plus the after-number for every internal outcome the phase serves, measured the way the before-number was.
 - The PR body carries the baseline → after table and the evidence that the contract held: a diff over the project's test files (e.g. `git diff --stat <base>...HEAD -- '**/*.spec.ts'`) showing only added characterization tests.
 - Behaviour that has to change for a task to finish is a stop-and-ask. It leaves the refactor and becomes a `/bldprj:prd` item.

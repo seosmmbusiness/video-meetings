@@ -91,13 +91,14 @@ Done when every decision point from step 3 has a block, every phase appears in t
 
 ### 7. Revise the plan, only where a decision changed the work
 
-Most decisions leave the plan exactly as it is — that is the expected outcome, and section 9 of the report says so in one line. A revision is warranted only when a decision makes the plan **wrong**, in one of three ways:
+Most decisions leave the plan exactly as it is — that is the expected outcome, and section 9 of the report says so in one line. A revision is warranted only when a decision makes the plan **wrong**, in one of four ways:
 
 - work the plan is missing (a migration, an env var, a characterization test the chosen mechanism needs);
 - a task the decision makes unnecessary (an existing module already does it);
-- a task that has to split, because one line now covers two mechanisms.
+- a task that has to split, because one line now covers two mechanisms;
+- a phase's **Verified by** the decision has outdated — the chosen mechanism needs a different command, config or spec file to be proven than the plan assumed. The workflow itself is still the project's, quoted from its docs; only what it takes to run it moves here.
 
-Those three are yours to write, inside the existing phases, following **Versions** in `PIPELINE.md`. Each affected phase also gains `**Decisions**: D-2, D-4`, so implementation reads the phase and the decision together, and each `## Revisions` line names the decision that caused it.
+Those four are yours to write, inside the existing phases, following **Versions** in `PIPELINE.md`. Each affected phase also gains `**Decisions**: D-2, D-4`, so implementation reads the phase and the decision together, and each `## Revisions` line names the decision that caused it.
 
 Anything larger is **not yours to write**: a change of phase order, a new phase, a phase that swaps layers, or work that crosses the PRD's scope fence. Show it to the user with the decision behind it and ask — it is often a PRD change wearing a plan's clothes.
 
