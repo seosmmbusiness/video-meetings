@@ -347,18 +347,19 @@
       "phase": 6,
       "title": "Play, preview and remove files in place",
       "covers": ["AC-10", "AC-12", "AC-13", "AC-14"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/meeting-file-upload-phase-6",
       "pr": {
         "number": 125,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/125",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 23,
         "title": "MFU 6 · Play, preview and remove files in place",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/23",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-16"
       },
       "issues": [
         {
@@ -367,7 +368,8 @@
           "title": "MFU 6.1 — Play video and audio inside the meeting page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/110",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "6.2",
@@ -375,7 +377,8 @@
           "title": "MFU 6.2 — Render images and PDFs inside the page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/111",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "6.3",
@@ -383,7 +386,8 @@
           "title": "MFU 6.3 — Delete a file into \"Deleted files\"",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/112",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "6.4",
@@ -391,20 +395,16 @@
           "title": "MFU 6.4 — Restore a file from \"Deleted files\"",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/113",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         }
       ]
     }
   ],
   "progress": {
     "updatedAt": "2026-08-16",
-    "completedPhases": [1, 2, 3, 4, 5],
-    "currentPhase": 6,
-    "nextPhase": {
-      "phase": 6,
-      "milestone": 23,
-      "title": "MFU 6 · Play, preview and remove files in place",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/23"
-    }
+    "completedPhases": [1, 2, 3, 4, 5, 6],
+    "currentPhase": null,
+    "nextPhase": null
   }
 }

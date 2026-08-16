@@ -357,7 +357,7 @@ preview, delete into "Deleted files" and restore back out of it.
 **Covers**: AC-10, AC-12, AC-13, AC-14
 **Decisions**: D-7, D-8, D-10
 **Threats**: S-8
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/125
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-6, PR https://github.com/seosmmbusiness/video-meetings/pull/125
 **Tasks**:
 
 - [x] **6.1** Play video and audio inside the meeting page — a `<video>`/`<audio>` element pointed at
