@@ -12,7 +12,7 @@ Why anything is the way it is: [`HISTORY.md`](HISTORY.md), with per-app logs in 
 - `apps/api` — NestJS 11 backend (TypeScript). See `apps/api/CLAUDE.md`.
 - `docker-compose.yml` — local Postgres 18 + Redis 8 (`npm run db:up` / `db:down`). See the README's Database section. **Redis is optional infra** — no service depends on it; any code that uses it must degrade gracefully if it's unavailable.
 
-The two apps are independent (no shared package yet) — each has its own `node_modules`, `tsconfig.json`, and ESLint config, because `eslint-config-next` and the NestJS ESLint setup use different rule sets and can't be merged.
+The two apps are independent (no shared package yet) — each has its own `package.json`, `tsconfig.json` and ESLint config, because `eslint-config-next` and the NestJS ESLint setup use different rule sets and can't be merged. Dependencies themselves are hoisted into the root `node_modules` by npm workspaces; `apps/*/node_modules` holds only what couldn't hoist (a version conflict between the two apps), so a package being absent there doesn't mean it isn't installed.
 
 ## Conventions
 
