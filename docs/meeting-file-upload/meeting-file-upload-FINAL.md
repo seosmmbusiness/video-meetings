@@ -285,7 +285,8 @@ the first phase anything is visible in a browser.
       own `Authorization` is never forwarded, and ids go into the path through `encodeURIComponent`,
       never into the host (S-4). (D-6, S-4)
 
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/121
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-4, PR
+https://github.com/seosmmbusiness/video-meetings/pull/121
 
 **Done when**: `npm run test:e2e:web` is green with a new spec covering the meeting's own fields,
 the file list, the empty state, a download whose bytes match what was uploaded, the signed-out
