@@ -347,7 +347,13 @@
       "phase": 6,
       "title": "Play, preview and remove files in place",
       "covers": ["AC-10", "AC-12", "AC-13", "AC-14"],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/meeting-file-upload-phase-6",
+      "pr": {
+        "number": 125,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/125",
+        "state": "open"
+      },
       "milestone": {
         "number": 23,
         "title": "MFU 6 · Play, preview and remove files in place",
@@ -393,7 +399,7 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [1, 2, 3, 4, 5],
-    "currentPhase": null,
+    "currentPhase": 6,
     "nextPhase": {
       "phase": 6,
       "milestone": 23,

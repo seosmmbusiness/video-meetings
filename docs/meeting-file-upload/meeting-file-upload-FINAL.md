@@ -357,22 +357,23 @@ preview, delete into "Deleted files" and restore back out of it.
 **Covers**: AC-10, AC-12, AC-13, AC-14
 **Decisions**: D-7, D-8, D-10
 **Threats**: S-8
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/125
 **Tasks**:
 
-- [ ] **6.1** Play video and audio inside the meeting page — a `<video>`/`<audio>` element pointed at
+- [x] **6.1** Play video and audio inside the meeting page — a `<video>`/`<audio>` element pointed at
       the same-origin byte route, which the browser reaches with the session cookie it cannot read;
       `Range` and 206 come from phase 1, so a long recording seeks. Plays in place, without
       navigating away, and only for the owner's own session. (D-7, D-10)
-- [ ] **6.2** Render images and PDFs inside the page — an image or a PDF is shown in place, both
+- [x] **6.2** Render images and PDFs inside the page — an image or a PDF is shown in place, both
       served `inline`; every other accepted type downloads instead, because `inline` is granted only
       to `image/*`, `application/pdf`, `video/*` and `audio/*`. A PDF still runs its own JavaScript
       in the browser's viewer — accepted by the user on 2026-08-16 (S-8), not closed here. (D-7, S-8)
-- [ ] **6.3** Delete a file into "Deleted files" — a per-row delete calls a Server Action against
+- [x] **6.3** Delete a file into "Deleted files" — a per-row delete calls a Server Action against
       phase 3's route (small payload, no progress, so `refresh()` from `next/cache` applies), moving
       the file out of the main list into a "Deleted files" section of the same page showing the time
       left computed from `purgeAt`, freeing a slot against the 20-file cap straight away and leaving
       the file neither playable nor downloadable while it sits there. (D-8, D-10)
-- [ ] **6.4** Restore a file from "Deleted files" — a Restore control returns the file to the main
+- [x] **6.4** Restore a file from "Deleted files" — a Restore control returns the file to the main
       list, playable and downloadable again and holding a slot again; a file whose 30 days have run
       out is not in the section at all, because phase 3's list filters on the horizon rather than on
       when the cron last ran. (D-8, D-10)
