@@ -1,0 +1,345 @@
+{
+  "feature": "meeting-file-upload",
+  "key": "MFU",
+  "track": "feature",
+  "repo": "seosmmbusiness/video-meetings",
+  "createdAt": "2026-08-16",
+  "sources": {
+    "prd": "docs/meeting-file-upload/meeting-file-upload-PRD.md",
+    "plan": "docs/meeting-file-upload/meeting-file-upload-PLAN.md",
+    "research": "docs/meeting-file-upload/meeting-file-upload-RESEARCH.md",
+    "threats": "docs/meeting-file-upload/meeting-file-upload-THREATS.md",
+    "final": "docs/meeting-file-upload/meeting-file-upload-FINAL.md",
+    "finalVersion": 1
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Store a meeting file and serve it back",
+      "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18"],
+      "status": "pending",
+      "milestone": {
+        "number": 18,
+        "title": "MFU 1 · Store a meeting file and serve it back",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/18",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "1.1",
+          "number": 86,
+          "title": "MFU 1.1 — Add the MeetingFile model and its migration",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/86",
+          "labels": ["backend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.2",
+          "number": 87,
+          "title": "MFU 1.2 — Keep file bytes behind one storage boundary",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/87",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.3",
+          "number": 88,
+          "title": "MFU 1.3 — Accept an upload onto a meeting the caller owns",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/88",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.4",
+          "number": 89,
+          "title": "MFU 1.4 — List a meeting's files, owner-scoped",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/89",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.5",
+          "number": 90,
+          "title": "MFU 1.5 — Serve a file's bytes to its owner only",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/90",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "Enforce the upload limits",
+      "covers": ["AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"],
+      "status": "pending",
+      "milestone": {
+        "number": 19,
+        "title": "MFU 2 · Enforce the upload limits",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/19",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "2.1",
+          "number": 91,
+          "title": "MFU 2.1 — Reject a file over 500 MB before storing bytes",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/91",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.2",
+          "number": 92,
+          "title": "MFU 2.2 — Accept only the twelve listed file types",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/92",
+          "labels": ["backend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.3",
+          "number": 93,
+          "title": "MFU 2.3 — Cap a meeting at 20 live files",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/93",
+          "labels": ["backend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.4",
+          "number": 94,
+          "title": "MFU 2.4 — Cap an owner's stored bytes at 20 GB",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/94",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.5",
+          "number": 95,
+          "title": "MFU 2.5 — Leave nothing stored when an upload breaks off",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/95",
+          "labels": ["backend"],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "title": "Soft delete, restore and purge",
+      "covers": ["AC-7", "AC-8", "AC-12", "AC-13", "AC-14"],
+      "status": "pending",
+      "milestone": {
+        "number": 20,
+        "title": "MFU 3 · Soft delete, restore and purge",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/20",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "3.1",
+          "number": 96,
+          "title": "MFU 3.1 — Soft-delete a file and stop serving it",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/96",
+          "labels": ["backend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.2",
+          "number": 97,
+          "title": "MFU 3.2 — List a meeting's deleted files with time left",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/97",
+          "labels": ["backend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.3",
+          "number": 98,
+          "title": "MFU 3.3 — Restore a deleted file",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/98",
+          "labels": ["backend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.4",
+          "number": 99,
+          "title": "MFU 3.4 — Purge files deleted more than 30 days ago",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/99",
+          "labels": ["backend"],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "title": "Meeting page with its file list",
+      "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18", "AC-19"],
+      "status": "pending",
+      "milestone": {
+        "number": 21,
+        "title": "MFU 4 · Meeting page with its file list",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/21",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "4.1",
+          "number": 100,
+          "title": "MFU 4.1 — Add the meeting page at /meetings/:id",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/100",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.2",
+          "number": 101,
+          "title": "MFU 4.2 — Link the dashboard's meeting rows to the page",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/101",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.3",
+          "number": 102,
+          "title": "MFU 4.3 — Show the meeting's files, or an empty state",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/102",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.4",
+          "number": 103,
+          "title": "MFU 4.4 — Download a listed file from the page",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/103",
+          "labels": ["frontend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.5",
+          "number": 104,
+          "title": "MFU 4.5 — Refuse an unauthenticated request at the proxy",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/104",
+          "labels": ["frontend", "security"],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "title": "Upload files from the meeting page",
+      "covers": [
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 22,
+        "title": "MFU 5 · Upload files from the meeting page",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/22",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "5.1",
+          "number": 105,
+          "title": "MFU 5.1 — Upload several selected files at once",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/105",
+          "labels": ["frontend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.2",
+          "number": 106,
+          "title": "MFU 5.2 — Show each file's own advancing progress",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/106",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.3",
+          "number": 107,
+          "title": "MFU 5.3 — Cancel one upload without disturbing the batch",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/107",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.4",
+          "number": 108,
+          "title": "MFU 5.4 — Fail a broken upload with Retry and Dismiss",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/108",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.5",
+          "number": 109,
+          "title": "MFU 5.5 — State the limit when the API refuses a file",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/109",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "title": "Play, preview and remove files in place",
+      "covers": ["AC-10", "AC-12", "AC-13", "AC-14"],
+      "status": "pending",
+      "milestone": {
+        "number": 23,
+        "title": "MFU 6 · Play, preview and remove files in place",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/23",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "6.1",
+          "number": 110,
+          "title": "MFU 6.1 — Play video and audio inside the meeting page",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/110",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.2",
+          "number": 111,
+          "title": "MFU 6.2 — Render images and PDFs inside the page",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/111",
+          "labels": ["frontend", "security"],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.3",
+          "number": 112,
+          "title": "MFU 6.3 — Delete a file into \"Deleted files\"",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/112",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.4",
+          "number": 113,
+          "title": "MFU 6.4 — Restore a file from \"Deleted files\"",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/113",
+          "labels": ["frontend"],
+          "state": "OPEN"
+        }
+      ]
+    }
+  ],
+  "progress": {
+    "updatedAt": "2026-08-16",
+    "completedPhases": [],
+    "currentPhase": null,
+    "nextPhase": {
+      "phase": 1,
+      "milestone": 18,
+      "title": "MFU 1 · Store a meeting file and serve it back",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/18"
+    }
+  }
+}
