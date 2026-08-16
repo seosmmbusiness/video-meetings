@@ -337,10 +337,10 @@
     "completedPhases": [],
     "currentPhase": 1,
     "nextPhase": {
-      "phase": 1,
-      "milestone": 18,
-      "title": "MFU 1 · Store a meeting file and serve it back",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/18"
+      "phase": 2,
+      "milestone": 19,
+      "title": "MFU 2 · Enforce the upload limits",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/19"
     }
   }
 }

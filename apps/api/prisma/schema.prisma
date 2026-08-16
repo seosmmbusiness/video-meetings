@@ -23,15 +23,34 @@ model User {
 }
 
 model Meeting {
-  id           String   @id @default(uuid())
+  id           String        @id @default(uuid())
   title        String
   description  String?
   date         DateTime
   participants String[]
   ownerId      String
-  owner        User     @relation(fields: [ownerId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  owner        User          @relation(fields: [ownerId], references: [id])
+  files        MeetingFile[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
+  @@index([ownerId])
   @@map("meetings")
+}
+
+model MeetingFile {
+  id         String    @id @default(uuid())
+  meetingId  String
+  meeting    Meeting   @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  name       String    @db.VarChar(255)
+  size       Int
+  mimeType   String    @db.VarChar(128)
+  storageKey String    @unique
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  @@index([meetingId, deletedAt])
+  @@index([deletedAt])
+  @@map("meeting_files")
 }
