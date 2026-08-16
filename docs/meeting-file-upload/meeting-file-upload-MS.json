@@ -384,10 +384,10 @@
     "completedPhases": [1, 2, 3, 4],
     "currentPhase": 5,
     "nextPhase": {
-      "phase": 5,
-      "milestone": 22,
-      "title": "MFU 5 · Upload files from the meeting page",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/22"
+      "phase": 6,
+      "milestone": 23,
+      "title": "MFU 6 · Play, preview and remove files in place",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/23"
     }
   }
 }
