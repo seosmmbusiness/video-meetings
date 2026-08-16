@@ -62,6 +62,7 @@ npm run db:down         # stop
 - Auth also needs `JWT_SECRET` (and optionally `JWT_EXPIRES_IN`, default `1h`) set in `.env` — used by `apps/api`'s email/password auth (`POST /auth/register`, `POST /auth/login`) to sign JWTs.
 - `apps/api` enables CORS for `apps/web`'s origin via `CORS_ORIGIN` (default `http://localhost:3000`), since the browser calls the API cross-origin in dev (`apps/web` on `3000`, `apps/api` on `3001`).
 - `apps/web` reaches `apps/api` server-to-server (from Server Actions) via `API_BASE_URL` (default `http://localhost:3001`) — `apps/web` has no `.env` of its own, so it loads this root `.env` itself via `@next/env` in `next.config.ts`.
+- Uploaded meeting files live on local disk under `STORAGE_ROOT` (default `<repo>/.data/uploads`, gitignored) — **required**, with no default, when `NODE_ENV=production`. See `.claude/modules/module-api-files.md`.
 
 **Redis is optional infrastructure, not a hard dependency.** It's present in `docker-compose.yml` (`REDIS_URL` in `.env.example`) for future caching/session/pub-sub use, but no service in this repo depends on it yet. When code is written against Redis, it must be written to **degrade gracefully if Redis is absent or unreachable** (connection refused, timeout, etc.) — treat it as a best-effort cache/accelerator, not a source of truth. Don't let a missing or down Redis take down `apps/api` or block a request path; fall back to the non-cached/direct behavior and log, rather than throwing.
 
