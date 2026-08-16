@@ -2,6 +2,8 @@
 
 npm-workspaces monorepo with two independent apps. See @README.md for the full script table and setup instructions — don't duplicate it here.
 
+Feature and refactor documents — PRD, plan, research, threats, final plan — are indexed in [`docs/INDEX.md`](docs/INDEX.md).
+
 ## Layout
 
 - `apps/web` — Next.js 16 frontend (App Router, TypeScript). See `apps/web/CLAUDE.md`.

@@ -1,0 +1,7 @@
+# Docs index
+
+Feature and refactor documents, newest first. A feature keeps one row from its PRD until close-out moves its links into `docs/archive/`.
+
+| Key | Feature             | What it is                                                                               | Documents                                                                                                                                                                                                                                                                                                     |
+| --- | ------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MFU | meeting-file-upload | Recordings and documents uploaded to a meeting, played, downloaded and deleted in place. | [PRD](meeting-file-upload/meeting-file-upload-PRD.md) · [Plan](meeting-file-upload/meeting-file-upload-PLAN.md) · [Research](meeting-file-upload/meeting-file-upload-RESEARCH.md) · [Threats](meeting-file-upload/meeting-file-upload-THREATS.md) · [Final](meeting-file-upload/meeting-file-upload-FINAL.md) |
