@@ -230,6 +230,20 @@ describe('Files (e2e)', () => {
         .expect(401);
     });
 
+    it('rejects the request with a malformed auth token', async () => {
+      await request(app.getHttpServer())
+        .get(`/meetings/${randomUUID()}/files`)
+        .set('Authorization', 'Bearer not-a-real-token')
+        .expect(401);
+    });
+
+    it('rejects the request with an expired auth token', async () => {
+      await request(app.getHttpServer())
+        .get(`/meetings/${randomUUID()}/files`)
+        .set('Authorization', `Bearer ${expiredToken()}`)
+        .expect(401);
+    });
+
     it('lists only live files of a meeting the caller owns', async () => {
       const response = await request(app.getHttpServer())
         .get(`/meetings/${meetingId}/files`)
