@@ -3,9 +3,9 @@
 Architecture and function reference for the meeting files module: store a meeting file and serve
 it back, scoped to the meeting's owner and behind an abstract, backend-agnostic storage boundary,
 with every PRD limit (size, detected type, live-file count, owner byte quota) enforced at the API
-itself. Part of the `meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD,
-research and threat model this module implements (phase 1 + phase 2:
-`docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
+itself, plus soft delete, restore and a scheduled purge of the 30-day-expired ones. Part of the
+`meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD, research and threat
+model this module implements (phases 1–3: `docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm
 `test/files.e2e-spec.ts` (and unit specs) are green before refactoring, then re-run after each step.
@@ -30,13 +30,24 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
     `MulterExceptionFilter` for the interceptor's own size abort, answers `201` with the file's DTO
     or one of `413`/`415`/`409`/`507` (see `FilesService.create`).
   - `GET /meetings/:meetingId/files` — lists the meeting's live files.
+  - `GET /meetings/:meetingId/files/deleted` — lists the meeting's soft-deleted, not-yet-purged
+    files, each carrying an absolute `purgeAt`.
   - `GET /meetings/:meetingId/files/:fileId/content` —
     `@Throttle({ default: { limit: 240, ttl: 60_000 } })`, streams the bytes via `res.sendFile`
     (`@Res()`, so this route bypasses Nest's normal response pipeline).
+  - `DELETE /meetings/:meetingId/files/:fileId` — soft-deletes a live file, `204` on success (D-4).
+  - `POST /meetings/:meetingId/files/:fileId/restore` — restores a soft-deleted, not-yet-purged
+    file, `200` with its DTO, or `409` (the same message and check an upload gets) if the meeting
+    is already at its 20-file cap (D-5).
 - `FilesService` (`files.service.ts`) does the Prisma reads/writes and the `FileStorage.save` call;
   `UploadedDiskFile` is the shape multer's `diskStorage` hands the controller. `create` now sniffs
   the file's real type first (`FileTypeService`), then runs the live-file-count and owner-byte-total
   checks inside the same `$transaction` that creates the row — see Limit enforcement below.
+- `FilesPurgeService` (`files-purge.service.ts`) — the scheduled purge (D-8): deletes every
+  soft-deleted file past its 30-day retention window (bytes via `FileStorage.delete`, then its row)
+  and sweeps `<STORAGE_ROOT>/tmp` of any leftover upload temp file older than 24 hours. Runs hourly
+  via `@Cron(CronExpression.EVERY_HOUR)`; also a plain public method, callable directly (e.g. from a
+  test, after backdating `deletedAt`) without waiting for a tick.
 - `FileTypeService` (`file-type.service.ts`) — content-based type detection (D-2): `file-type`'s
   signature detection first, a text-content rule (`txt`/`md` only) as the fallback for the two
   extensions that carry no signature at all.
@@ -82,8 +93,9 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - Prisma `MeetingFile` model (`prisma/schema.prisma`): `meetingId` (FK to `Meeting`,
   `onDelete: Restrict`), `name` (`@db.VarChar(255)`), `size Int` (not `BigInt` — 500 MB fits, and
   `BigInt` breaks `JSON.stringify`), `mimeType` (`@db.VarChar(128)`), `storageKey` (`@unique`),
-  `deletedAt DateTime?` (unused until phase 3). Indexed `@@index([meetingId, deletedAt])` and
-  `@@index([deletedAt])`. `Meeting` gained `@@index([ownerId])` in the same migration — see
+  `deletedAt DateTime?` (set by delete, cleared by restore, read by the purge job — phase 3).
+  Indexed `@@index([meetingId, deletedAt])` and `@@index([deletedAt])`. `Meeting` gained
+  `@@index([ownerId])` in the same migration — see
   `.claude/modules/module-api-meetings.md`.
 
 ## Access control (non-obvious, worth preserving)
@@ -95,10 +107,13 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   upload body land on disk before the 404 is decided.
 - **Every file lookup is a single compound query**, never a plain `findUnique({ where: { id } })`
   after a separate meeting check: `FilesService.findFileForOwner` filters on
-  `{ id: fileId, meetingId, meeting: { ownerId }, deletedAt: null }` in one `findFirst`. A file id
-  from another owner's meeting, presented under a meeting the caller does own, must 404 — a
-  check-then-fetch split reintroduces that hole even though `MeetingOwnerGuard` already confirmed
-  `:meetingId` itself belongs to the caller.
+  `{ id: fileId, meetingId, meeting: { ownerId }, deletedAt: null }` in one `findFirst` (live files —
+  used by the content route and delete); `findDeletedFileForOwner` is the same shape with
+  `deletedAt: { not: null, gt: purgeHorizon() }` (soft-deleted, not-yet-purged — used by restore),
+  so a file id from another owner's meeting, presented under a meeting the caller does own, 404s on
+  delete and restore exactly as it does on download (S-2) — a check-then-fetch split reintroduces
+  that hole even though `MeetingOwnerGuard` already confirmed `:meetingId` itself belongs to the
+  caller.
 - **The file name is normalized, not rejected**: `path.basename()` strips any directory component,
   C0 control bytes are removed, and the result is truncated (not validated-and-400'd) to
   `MAX_FILE_NAME_LENGTH`. A traversal-shaped name (`../../etc/passwd`) is stored as its basename
@@ -196,6 +211,12 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
   `filesService.findFileForOwner`, sets `Content-Type`/`X-Content-Type-Options`/`Cache-Control`/
   `Content-Disposition` (`inline` for `image/*`, `video/*`, `audio/*` and `application/pdf`;
   `attachment` otherwise), then `res.sendFile`.
+- `FilesController.listDeleted(meetingId, user): Promise<MeetingFileResponseDto[]>` — delegates to
+  `filesService.listDeletedForOwner(meetingId, user.userId)`.
+- `FilesController.remove(meetingId, fileId, user): Promise<void>` — `204`; delegates to
+  `filesService.delete(fileId, meetingId, user.userId)`.
+- `FilesController.restore(meetingId, fileId, user): Promise<MeetingFileResponseDto>` — `200`;
+  delegates to `filesService.restore(fileId, meetingId, user.userId)`.
 - `FilesService.create(meetingId, file, ownerId): Promise<MeetingFileResponseDto>` — sniffs the
   file's type (`415` if unaccepted, temp file unlinked), then inside one `$transaction`: counts the
   meeting's live files (`409` if at `MAX_LIVE_FILES_PER_MEETING`), sums the owner's total
@@ -208,10 +229,31 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
   snapshot the live-file count did.
 - `FilesService.listForOwner(meetingId, ownerId): Promise<MeetingFileResponseDto[]>` — live files
   only (`deletedAt: null`), newest first.
-- `FilesService.findFileForOwner(fileId, meetingId, ownerId): Promise<MeetingFile>` — the one
-  compound lookup every file-id route uses; throws `NotFoundException('File not found')`. Returns
-  the full Prisma row (including `storageKey`), unlike the DTO-returning methods above — the content
-  route is this method's only caller that needs it.
+- `FilesService.findFileForOwner(fileId, meetingId, ownerId): Promise<MeetingFile>` — the compound
+  lookup every live-file route uses (content, delete); throws `NotFoundException('File not found')`.
+  Returns the full Prisma row (including `storageKey`), unlike the DTO-returning methods above.
+- `FilesService.findDeletedFileForOwner(fileId, meetingId, ownerId): Promise<MeetingFile>` —
+  private; the same compound shape as `findFileForOwner`, scoped instead to soft-deleted,
+  not-yet-purged files (`deletedAt: { not: null, gt: purgeHorizon() }`); restore's only caller.
+- `FilesService.delete(fileId, meetingId, ownerId): Promise<void>` — resolves the live file via
+  `findFileForOwner`, then sets `deletedAt: new Date()`.
+- `FilesService.restore(fileId, meetingId, ownerId): Promise<MeetingFileResponseDto>` — resolves
+  the deleted file via `findDeletedFileForOwner`, then inside one `$transaction`: re-checks the
+  meeting's live-file count (`409` — the same `ConflictException` and message an upload gets — if
+  at `MAX_LIVE_FILES_PER_MEETING`), clears `deletedAt`.
+- `FilesService.listDeletedForOwner(meetingId, ownerId): Promise<MeetingFileResponseDto[]>` —
+  soft-deleted, not-yet-purged files (`deletedAt: { not: null, gt: purgeHorizon() }`), newest
+  deletion first.
+- `purgeHorizon(): Date` (`files.service.ts`, private) — `now - PURGE_AFTER_MS`; every read path
+  that must treat an expired-but-not-yet-purged file as already gone computes it the same way
+  `FilesPurgeService` computes its own purge cutoff (D-8).
+- `FilesPurgeService.purgeExpired(): Promise<void>` — `@Cron`-scheduled hourly, also a plain public
+  method: finds every `MeetingFile` with `deletedAt` past the 30-day horizon, deletes each one's
+  bytes (`FileStorage.delete`) then its row, then sweeps `<STORAGE_ROOT>/tmp` of stale leftovers.
+  Logs a count, never a filename.
+- `FilesPurgeService.purgeStaleTempFiles(): Promise<number>` — private; removes any entry directly
+  under `<STORAGE_ROOT>/tmp` (skipping `.gitkeep`) whose `mtime` is older than 24 hours; returns the
+  count removed.
 - `FileTypeService.detect(tempPath, declaredName): Promise<DetectedFileType | null>` — signature
   detection via `file-type`, falling back to the text-content rule (private `looksLikeText`) only
   for a declared `txt`/`md` extension when no signature was found at all.
@@ -242,6 +284,6 @@ request.destroy())`.
 
 - `MeetingFileResponseDto` — `{ id, meetingId, name, size, mimeType, createdAt, deletedAt, purgeAt }`.
   `mimeType` is the content-sniffed type (`FileTypeService`), never the client's declared
-  `Content-Type`. `deletedAt`/`purgeAt` are always `null` until phase 3 sets `deletedAt`; `purgeAt`
-  is then computed as `deletedAt + PURGE_AFTER_MS`, an absolute timestamp rather than a countdown so
-  a cached response can't drift.
+  `Content-Type`. `deletedAt`/`purgeAt` are `null` for a live file; delete sets `deletedAt` and
+  restore clears it again. `purgeAt` is computed as `deletedAt + PURGE_AFTER_MS`, an absolute
+  timestamp rather than a countdown so a cached response can't drift.
