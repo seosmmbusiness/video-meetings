@@ -146,9 +146,10 @@ behind.
 **Covers**: AC-4, AC-5, AC-6, AC-7, AC-8, AC-9
 **Decisions**: D-2, D-3, D-5, D-11
 **Threats**: S-3, S-9
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/117
 **Tasks**:
 
-- [ ] **2.1** Reject a file over 500 MB before storing bytes — two gates. A guard refuses a declared
+- [x] **2.1** Reject a file over 500 MB before storing bytes — two gates. A guard refuses a declared
       `Content-Length` above `524_288_000` at zero bytes read; multer's `limits.fileSize` aborts the
       stream the moment the counter crosses it and calls `removeUploadedFiles` on what it wrote, so
       at most the ceiling plus one busboy chunk ever touches disk. A `MulterExceptionFilter` maps
@@ -159,7 +160,7 @@ behind.
       its 60 s default; and the upload route sets `req.setTimeout(60_000)`, an **inactivity**
       timeout, so a slow but steady transfer runs its full window while one that goes silent is
       dropped rather than held open (S-9, T-1). (D-3, S-9)
-- [ ] **2.2** Accept only the twelve listed file types — `mp4`, `webm`, `mov`, `mp3`, `wav`, `m4a`,
+- [x] **2.2** Accept only the twelve listed file types — `mp4`, `webm`, `mov`, `mp3`, `wav`, `m4a`,
       `pdf`, `docx`, `txt`, `md`, `png`, `jpg`, matched on content rather than on the extension or
       the client's `Content-Type`, so a PNG renamed `.pdf` is still refused. `file-type@21.3.4` —
       already a direct dependency of `@nestjs/common@11.1.28`, nothing to install — reached through
@@ -170,12 +171,12 @@ behind.
       `Unsupported file type. Accepted types: mp4, webm, mov, mp3, wav, m4a, pdf, docx, txt, md, png, jpg.`
       The detector is ESM-only, so `apps/api`'s `test` and `test:e2e` scripts must run with
       `NODE_OPTIONS=--experimental-vm-modules` or the suite cannot load it at all. (D-2, D-11)
-- [ ] **2.3** Cap a meeting at 20 live files — an upload into a meeting already holding 20 live
+- [x] **2.3** Cap a meeting at 20 live files — an upload into a meeting already holding 20 live
       files is refused **409** `This meeting already holds 20 files. Delete one to upload another.`
       Deleted-but-not-purged files hold no slot, so freeing one lets the identical upload through
       immediately afterwards. The count is re-taken inside the same `$transaction` that creates the
       row, so two concurrent uploads cannot both pass it. (D-5)
-- [ ] **2.4** Cap an owner's stored bytes at 20 GB — an upload that would take the owner past
+- [x] **2.4** Cap an owner's stored bytes at 20 GB — an upload that would take the owner past
       `21_474_836_480` bytes across all their meetings is refused **507**
       `Not enough space: <remaining> of the 20 GB total remains.`, counting deleted-but-not-purged
       files as well as live ones, via
@@ -186,7 +187,7 @@ behind.
       concurrent uploads cannot together cross it or fill the disk Postgres shares. Under-declaring
       cannot beat it — Node delivers no more than `Content-Length` bytes on a non-chunked request.
       (D-5, S-3)
-- [ ] **2.5** Leave nothing stored when an upload breaks off — a request aborted by the client or
+- [x] **2.5** Leave nothing stored when an upload breaks off — a request aborted by the client or
       cut short by a failure leaves no record, no bytes and nothing counted against either limit.
       multer already removes its own temp file on `req.on('aborted')` and on a limit abort; the
       ordering does the rest — the row is created inside the transaction and the bytes are committed
