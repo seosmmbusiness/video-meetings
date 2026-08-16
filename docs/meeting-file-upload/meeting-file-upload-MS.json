@@ -83,7 +83,8 @@
       "phase": 2,
       "title": "Enforce the upload limits",
       "covers": ["AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"],
-      "status": "pending",
+      "status": "in-progress",
+      "branch": "feature/meeting-file-upload-phase-2",
       "milestone": {
         "number": 19,
         "title": "MFU 2 · Enforce the upload limits",
@@ -346,7 +347,7 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [1],
-    "currentPhase": null,
+    "currentPhase": 2,
     "nextPhase": {
       "phase": 2,
       "milestone": 19,
