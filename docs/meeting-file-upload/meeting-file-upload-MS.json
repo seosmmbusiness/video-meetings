@@ -281,7 +281,13 @@
         "AC-8",
         "AC-9"
       ],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/meeting-file-upload-phase-5",
+      "pr": {
+        "number": 123,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/123",
+        "state": "open"
+      },
       "milestone": {
         "number": 22,
         "title": "MFU 5 · Upload files from the meeting page",
@@ -381,12 +387,12 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [1, 2, 3, 4],
-    "currentPhase": null,
+    "currentPhase": 5,
     "nextPhase": {
-      "phase": 5,
-      "milestone": 22,
-      "title": "MFU 5 · Upload files from the meeting page",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/22"
+      "phase": 6,
+      "milestone": 23,
+      "title": "MFU 6 · Play, preview and remove files in place",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/23"
     }
   }
 }

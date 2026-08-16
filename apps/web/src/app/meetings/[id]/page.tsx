@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { Card, Chip, EmptyState } from '@heroui/react';
 import { buttonVariants } from '@heroui/styles';
+import { FileUploader } from '@/components/files/file-uploader';
 import {
   ApiError,
   getMeeting,
@@ -126,9 +127,10 @@ function FilesSection({
       <Card.Header>
         <Card.Title>Files</Card.Title>
       </Card.Header>
-      <Card.Content>
+      <Card.Content className="flex flex-col gap-4">
+        <FileUploader meetingId={meetingId} />
         {files.length > 0 ? (
-          <ul>
+          <ul aria-label="Files">
             {files.map((file) => (
               <FileListItem key={file.id} file={file} meetingId={meetingId} />
             ))}

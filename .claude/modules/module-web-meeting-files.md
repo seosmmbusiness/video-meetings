@@ -1,9 +1,10 @@
 # apps/web/src (meeting page + file proxy)
 
-Architecture and function reference for the meeting detail page (`/meetings/[id]`) and the
-same-origin proxy that serves a file's bytes to the browser without ever exposing the session
-token. Part of the `meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD,
-research and threat model this module implements (phase 4:
+Architecture and function reference for the meeting detail page (`/meetings/[id]`), the
+same-origin proxies that serve and accept a file's bytes without ever exposing the session token
+to the browser, and the multi-file uploader that drives the upload proxy. Part of the
+`meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD, research and threat
+model this module implements (phase 4 built the page and download; phase 5 added upload — see
 `docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 This module talks to `apps/api`'s `src/meetings` (`GET /meetings/:id`, see
@@ -35,7 +36,28 @@ request/error conventions rather than duplicating them.
   forwarded. Passes only `content-type`/`content-length`/`content-disposition`/`accept-ranges`/
   `content-range`/`cache-control` back from the upstream response, so `apps/api`'s
   `Cache-Control: private, no-store` (S-7) and refusal statuses/messages survive the hop unchanged.
-  Shared by this route today; phase 5's upload route reuses it for the same reason (D-6).
+  Shared by both proxy routes for the same reason (D-6).
+- `app/api/meetings/[meetingId]/files/route.ts` — a Route Handler, same-origin with the page.
+  `POST` calls `getSession()` first and returns a bodyless `401` without opening any upstream
+  request when there's no session (S-4); otherwise delegates to `proxyToApi` against
+  `/meetings/:meetingId/files`. The request body streams through rather than buffering (D-6), which
+  is what lets `XMLHttpRequest.upload.onprogress` on the browser side report real intermediate
+  progress instead of jumping straight to 100%.
+- `components/files/file-uploader.tsx` — `'use client'`. `FileUploader({ meetingId })`: selecting N
+  files in the native (visually hidden) file input starts N independent `XMLHttpRequest` transfers
+  against the upload route above, one row per file, each tracking its own `uploading`/`failed`
+  state independently of the others (AC-2). A file already over `MAX_FILE_BYTES` is caught by
+  `file.size` before any request is built (AC-5's browser-side half). Progress comes from
+  `xhr.upload.onprogress` into a HeroUI `ProgressBar`; Cancel calls `xhr.abort()`, which removes the
+  row outright (task 5.3) rather than leaving it failed; any non-2xx response or `xhr.onerror` shows
+  the row as failed in a HeroUI `Alert` with Retry (re-sends the same `File` object from the first
+  byte) and Dismiss. A successful upload removes its own row and calls `useRouter().refresh()`
+  (D-10), which re-renders the server-fetched `Files` list with no navigation — this is why a
+  completing row and its committed list entry can be momentarily indistinguishable by filename
+  alone (see Gotchas).
+- `lib/file-limits.ts` — `MAX_FILE_BYTES` and `FILE_SIZE_LIMIT_MESSAGE`, hand-duplicated from
+  `apps/api`'s `files.constants.ts` (no shared types package) so the client-side size check and its
+  message match the server's 413 exactly.
 - `lib/files-api.ts` — server-only fetch client, shaped like `lib/meetings-api.ts`:
   `getMeeting(token, meetingId)` (`GET /meetings/:id`) and `listFiles(token, meetingId)`
   (`GET /meetings/:meetingId/files`). Both `cache: 'no-store'`, both throw `ApiError` on a non-2xx
@@ -49,8 +71,19 @@ request/error conventions rather than duplicating them.
   nothing executes), the dashboard-row link, and three proxy-route cases: a cleared session
   answering `401` with no body, a caller-supplied `Authorization` header changing nothing, and a
   nonexistent file id passing the upstream `404` straight through. Runs against a real `apps/api` +
-  Postgres, like `home.spec.ts`; seeds meetings and files through the API directly rather than the
-  (not yet built) upload UI.
+  Postgres, like `home.spec.ts`; seeds meetings and files through the API directly.
+- `e2e/meeting-file-upload.spec.ts` — Playwright coverage for the uploader: independent multi-file
+  landing without a reload and surviving one, at least three distinct intermediate percentages on a
+  generated 100 MB silent WAV (a real accepted file — a blob of zeros would be refused by type
+  before any progress could be observed), a per-row cancel removing its row within 2 s while the
+  batch continues and nothing is stored, a failed row (simulated with `page.route(...).abort()`)
+  whose Retry succeeds, and all four refusal messages (413 client-side via a spoofed oversized
+  `File.size`, 415 with a real random-bytes fixture, 409 by seeding 20 real files first, 507 via
+  `page.route(...).fulfill()` since exhausting a real 20 GB quota isn't practical in e2e — apps/api's
+  own suite already proves that ceiling trips a 507; this spec only proves the message survives the
+  hop verbatim). Registers exactly one owner account in `test.describe.configure({ mode: 'serial' })`
+  rather than one per test, since registration has no credential to key its throttle on yet and is
+  tracked per-IP (D-9) — every spec file in this suite shares one loopback IP when run together.
 
 ## Gotchas (non-obvious, worth preserving)
 
@@ -74,6 +107,20 @@ request/error conventions rather than duplicating them.
 - **`getMeeting`/`listFiles` are called sequentially, not via `Promise.all`.** Fetching the meeting
   first means a 404 or 401 on it skips the files call entirely, saving a request against
   `apps/api`'s per-credential throttle for a page that's about to redirect or 404 anyway.
+- **A file's name is visible in two different lists while it's uploading**, and a test (or a
+  screen-reader user) has to be told which one it means. `FileUploader`'s in-progress rows live in a
+  `<ul aria-label="Uploads">`; the server-rendered committed rows live in a `<ul aria-label="Files">`
+  — both were unlabeled `<ul>`s until phase 5 added the second one, and an assertion (or a
+  `getByText`) scoped to neither will happily match a row that's still uploading and call it
+  "landed". Scope by list name, not just by text, whenever "did the upload finish" is the question.
+- **Cancel and a network/server failure are different terminal states, deliberately.**
+  `xhr.onabort` (user-initiated, `row.xhr?.abort()`) removes the row outright; `xhr.onerror` and a
+  non-2xx `xhr.onload` set `status: 'failed'` and keep the row with Retry/Dismiss. Collapsing these
+  into one path would either leave a cancelled file offering a pointless Retry, or silently drop a
+  file that failed through no action of the user's.
+- **Retry re-uses the same `File` object already held in component state**, not a re-prompt — the
+  browser's file picker never reopens. This is what lets Retry "re-send the whole file from the
+  first byte" (AC-9) without asking the user to reselect it.
 
 ## Function reference
 
@@ -96,6 +143,16 @@ request/error conventions rather than duplicating them.
 - `GET(request, { params }): Promise<Response>`
   (`app/api/meetings/[meetingId]/files/[fileId]/content/route.ts`) — `401` with no body when
   signed out; otherwise `proxyToApi` against `/meetings/:meetingId/files/:fileId/content`.
+- `POST(request, { params }): Promise<Response>`
+  (`app/api/meetings/[meetingId]/files/route.ts`) — `401` with no body when signed out; otherwise
+  `proxyToApi` against `/meetings/:meetingId/files`, streaming the multipart body through.
+- `FileUploader({ meetingId }): JSX.Element` (`components/files/file-uploader.tsx`) — the file
+  picker button and the list of in-progress/failed upload rows described above.
+- `extractUploadErrorMessage(responseText: string, status: number): string`
+  (`components/files/file-uploader.tsx`) — pulls the display message out of an upload response body
+  shaped like every other apps/api error (`message: string | string[]`), falling back to a
+  status-based string when the body isn't parseable JSON (a network failure never reached the
+  server at all).
 
 ## DTOs
 

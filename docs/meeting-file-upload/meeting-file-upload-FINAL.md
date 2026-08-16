@@ -307,9 +307,10 @@ one and stopping or retrying any of them — the phase after which the feature i
 **Covers**: AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9
 **Decisions**: D-5, D-6, D-10, D-11
 **Threats**: S-4
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/123
 **Tasks**:
 
-- [ ] **5.1** Upload several selected files at once — selecting N files starts N independent
+- [x] **5.1** Upload several selected files at once — selecting N files starts N independent
       `XMLHttpRequest` transfers, one file per request, against a same-origin route handler at
       `apps/web/src/app/api/meetings/[meetingId]/files/route.ts`, which resolves the session first
       (401 without forwarding, task 4.5's rule — S-4), attaches the bearer token server-side and
@@ -319,23 +320,23 @@ one and stopping or retrying any of them — the phase after which the feature i
       `useRouter().refresh()` — `refresh()` from `next/cache` is Server-Action-only in Next 16 — so
       the server-rendered list is re-read with no page reload, and the files are still there after
       one. (D-6, D-10, S-4)
-- [ ] **5.2** Show each file's own advancing progress — every row reports its own transfer from
+- [x] **5.2** Show each file's own advancing progress — every row reports its own transfer from
       `xhr.upload.onprogress`, the only browser API that reports upload progress, not only at the
       end: a 100 MB file shows at least three distinct intermediate percentages before completing.
       The spec's fixture must be a **valid** file of an accepted type — a 100 MB block of zeros is
       refused by phase 2 before any progress can be seen — so it generates a 100 MB WAV (44-byte
       RIFF/WAVE header plus silence) into the OS temp directory, uploads it with
       `setInputFiles(path)`, and removes it afterwards. (D-6, D-11)
-- [ ] **5.3** Cancel one upload without disturbing the batch — a per-row cancel calls `xhr.abort()`,
+- [x] **5.3** Cancel one upload without disturbing the batch — a per-row cancel calls `xhr.abort()`,
       removes that row within two seconds and stops its transfer; the other rows of the same batch
       keep going, and nothing of the cancelled file is listed or retrievable after a reload — the
       broken body stream tears down the upstream request, and multer removes what it had written.
       (D-6)
-- [ ] **5.4** Fail a broken upload with Retry and Dismiss — a connection or server failure leaves
+- [x] **5.4** Fail a broken upload with Retry and Dismiss — a connection or server failure leaves
       the row in a failed state naming the reason and offering Retry, which re-sends the whole file
       from the first byte and can succeed, and Dismiss. Nothing partial is listed, downloadable or
       counted in between. (D-6)
-- [ ] **5.5** State the limit when the API refuses a file — the proxy passes the upstream status and
+- [x] **5.5** State the limit when the API refuses a file — the proxy passes the upstream status and
       JSON body through unchanged, and the row shows the API's own words — the 500 MB message
       (413), the accepted-type list (415), the 20-file message (409) or the remaining-space message
       (507), each verbatim as tasks 2.1 to 2.4 define them. The other files of the batch keep
