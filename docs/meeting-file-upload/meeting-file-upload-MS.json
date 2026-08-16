@@ -281,18 +281,19 @@
         "AC-8",
         "AC-9"
       ],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/meeting-file-upload-phase-5",
       "pr": {
         "number": 123,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/123",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 22,
         "title": "MFU 5 · Upload files from the meeting page",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/22",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-16"
       },
       "issues": [
         {
@@ -301,7 +302,8 @@
           "title": "MFU 5.1 — Upload several selected files at once",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/105",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "5.2",
@@ -309,7 +311,8 @@
           "title": "MFU 5.2 — Show each file's own advancing progress",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/106",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "5.3",
@@ -317,7 +320,8 @@
           "title": "MFU 5.3 — Cancel one upload without disturbing the batch",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/107",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "5.4",
@@ -325,7 +329,8 @@
           "title": "MFU 5.4 — Fail a broken upload with Retry and Dismiss",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/108",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "5.5",
@@ -333,7 +338,8 @@
           "title": "MFU 5.5 — State the limit when the API refuses a file",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/109",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         }
       ]
     },
@@ -386,8 +392,8 @@
   ],
   "progress": {
     "updatedAt": "2026-08-16",
-    "completedPhases": [1, 2, 3, 4],
-    "currentPhase": 5,
+    "completedPhases": [1, 2, 3, 4, 5],
+    "currentPhase": null,
     "nextPhase": {
       "phase": 6,
       "milestone": 23,
