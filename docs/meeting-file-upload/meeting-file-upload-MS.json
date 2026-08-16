@@ -17,18 +17,19 @@
       "phase": 1,
       "title": "Store a meeting file and serve it back",
       "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/meeting-file-upload-phase-1",
       "pr": {
         "number": 115,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/115",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 18,
         "title": "MFU 1 · Store a meeting file and serve it back",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/18",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-16"
       },
       "issues": [
         {
@@ -37,7 +38,8 @@
           "title": "MFU 1.1 — Add the MeetingFile model and its migration",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/86",
           "labels": ["backend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "1.2",
@@ -45,7 +47,8 @@
           "title": "MFU 1.2 — Keep file bytes behind one storage boundary",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/87",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "1.3",
@@ -53,7 +56,8 @@
           "title": "MFU 1.3 — Accept an upload onto a meeting the caller owns",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/88",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "1.4",
@@ -61,7 +65,8 @@
           "title": "MFU 1.4 — List a meeting's files, owner-scoped",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/89",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "1.5",
@@ -69,7 +74,8 @@
           "title": "MFU 1.5 — Serve a file's bytes to its owner only",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/90",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         }
       ]
     },
@@ -339,8 +345,8 @@
   ],
   "progress": {
     "updatedAt": "2026-08-16",
-    "completedPhases": [],
-    "currentPhase": 1,
+    "completedPhases": [1],
+    "currentPhase": null,
     "nextPhase": {
       "phase": 2,
       "milestone": 19,

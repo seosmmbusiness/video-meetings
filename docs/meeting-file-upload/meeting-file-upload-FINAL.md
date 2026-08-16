@@ -64,7 +64,7 @@ path, before any limit, lifecycle or screen exists.
 **Covers**: AC-1, AC-11, AC-15, AC-16, AC-17, AC-18
 **Decisions**: D-1, D-3, D-4, D-7, D-9, D-11
 **Threats**: S-1, S-2, S-5, S-6, S-7
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/115
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-1, PR https://github.com/seosmmbusiness/video-meetings/pull/115
 **Tasks**:
 
 - [x] **1.1** Add the MeetingFile model and its migration — model `MeetingFile` → table
