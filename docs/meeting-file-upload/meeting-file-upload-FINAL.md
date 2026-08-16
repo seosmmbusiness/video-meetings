@@ -146,7 +146,7 @@ behind.
 **Covers**: AC-4, AC-5, AC-6, AC-7, AC-8, AC-9
 **Decisions**: D-2, D-3, D-5, D-11
 **Threats**: S-3, S-9
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/117
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-2, PR https://github.com/seosmmbusiness/video-meetings/pull/117
 **Tasks**:
 
 - [x] **2.1** Reject a file over 500 MB before storing bytes — two gates. A guard refuses a declared

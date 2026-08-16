@@ -83,18 +83,19 @@
       "phase": 2,
       "title": "Enforce the upload limits",
       "covers": ["AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/meeting-file-upload-phase-2",
       "pr": {
         "number": 117,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/117",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 19,
         "title": "MFU 2 · Enforce the upload limits",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/19",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-16"
       },
       "issues": [
         {
@@ -103,7 +104,8 @@
           "title": "MFU 2.1 — Reject a file over 500 MB before storing bytes",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/91",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "2.2",
@@ -111,7 +113,8 @@
           "title": "MFU 2.2 — Accept only the twelve listed file types",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/92",
           "labels": ["backend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "2.3",
@@ -119,7 +122,8 @@
           "title": "MFU 2.3 — Cap a meeting at 20 live files",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/93",
           "labels": ["backend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "2.4",
@@ -127,7 +131,8 @@
           "title": "MFU 2.4 — Cap an owner's stored bytes at 20 GB",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/94",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "2.5",
@@ -135,7 +140,8 @@
           "title": "MFU 2.5 — Leave nothing stored when an upload breaks off",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/95",
           "labels": ["backend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         }
       ]
     },
@@ -351,8 +357,8 @@
   ],
   "progress": {
     "updatedAt": "2026-08-16",
-    "completedPhases": [1],
-    "currentPhase": 2,
+    "completedPhases": [1, 2],
+    "currentPhase": null,
     "nextPhase": {
       "phase": 3,
       "milestone": 20,
