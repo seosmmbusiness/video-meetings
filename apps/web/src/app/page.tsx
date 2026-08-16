@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Alert, Button, Card, Chip, EmptyState } from '@heroui/react';
 import { logoutAction } from '@/app/actions/auth';
@@ -25,27 +26,35 @@ function formatMeetingDate(date: string): string {
 }
 
 /**
- * Renders a single meeting as a list row: title, date, and participant count.
+ * Renders a single meeting as a list row, linking to that meeting's own page
+ * (AC-19): title, date, and participant count.
  * @param props - The meeting to render.
  * @param props.meeting - The meeting.
  * @returns The rendered list item.
  */
 function MeetingListItem({ meeting }: { meeting: Meeting }) {
   return (
-    <li className="flex items-center justify-between gap-4 border-b border-default py-3 last:border-b-0">
-      <div className="min-w-0">
-        <p className="truncate font-medium">{meeting.title}</p>
-        <p className="text-sm text-muted">{formatMeetingDate(meeting.date)}</p>
-      </div>
-      <Chip
-        size="sm"
-        color={meeting.participants.length > 0 ? 'accent' : undefined}
+    <li className="border-b border-default last:border-b-0">
+      <Link
+        href={`/meetings/${meeting.id}`}
+        className="flex items-center justify-between gap-4 py-3"
       >
-        <Chip.Label>
-          {meeting.participants.length}{' '}
-          {meeting.participants.length === 1 ? 'participant' : 'participants'}
-        </Chip.Label>
-      </Chip>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{meeting.title}</p>
+          <p className="text-sm text-muted">
+            {formatMeetingDate(meeting.date)}
+          </p>
+        </div>
+        <Chip
+          size="sm"
+          color={meeting.participants.length > 0 ? 'accent' : undefined}
+        >
+          <Chip.Label>
+            {meeting.participants.length}{' '}
+            {meeting.participants.length === 1 ? 'participant' : 'participants'}
+          </Chip.Label>
+        </Chip>
+      </Link>
     </li>
   );
 }
