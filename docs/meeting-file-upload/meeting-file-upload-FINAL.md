@@ -307,7 +307,7 @@ one and stopping or retrying any of them — the phase after which the feature i
 **Covers**: AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9
 **Decisions**: D-5, D-6, D-10, D-11
 **Threats**: S-4
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/123
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-5, PR https://github.com/seosmmbusiness/video-meetings/pull/123
 **Tasks**:
 
 - [x] **5.1** Upload several selected files at once — selecting N files starts N independent
