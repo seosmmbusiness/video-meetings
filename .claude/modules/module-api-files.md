@@ -1,9 +1,11 @@
 # apps/api/src/files
 
 Architecture and function reference for the meeting files module: store a meeting file and serve
-it back, scoped to the meeting's owner and behind an abstract, backend-agnostic storage boundary.
-Part of the `meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD, research
-and threat model this module implements (phase 1: `docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
+it back, scoped to the meeting's owner and behind an abstract, backend-agnostic storage boundary,
+with every PRD limit (size, detected type, live-file count, owner byte quota) enforced at the API
+itself. Part of the `meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD,
+research and threat model this module implements (phase 1 + phase 2:
+`docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm
 `test/files.e2e-spec.ts` (and unit specs) are green before refactoring, then re-run after each step.
@@ -20,15 +22,37 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   upload route) before `FileInterceptor` — an interceptor, which Nest runs after guards — reads any
   bytes off the request. Swagger-annotated (`@ApiTags('files')`, `@ApiBearerAuth()`, per-route
   `@ApiOperation`/response decorators); the upload route additionally carries `@ApiConsumes` and
-  `@ApiBody` for its multipart schema. Routes:
-  - `POST /meetings/:meetingId/files` — `@Throttle({ default: { limit: 60, ttl: 60_000 } })`,
-    `FileInterceptor('file', buildMulterOptions())`, answers `201` with the file's DTO.
+  `@ApiBody` for its multipart schema, plus one `@Api*Response` per refusal status (`413`/`415`/
+  `409`/`507`). Routes:
+  - `POST /meetings/:meetingId/files` — `@Throttle({ default: { limit: 60, ttl: 60_000 } })`, a
+    method-level `UploadSizeGuard` (declared-size + owner-quota reservation + idle timeout, all
+    before `FileInterceptor` runs), `FileInterceptor('file', buildMulterOptions())`, a
+    `MulterExceptionFilter` for the interceptor's own size abort, answers `201` with the file's DTO
+    or one of `413`/`415`/`409`/`507` (see `FilesService.create`).
   - `GET /meetings/:meetingId/files` — lists the meeting's live files.
   - `GET /meetings/:meetingId/files/:fileId/content` —
     `@Throttle({ default: { limit: 240, ttl: 60_000 } })`, streams the bytes via `res.sendFile`
     (`@Res()`, so this route bypasses Nest's normal response pipeline).
 - `FilesService` (`files.service.ts`) does the Prisma reads/writes and the `FileStorage.save` call;
-  `UploadedDiskFile` is the shape multer's `diskStorage` hands the controller.
+  `UploadedDiskFile` is the shape multer's `diskStorage` hands the controller. `create` now sniffs
+  the file's real type first (`FileTypeService`), then runs the live-file-count and owner-byte-total
+  checks inside the same `$transaction` that creates the row — see Limit enforcement below.
+- `FileTypeService` (`file-type.service.ts`) — content-based type detection (D-2): `file-type`'s
+  signature detection first, a text-content rule (`txt`/`md` only) as the fallback for the two
+  extensions that carry no signature at all.
+- `QuotaReservationService` (`quota-reservation.service.ts`) — the owner-byte-quota reservation
+  S-3 needs: holds a declared upload's size against the owner's ceiling for the request's lifetime,
+  in-process, serialized per owner so two concurrent uploads for the same owner can never both read
+  the same pre-upload total (see Gotchas).
+- `UploadSizeGuard` (`guards/upload-size.guard.ts`) — everything that must happen **before**
+  `FileInterceptor` reads a byte: the declared-`Content-Length` ceiling check, the quota
+  reservation, and arming the upload's inactivity timeout.
+- `MulterExceptionFilter` (`filters/multer-exception.filter.ts`) — maps a `MulterError` (the
+  streamed-size gate inside multer itself, `LIMIT_FILE_SIZE`) to the route's `413` shape and
+  unlinks any temp file still present.
+- `quota.ts` — `formatBytes`, `insufficientStorageMessage` and `InsufficientStorageException` (507
+  isn't one of Nest's built-in HTTP exceptions), shared by the guard's pre-check and the service's
+  in-transaction re-check so both name the remaining space the same way.
 - `MeetingOwnerGuard` (`guards/meeting-owner.guard.ts`) resolves `:meetingId` through
   `MeetingsService.findOneForOwner`, reusing the meetings module's ownership rule and 404 parity
   rather than re-implementing it.
@@ -45,7 +69,11 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   `multer.config.ts`'s `destination` callback, which cannot receive `ConfigService` — see Gotchas.
 - `multer.config.ts` — `buildMulterOptions()`, called once at `FilesController`'s decoration time.
 - `files.constants.ts` — `MAX_FILE_BYTES` (500 MB), `PURGE_AFTER_MS` (30 days, used by `purgeAt` even
-  though nothing sets `deletedAt` until phase 3), `MAX_FILE_NAME_LENGTH` (255).
+  though nothing sets `deletedAt` until phase 3), `MAX_FILE_NAME_LENGTH` (255),
+  `MAX_LIVE_FILES_PER_MEETING` (20), `MAX_TOTAL_BYTES_PER_OWNER` (20 GB),
+  `UPLOAD_IDLE_TIMEOUT_MS` (60 s, S-9 — see Limit enforcement), `TYPE_SNIFF_SAMPLE_BYTES` (4100,
+  `file-type`'s own default sample size), `TEXT_FILE_EXTENSIONS` (`txt`/`md`), `ACCEPTED_MIME_TYPES`
+  (the twelve accepted extension → MIME pairs) and the verbatim `413`/`415`/`409` message constants.
 - `dto/meeting-file-response.dto.ts` — `MeetingFileResponseDto`, the one shape returned by every
   route (create, list, and — once phase 3 lands — delete/restore); never carries `storageKey` or a
   filesystem path.
@@ -75,9 +103,12 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   C0 control bytes are removed, and the result is truncated (not validated-and-400'd) to
   `MAX_FILE_NAME_LENGTH`. A traversal-shaped name (`../../etc/passwd`) is stored as its basename
   (`passwd`), never as an error.
-- **`mimeType` is currently the client's declared `Content-Type`** (multer's `file.mimetype`), not a
-  sniffed value — real type detection is phase 2's `file-type`-based `FileTypeService`, not yet
-  wired in. Nothing in phase 1 trusts `mimeType` for a security decision.
+- **`mimeType` is the content-sniffed type** (`FileTypeService.detect`), never the client's declared
+  `Content-Type` or the file's extension — a PNG renamed `.pdf` is still stored (and served) as
+  `image/png`; a file whose _content_ isn't one of the twelve accepted types is refused with `415`
+  even under a renamed, accepted-looking extension (AC-6). Two extensions (`txt`, `md`) carry no
+  byte signature at all, so they're accepted only via the text-content fallback (D-2): the sample
+  must be valid UTF-8 with no NUL and no C0 control byte besides tab/LF/CR.
 - **The byte route never passes an absolute path straight to `res.sendFile`**: `send`'s `dotfiles`
   check inspects every segment of whatever path it is given, and `STORAGE_ROOT`'s own `.data`
   segment would trip `dotfiles: 'deny'` on every single download. The route instead splits the
@@ -86,6 +117,37 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - **`Cache-Control: private, no-store` is set explicitly** before `res.sendFile` runs — `send`
   writes `public, max-age=0` whenever the header is absent, which would mark one owner's private
   bytes storable by a shared cache.
+
+## Limit enforcement (phase 2)
+
+Every PRD limit is checked at `apps/api` itself — a request straight to the API, bypassing any
+page, is refused on the same terms (D-3, D-5). Refusal order, first-to-last:
+
+1. **Declared size** (`UploadSizeGuard`, before `FileInterceptor` runs) — a `Content-Length` over
+   `MAX_FILE_BYTES` is `413` at zero bytes read. A chunked request that declares nothing reserves
+   (and is checked against) `MAX_FILE_BYTES` as a stand-in, since Node delivers no more than a
+   declared `Content-Length` on a non-chunked request.
+2. **Owner-quota reservation** (`UploadSizeGuard` → `QuotaReservationService.reserve`, same guard,
+   before streaming) — refused `507` if the declared size would cross `MAX_TOTAL_BYTES_PER_OWNER`
+   alongside every other still-in-flight reservation for that owner (S-3). Released once the
+   response finishes or the connection closes, whichever comes first.
+3. **Streamed size** (multer's own `limits.fileSize`, inside `FileInterceptor`) — the defense-in-
+   depth gate for gate 1's chunked-request fallback: multer aborts the moment its own counter
+   crosses `MAX_FILE_BYTES` and removes what it had written; `MulterExceptionFilter` maps the
+   resulting `MulterError('LIMIT_FILE_SIZE')` to the same `413` shape.
+4. **Detected type** (`FileTypeService.detect`, in `FilesService.create`, before the transaction) —
+   `415` if the sniffed content isn't one of the twelve accepted types.
+5. **Live-file count** and **6. owner byte total** (both inside the one `$transaction` that creates
+   the row) — `409`/`507` respectively; re-checked here (not just at the guard) so two concurrent
+   uploads can't both pass the same pre-upload count/total. The byte total counts soft-deleted-but-
+   not-purged files too (AC-8).
+
+A refusal at any stage leaves no row and no bytes: gates 1–3 never reach `FilesService.create` at
+all; gates 4–6 `rm` the temp file before throwing. `UPLOAD_IDLE_TIMEOUT_MS` (60 s, armed by
+`UploadSizeGuard` via `request.setTimeout`) is a separate control (S-9): an **inactivity** timeout
+that resets on every chunk received, closing a body that goes silent while a slow-but-steady
+transfer runs to completion untouched — distinct from `main.ts`'s `requestTimeout` (30 min total,
+raised from Node's 300 s default so a genuinely slow link isn't refused outright).
 
 ## Gotchas (non-obvious, worth preserving)
 
@@ -108,27 +170,63 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   one IP-keyed bucket — a single multi-file upload batch would trip the shared limit for the whole
   installation. `APP_GUARD` guards run before controller guards, so `req.user` isn't set yet at
   throttle time; hashing the raw header also keeps the token itself out of throttler storage/logs.
+- **`QuotaReservationService.reserve` serializes per owner, not globally.** A plain
+  `await persistedTotal()` then `Map.set()` leaves a TOCTOU window: two concurrent reservations for
+  the _same_ owner could both read the persisted total before either records its own declared
+  bytes, letting both pass a ceiling only one of them should. `runExclusive` chains each owner's
+  calls onto a private promise queue so the read-then-write never interleaves with another
+  reservation for that owner; different owners are never serialized against each other.
+- **`file-type` is ESM-only.** `FileTypeService` reaches it through `load-esm`'s `loadEsm()`
+  (already a transitive dependency of `@nestjs/common`, the same path Nest's own built-in
+  `FileTypeValidator` uses internally), which needs `NODE_OPTIONS=--experimental-vm-modules` —
+  carried on both of `apps/api`'s `test` and `test:e2e` npm scripts, not just `test:e2e`.
+- **`UploadSizeGuard` must run _before_ `FileInterceptor`, not inside the handler.** Nest runs every
+  guard before every interceptor regardless of declaration order (same reasoning as
+  `MeetingOwnerGuard` above) — this is what lets the declared-size check and the quota reservation
+  both happen at zero bytes read, and lets `request.setTimeout` be armed before multer starts
+  consuming the body rather than after it has already finished.
 
 ## Function reference
 
-- `FilesController.upload(meetingId, file): Promise<MeetingFileResponseDto>` — `400` if no `file`
-  part was sent; otherwise delegates to `filesService.create`.
+- `FilesController.upload(meetingId, file, user): Promise<MeetingFileResponseDto>` — `400` if no
+  `file` part was sent; otherwise delegates to `filesService.create(meetingId, file, user.userId)`.
 - `FilesController.list(meetingId, user): Promise<MeetingFileResponseDto[]>` — delegates to
   `filesService.listForOwner(meetingId, user.userId)`.
 - `FilesController.content(meetingId, fileId, user, res): Promise<void>` — resolves the file via
   `filesService.findFileForOwner`, sets `Content-Type`/`X-Content-Type-Options`/`Cache-Control`/
   `Content-Disposition` (`inline` for `image/*`, `video/*`, `audio/*` and `application/pdf`;
   `attachment` otherwise), then `res.sendFile`.
-- `FilesService.create(meetingId, file): Promise<MeetingFileResponseDto>` — generates the file's own
-  id and `storageKey` (`meetings/<meetingId>/<fileId>`), inserts the `MeetingFile` row, then commits
-  the bytes via `FileStorage.save`; deletes the row and rethrows if `save` throws, so a bytes-commit
-  failure never leaves an orphaned row.
+- `FilesService.create(meetingId, file, ownerId): Promise<MeetingFileResponseDto>` — sniffs the
+  file's type (`415` if unaccepted, temp file unlinked), then inside one `$transaction`: counts the
+  meeting's live files (`409` if at `MAX_LIVE_FILES_PER_MEETING`), sums the owner's total
+  (`507` — `InsufficientStorageException` — if this file would cross `MAX_TOTAL_BYTES_PER_OWNER`),
+  creates the row. Commits the bytes via `FileStorage.save` after the transaction; any failure past
+  the type check — transaction refusal or a `save` throw — unlinks the temp file (and, for a `save`
+  failure, deletes the already-created row) so nothing is left behind (2.5).
+- `FilesService.ownerTotal(tx, ownerId): Promise<number>` — private; sums stored size (live +
+  soft-deleted) for `ownerId` through the caller's own transaction client, so it sees the same
+  snapshot the live-file count did.
 - `FilesService.listForOwner(meetingId, ownerId): Promise<MeetingFileResponseDto[]>` — live files
   only (`deletedAt: null`), newest first.
 - `FilesService.findFileForOwner(fileId, meetingId, ownerId): Promise<MeetingFile>` — the one
   compound lookup every file-id route uses; throws `NotFoundException('File not found')`. Returns
   the full Prisma row (including `storageKey`), unlike the DTO-returning methods above — the content
   route is this method's only caller that needs it.
+- `FileTypeService.detect(tempPath, declaredName): Promise<DetectedFileType | null>` — signature
+  detection via `file-type`, falling back to the text-content rule (private `looksLikeText`) only
+  for a declared `txt`/`md` extension when no signature was found at all.
+- `QuotaReservationService.reserve(ownerId, declaredBytes): Promise<() => void>` — reserves
+  `declaredBytes` against `ownerId`'s ceiling (persisted total + every other still-reserved amount
+  for that owner), serialized per owner via `runExclusive`; throws `InsufficientStorageException` if
+  reserving would cross the ceiling. Returns an idempotent `release` — call it exactly once.
+- `UploadSizeGuard.canActivate(context): Promise<boolean>` — the declared-size check
+  (`PayloadTooLargeException`), the quota reservation (released on the response's `finish`/`close`,
+  whichever fires first), and arming `request.setTimeout(UPLOAD_IDLE_TIMEOUT_MS, () =>
+request.destroy())`.
+- `MulterExceptionFilter.catch(exception, host): Promise<void>` — maps `MulterError('LIMIT_FILE_SIZE')`
+  to `413` with the same message the guard uses; any other `MulterError` maps to `400`. Unlinks a
+  temp file still referenced on the request, defensively (multer already removes what it wrote on
+  this abort path).
 - `MeetingOwnerGuard.canActivate(context): Promise<boolean>` — resolves `:meetingId` through
   `meetingsService.findOneForOwner`; throws (propagating `NotFoundException`) rather than returning
   `false` for an unowned or nonexistent meeting.
@@ -143,6 +241,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 ## DTOs
 
 - `MeetingFileResponseDto` — `{ id, meetingId, name, size, mimeType, createdAt, deletedAt, purgeAt }`.
-  `deletedAt`/`purgeAt` are always `null` until phase 3 sets `deletedAt`; `purgeAt` is then computed
-  as `deletedAt + PURGE_AFTER_MS`, an absolute timestamp rather than a countdown so a cached response
-  can't drift.
+  `mimeType` is the content-sniffed type (`FileTypeService`), never the client's declared
+  `Content-Type`. `deletedAt`/`purgeAt` are always `null` until phase 3 sets `deletedAt`; `purgeAt`
+  is then computed as `deletedAt + PURGE_AFTER_MS`, an absolute timestamp rather than a countdown so
+  a cached response can't drift.

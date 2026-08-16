@@ -1,3 +1,4 @@
+import type { Server } from 'http';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -29,6 +30,12 @@ async function bootstrap() {
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, swaggerDocument);
+
+  // Node's default requestTimeout (300s) caps a 500 MB upload at ~14 Mbit/s;
+  // raised to 30 min (~2.3 Mbit/s) so a slower link isn't refused outright
+  // (D-3, task 2.1). headersTimeout stays at its 60s default — only the
+  // upload route's own inactivity timeout (S-9) polices a stalled body.
+  (app.getHttpServer() as Server).requestTimeout = 1_800_000;
 
   await app.listen(process.env.PORT ?? 3001);
 }

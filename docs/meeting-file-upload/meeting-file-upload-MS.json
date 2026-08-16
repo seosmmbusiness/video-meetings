@@ -83,7 +83,13 @@
       "phase": 2,
       "title": "Enforce the upload limits",
       "covers": ["AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/meeting-file-upload-phase-2",
+      "pr": {
+        "number": 117,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/117",
+        "state": "open"
+      },
       "milestone": {
         "number": 19,
         "title": "MFU 2 · Enforce the upload limits",
@@ -346,12 +352,12 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [1],
-    "currentPhase": null,
+    "currentPhase": 2,
     "nextPhase": {
-      "phase": 2,
-      "milestone": 19,
-      "title": "MFU 2 · Enforce the upload limits",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/19"
+      "phase": 3,
+      "milestone": 20,
+      "title": "MFU 3 · Soft delete, restore and purge",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/20"
     }
   }
 }

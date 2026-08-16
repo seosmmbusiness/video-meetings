@@ -1,10 +1,25 @@
 import { randomUUID } from 'crypto';
+import { rm } from 'fs/promises';
 import { basename } from 'path';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { MeetingFile } from '../../generated/prisma/client';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnsupportedMediaTypeException,
+} from '@nestjs/common';
+import type { MeetingFile, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MeetingFileResponseDto } from './dto/meeting-file-response.dto';
-import { MAX_FILE_NAME_LENGTH, PURGE_AFTER_MS } from './files.constants';
+import { FileTypeService } from './file-type.service';
+import {
+  LIVE_FILE_CAP_MESSAGE,
+  MAX_FILE_NAME_LENGTH,
+  MAX_LIVE_FILES_PER_MEETING,
+  MAX_TOTAL_BYTES_PER_OWNER,
+  PURGE_AFTER_MS,
+  UNSUPPORTED_TYPE_MESSAGE,
+} from './files.constants';
+import { InsufficientStorageException } from './quota';
 import { FileStorage } from './storage/file-storage';
 
 /** A file as multer's `diskStorage` hands it to the controller. */
@@ -59,38 +74,102 @@ export class FilesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly fileStorage: FileStorage,
+    private readonly fileTypeService: FileTypeService,
   ) {}
 
   /**
-   * Stores an uploaded file's bytes and metadata against a meeting.
+   * Stores an uploaded file's bytes and metadata against a meeting, refusing
+   * it first on content-detected type (D-2), then — inside one transaction,
+   * so two concurrent uploads can't both pass the same count — on the
+   * meeting's live-file cap (D-5) and the owner's stored-byte ceiling (D-5,
+   * S-3). A refusal at any of these stages leaves no row and no bytes.
    * @param meetingId - Id of the meeting the caller has already been
    * confirmed to own (by {@link MeetingOwnerGuard}).
    * @param file - The file multer wrote to a temp path.
+   * @param ownerId - Id of the authenticated caller, for the quota check.
    * @returns The stored file's public DTO.
+   * @throws UnsupportedMediaTypeException if the file's detected type isn't accepted.
+   * @throws ConflictException if the meeting already holds {@link MAX_LIVE_FILES_PER_MEETING} live files.
+   * @throws InsufficientStorageException if storing it would cross the owner's {@link MAX_TOTAL_BYTES_PER_OWNER} ceiling.
    */
   async create(
     meetingId: string,
     file: UploadedDiskFile,
+    ownerId: string,
   ): Promise<MeetingFileResponseDto> {
+    const detected = await this.fileTypeService.detect(
+      file.path,
+      file.originalname,
+    );
+    if (!detected) {
+      await rm(file.path, { force: true });
+      throw new UnsupportedMediaTypeException(UNSUPPORTED_TYPE_MESSAGE);
+    }
+
     const id = randomUUID();
     const storageKey = `meetings/${meetingId}/${id}`;
-    const created = await this.prisma.meetingFile.create({
-      data: {
-        id,
-        meetingId,
-        name: normalizeFileName(file.originalname),
-        size: file.size,
-        mimeType: file.mimetype,
-        storageKey,
-      },
-    });
+    const name = normalizeFileName(file.originalname);
+
+    let created: MeetingFile;
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const liveCount = await tx.meetingFile.count({
+          where: { meetingId, deletedAt: null },
+        });
+        if (liveCount >= MAX_LIVE_FILES_PER_MEETING) {
+          throw new ConflictException(LIVE_FILE_CAP_MESSAGE);
+        }
+
+        const usedTotal = await this.ownerTotal(tx, ownerId);
+        if (usedTotal + file.size > MAX_TOTAL_BYTES_PER_OWNER) {
+          throw new InsufficientStorageException(
+            MAX_TOTAL_BYTES_PER_OWNER - usedTotal,
+          );
+        }
+
+        return tx.meetingFile.create({
+          data: {
+            id,
+            meetingId,
+            name,
+            size: file.size,
+            mimeType: detected.mime,
+            storageKey,
+          },
+        });
+      });
+    } catch (error) {
+      await rm(file.path, { force: true });
+      throw error;
+    }
+
     try {
       await this.fileStorage.save(storageKey, file.path);
     } catch (error) {
       await this.prisma.meetingFile.delete({ where: { id } });
+      await rm(file.path, { force: true });
       throw error;
     }
     return toResponseDto(created);
+  }
+
+  /**
+   * Sums the stored size of every file — live or soft-deleted-but-not-purged
+   * — across all meetings `ownerId` owns, run inside the caller's
+   * transaction so it sees the same snapshot the live-file count did.
+   * @param tx - The transaction client to query through.
+   * @param ownerId - Id of the account whose total is summed.
+   * @returns The committed byte total, `0` when the owner has no files.
+   */
+  private async ownerTotal(
+    tx: Prisma.TransactionClient,
+    ownerId: string,
+  ): Promise<number> {
+    const result = await tx.meetingFile.aggregate({
+      _sum: { size: true },
+      where: { meeting: { ownerId } },
+    });
+    return result._sum.size ?? 0;
   }
 
   /**

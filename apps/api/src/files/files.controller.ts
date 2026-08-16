@@ -7,6 +7,7 @@ import {
   Post,
   Res,
   UploadedFile,
+  UseFilters,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -14,13 +15,17 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConflictResponse,
   ApiConsumes,
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPayloadTooLargeResponse,
+  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import contentDisposition from 'content-disposition';
@@ -30,9 +35,12 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { MeetingFileResponseDto } from './dto/meeting-file-response.dto';
+import { ACCEPTED_EXTENSIONS_LABEL } from './files.constants';
 import { FilesService } from './files.service';
 import type { UploadedDiskFile } from './files.service';
+import { MulterExceptionFilter } from './filters/multer-exception.filter';
 import { MeetingOwnerGuard } from './guards/meeting-owner.guard';
+import { UploadSizeGuard } from './guards/upload-size.guard';
 import { buildMulterOptions } from './multer.config';
 import { FileStorage } from './storage/file-storage';
 
@@ -68,15 +76,23 @@ export class FilesController {
   ) {}
 
   /**
-   * Uploads a file onto a meeting the caller owns.
+   * Uploads a file onto a meeting the caller owns. Refused, in order, by:
+   * a declared size over the per-file ceiling ({@link UploadSizeGuard}, at
+   * zero bytes read), a streamed size that crosses it anyway
+   * ({@link MulterExceptionFilter}), an unaccepted detected type, the
+   * meeting's live-file cap, and the owner's stored-byte ceiling (the last
+   * two inside one transaction — see {@link FilesService.create}).
    * @param meetingId - Id of the meeting, confirmed owned by
    * {@link MeetingOwnerGuard} before this handler runs.
    * @param file - The uploaded file, written to a temp path by multer.
+   * @param user - The authenticated caller, for the owner-quota check.
    * @returns The stored file's public DTO.
    * @throws BadRequestException if no `file` part was sent.
    */
   @Post()
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @UseGuards(UploadSizeGuard)
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(FileInterceptor('file', buildMulterOptions()))
   @ApiOperation({ summary: "Upload a file onto the caller's meeting" })
   @ApiConsumes('multipart/form-data')
@@ -92,14 +108,28 @@ export class FilesController {
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiNotFoundResponse({ description: 'Meeting not found' })
+  @ApiPayloadTooLargeResponse({
+    description: 'File exceeds the 500 MB per-file limit',
+  })
+  @ApiUnsupportedMediaTypeResponse({
+    description: `Detected type isn't one of: ${ACCEPTED_EXTENSIONS_LABEL}`,
+  })
+  @ApiConflictResponse({
+    description: 'Meeting already holds 20 live files',
+  })
+  @ApiResponse({
+    status: 507,
+    description: "Upload would cross the owner's 20 GB stored-byte ceiling",
+  })
   async upload(
     @Param('meetingId') meetingId: string,
     @UploadedFile() file: UploadedDiskFile,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<MeetingFileResponseDto> {
     if (!file) {
       throw new BadRequestException('file is required');
     }
-    return this.filesService.create(meetingId, file);
+    return this.filesService.create(meetingId, file, user.userId);
   }
 
   /**
