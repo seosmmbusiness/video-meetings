@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { readdir } from 'fs/promises';
+import { readdir, rm, utimes, writeFile } from 'fs/promises';
 import * as http from 'http';
 import { sign } from 'jsonwebtoken';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -7,8 +7,13 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { FilesPurgeService } from '../src/files/files-purge.service';
+import { FileStorage } from '../src/files/storage/file-storage';
 import { resolveStorageRoot } from '../src/files/storage/storage-root';
 import { PrismaService } from '../src/prisma/prisma.service';
+
+const THIRTY_ONE_DAYS_MS = 31 * 24 * 60 * 60 * 1000;
+const MAX_TOTAL_BYTES_PER_OWNER = 21_474_836_480;
 
 const STRONG_PASSWORD = 'Str0ngPass!';
 
@@ -855,5 +860,368 @@ describe('Files (e2e)', () => {
       const names = (list.body as MeetingFileResponseBody[]).map((f) => f.name);
       expect(names).toContain('steady.txt');
     }, 30_000);
+  });
+
+  describe('DELETE /meetings/:meetingId/files/:fileId (3.1, AC-12)', () => {
+    let ownerToken: string;
+    let meetingId: string;
+
+    beforeAll(async () => {
+      ownerToken = await registerUser();
+      meetingId = await createMeeting(ownerToken);
+    });
+
+    it('soft-deletes a file: 204, gone from the live list, its bytes 404, present in the deleted list with a purgeAt', async () => {
+      const file = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('to be deleted'),
+        'to-delete.txt',
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${file.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+
+      const list = await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect(
+        (list.body as MeetingFileResponseBody[]).some((f) => f.id === file.id),
+      ).toBe(false);
+
+      await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/${file.id}/content`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(404);
+
+      const deletedList = await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/deleted`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      const entry = (deletedList.body as MeetingFileResponseBody[]).find(
+        (f) => f.id === file.id,
+      );
+      expect(entry).toBeDefined();
+      expect(entry?.deletedAt).not.toBeNull();
+      expect(new Date(entry!.purgeAt!).getTime()).toBe(
+        new Date(entry!.deletedAt!).getTime() + 2_592_000_000,
+      );
+    });
+
+    it("keeps a deleted file's bytes counted against the owner's 20 GB total (AC-8)", async () => {
+      const owner = await registerUser();
+      const meeting = await createMeeting(owner);
+      const fileSize = 5_000;
+      const file = await uploadFile(
+        owner,
+        meeting,
+        Buffer.from('x'.repeat(fileSize)),
+        'quota.txt',
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meeting}/files/${file.id}`)
+        .set('Authorization', `Bearer ${owner}`)
+        .expect(204);
+
+      // Seed decoy (soft-deleted) bytes so the unused headroom is exactly
+      // `fileSize` if — and only if — the just-deleted file still counts:
+      // one more byte then tips the owner over the ceiling. If deletion had
+      // silently freed its bytes, the same upload would still fit.
+      const prisma = app.get(PrismaService);
+      let remainingToSeed = MAX_TOTAL_BYTES_PER_OWNER - fileSize - fileSize;
+      const rows: {
+        id: string;
+        meetingId: string;
+        name: string;
+        size: number;
+        mimeType: string;
+        storageKey: string;
+        deletedAt: Date;
+      }[] = [];
+      while (remainingToSeed > 0) {
+        const size = Math.min(remainingToSeed, 524_288_000);
+        rows.push({
+          id: randomUUID(),
+          meetingId: meeting,
+          name: 'seed.bin',
+          size,
+          mimeType: 'application/octet-stream',
+          storageKey: `meetings/${meeting}/${randomUUID()}`,
+          deletedAt: new Date(),
+        });
+        remainingToSeed -= size;
+      }
+      await prisma.meetingFile.createMany({ data: rows });
+
+      await request(app.getHttpServer())
+        .post(`/meetings/${meeting}/files`)
+        .set('Authorization', `Bearer ${owner}`)
+        .attach('file', Buffer.from('y'.repeat(fileSize + 1)), 'over.txt')
+        .expect(507);
+    });
+  });
+
+  describe('GET /meetings/:meetingId/files/deleted (3.2)', () => {
+    let ownerToken: string;
+    let meetingId: string;
+
+    beforeAll(async () => {
+      ownerToken = await registerUser();
+      meetingId = await createMeeting(ownerToken);
+    });
+
+    it('lists only deleted-but-not-yet-purged files, excluding live files and files past the purge horizon', async () => {
+      const live = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('still here'),
+        'live.txt',
+      );
+      const deleted = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('gone'),
+        'deleted.txt',
+      );
+      const expired = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('long gone'),
+        'expired.txt',
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${deleted.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${expired.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+
+      const prisma = app.get(PrismaService);
+      await prisma.meetingFile.update({
+        where: { id: expired.id },
+        data: { deletedAt: new Date(Date.now() - THIRTY_ONE_DAYS_MS) },
+      });
+
+      const response = await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/deleted`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+
+      const ids = (response.body as MeetingFileResponseBody[]).map((f) => f.id);
+      expect(ids).toContain(deleted.id);
+      expect(ids).not.toContain(live.id);
+      expect(ids).not.toContain(expired.id);
+    });
+  });
+
+  describe('POST /meetings/:meetingId/files/:fileId/restore (3.3)', () => {
+    it('restores a deleted file: back in the live list, served again, holding a slot again', async () => {
+      const ownerToken = await registerUser();
+      const meetingId = await createMeeting(ownerToken);
+      const file = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('come back'),
+        'restore.txt',
+      );
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${file.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+
+      const restored = await request(app.getHttpServer())
+        .post(`/meetings/${meetingId}/files/${file.id}/restore`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect((restored.body as MeetingFileResponseBody).deletedAt).toBeNull();
+      expect((restored.body as MeetingFileResponseBody).purgeAt).toBeNull();
+
+      const list = await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect(
+        (list.body as MeetingFileResponseBody[]).some((f) => f.id === file.id),
+      ).toBe(true);
+
+      await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/${file.id}/content`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+    });
+
+    it('refuses to restore into a meeting already holding 20 live files, with the same 409 message an upload gets (AC-7/AC-13)', async () => {
+      const owner = await registerUser();
+      const meeting = await createMeeting(owner);
+      const toDelete = await uploadFile(
+        owner,
+        meeting,
+        Buffer.from('spare slot'),
+        'spare.txt',
+      );
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meeting}/files/${toDelete.id}`)
+        .set('Authorization', `Bearer ${owner}`)
+        .expect(204);
+
+      for (let i = 0; i < 20; i += 1) {
+        await uploadFile(
+          owner,
+          meeting,
+          Buffer.from(`fill ${i}`),
+          `fill${i}.txt`,
+        );
+      }
+
+      const response = await request(app.getHttpServer())
+        .post(`/meetings/${meeting}/files/${toDelete.id}/restore`)
+        .set('Authorization', `Bearer ${owner}`)
+        .expect(409);
+      expect((response.body as { message: string }).message).toBe(
+        'This meeting already holds 20 files. Delete one to upload another.',
+      );
+    });
+  });
+
+  describe('a file id from another owner is 404 on delete and restore (S-2)', () => {
+    it("refuses to act on a stranger's file, leaving the caller's own file untouched", async () => {
+      const ownerToken = await registerUser();
+      const meetingId = await createMeeting(ownerToken);
+      const ownFile = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('mine'),
+        'mine.txt',
+      );
+
+      const strangerToken = await registerUser();
+      const strangerMeetingId = await createMeeting(strangerToken);
+      const strangerFile = await uploadFile(
+        strangerToken,
+        strangerMeetingId,
+        Buffer.from('not yours'),
+        'private.txt',
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${strangerFile.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(404);
+
+      await request(app.getHttpServer())
+        .post(`/meetings/${meetingId}/files/${strangerFile.id}/restore`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(404);
+
+      // A blanket 404 can't pass this: the caller's own file is still there.
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${ownFile.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+    });
+  });
+
+  describe('FilesPurgeService.purgeExpired (3.4, AC-14)', () => {
+    it('purges a file deleted more than 30 days ago: row and bytes gone, absent from the deleted list, not served', async () => {
+      const ownerToken = await registerUser();
+      const meetingId = await createMeeting(ownerToken);
+      const file = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('expiring'),
+        'expiring.txt',
+      );
+
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${file.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+
+      const prisma = app.get(PrismaService);
+      const beforePurge = await prisma.meetingFile.findUniqueOrThrow({
+        where: { id: file.id },
+      });
+      await prisma.meetingFile.update({
+        where: { id: file.id },
+        data: { deletedAt: new Date(Date.now() - THIRTY_ONE_DAYS_MS) },
+      });
+
+      await app.get(FilesPurgeService).purgeExpired();
+
+      const row = await prisma.meetingFile.findUnique({
+        where: { id: file.id },
+      });
+      expect(row).toBeNull();
+
+      const fileStorage = app.get(FileStorage);
+      expect(await fileStorage.stat(beforePurge.storageKey)).toBeNull();
+
+      await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/${file.id}/content`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(404);
+
+      const deletedList = await request(app.getHttpServer())
+        .get(`/meetings/${meetingId}/files/deleted`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(200);
+      expect(
+        (deletedList.body as MeetingFileResponseBody[]).some(
+          (f) => f.id === file.id,
+        ),
+      ).toBe(false);
+    });
+
+    it('leaves a file deleted less than 30 days ago alone', async () => {
+      const ownerToken = await registerUser();
+      const meetingId = await createMeeting(ownerToken);
+      const file = await uploadFile(
+        ownerToken,
+        meetingId,
+        Buffer.from('recent'),
+        'recent.txt',
+      );
+      await request(app.getHttpServer())
+        .delete(`/meetings/${meetingId}/files/${file.id}`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .expect(204);
+
+      await app.get(FilesPurgeService).purgeExpired();
+
+      const prisma = app.get(PrismaService);
+      const row = await prisma.meetingFile.findUnique({
+        where: { id: file.id },
+      });
+      expect(row).not.toBeNull();
+    });
+
+    it('also purges stale leftovers from the upload temp directory, but not fresh ones', async () => {
+      const tempDir = `${resolveStorageRoot()}/tmp`;
+      const staleName = `stale-${randomUUID()}.tmp`;
+      const freshName = `fresh-${randomUUID()}.tmp`;
+      const stalePath = `${tempDir}/${staleName}`;
+      const freshPath = `${tempDir}/${freshName}`;
+      await writeFile(stalePath, 'stale');
+      await writeFile(freshPath, 'fresh');
+      const staleTime = new Date(Date.now() - 25 * 60 * 60 * 1000);
+      await utimes(stalePath, staleTime, staleTime);
+
+      try {
+        await app.get(FilesPurgeService).purgeExpired();
+
+        const remaining = await readdir(tempDir);
+        expect(remaining).not.toContain(staleName);
+        expect(remaining).toContain(freshName);
+      } finally {
+        await rm(freshPath, { force: true });
+      }
+    });
   });
 });

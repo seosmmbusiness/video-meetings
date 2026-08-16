@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -41,6 +42,8 @@ import { UsersModule } from './users/users.module';
     // Registered once, app-wide (it's a global module): backs the
     // CommandBus/QueryBus that Auth uses to talk to Users and Credentials.
     CqrsModule.forRoot(),
+    // Backs FilesPurgeService's hourly @Cron (D-8).
+    ScheduleModule.forRoot(),
     PrismaModule,
     UsersModule,
     CredentialsModule,
