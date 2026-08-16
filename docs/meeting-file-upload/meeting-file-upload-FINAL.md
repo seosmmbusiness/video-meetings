@@ -237,7 +237,8 @@ is recoverable for 30 days and unrecoverable after them.
       the e2e spec calls it directly after backdating `deletedAt` through `app.get(PrismaService)` —
       no waiting for a tick. Logs a count, never a filename. (D-8)
 
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/119
+**Status**: complete — 2026-08-16, branch feature/meeting-file-upload-phase-3, PR
+https://github.com/seosmmbusiness/video-meetings/pull/119
 
 **Done when**: `npm run test:e2e --workspace apps/api` is green with cases for delete → absent from
 the live list, present in the deleted list with `purgeAt`, and its bytes answering 404 while still
