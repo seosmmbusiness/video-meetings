@@ -37,7 +37,11 @@ npm run db:up
 | `npm run lint:api`           | Lint apps/api only                                              |
 | `npm run format`             | Format apps/** with Prettier                                    |
 | `npm run format:check`       | Check formatting without writing                                |
-| `npm run test:api`           | Run NestJS unit tests                                           |
+| `npm test`                   | Run both apps' unit suites (what `pre-push` gates on)           |
+| `npm run test:api`           | Run apps/api unit tests (Jest)                                  |
+| `npm run test:web`           | Run apps/web unit + integration tests (Vitest)                  |
+| `npm run test:int:api`       | Run apps/api integration tests (Jest, needs Postgres)           |
+| `npm run test:e2e:api`       | Run apps/api e2e tests (Jest + supertest, needs Postgres)       |
 | `npm run test:e2e:web`       | Run Playwright e2e tests (apps/web)                             |
 | `npm run prisma:generate`    | Regenerate the Prisma client (apps/api)                         |
 | `npm run prisma:migrate:dev` | Create/apply a Prisma migration (apps/api)                      |
@@ -72,6 +76,6 @@ npm run db:down         # stop
 - A single root `.prettierrc` / `.prettierignore` is shared by both apps for consistent formatting.
 - Each app keeps its own ESLint config, since `eslint-config-next` and the NestJS ESLint setup use different rule sets and plugins.
 - Node version is pinned via `.nvmrc`.
-- **apps/api** is developed test-first (TDD), following Red/Green/Refactor: end-to-end tests are written/extended and their cases reviewed before implementation (red), functional changes are checked against the test suite afterward (green), refactors start only from a green baseline and re-run the suite after each step, and any test rewrite is confirmed with the requester first rather than done silently. See `apps/api/CLAUDE.md`.
-- Two Husky hooks, split so the red half of that cycle can be committed: `pre-commit` runs `npm run lint`, `pre-push` runs `npm run test:api`. A failing spec may be committed on a branch; the branch tip has to be green before it can be pushed. Neither gate runs the e2e suite — that needs Postgres up (`npm run db:up && npm run test:e2e --workspace apps/api`).
+- **Both apps are developed test-first (TDD)** across three tiers — unit (`*.spec.ts`), integration (`*.int-spec.ts`) and e2e — following Red/Green/Refactor outside in: the e2e spec for a scenario is written and its cases reviewed before implementation (red), then each unit it needs gets its own red unit/integration spec before the code that turns it green, refactors start only from a green baseline and re-run the suites after each step, and any test rewrite is confirmed with the requester first rather than done silently. E2e coverage on its own is not enough. `apps/api` runs Jest (three configs, split by filename); `apps/web` runs Vitest + React Testing Library for the two lower tiers and Playwright for e2e. See the root `CLAUDE.md`'s Testing section, then `apps/api/CLAUDE.md` / `apps/web/CLAUDE.md`.
+- Two Husky hooks, split so the red half of that cycle can be committed: `pre-commit` runs `npm run lint`, `pre-push` runs `npm test` (both apps' unit suites). A failing spec may be committed on a branch; the branch tip has to be green before it can be pushed. Neither gate runs the integration or e2e suites — those need Postgres up (`npm run db:up && npm run test:int:api && npm run test:e2e:api`), so run them yourself before opening a PR.
 - **apps/api** documents its HTTP surface with `@nestjs/swagger` (Swagger UI); every controller/route/DTO is annotated, and the generated docs are checked after adding or changing endpoints. See `apps/api/CLAUDE.md`.
