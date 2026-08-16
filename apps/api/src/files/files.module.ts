@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { MeetingsModule } from '../meetings/meetings.module';
+import { FilesPurgeService } from './files-purge.service';
 import { FileTypeService } from './file-type.service';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
@@ -23,6 +24,7 @@ import { LocalDiskFileStorage } from './storage/local-disk-file-storage';
     FilesService,
     FileTypeService,
     QuotaReservationService,
+    FilesPurgeService,
     MeetingOwnerGuard,
     UploadSizeGuard,
     { provide: FileStorage, useClass: LocalDiskFileStorage },

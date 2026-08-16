@@ -46,6 +46,16 @@ function normalizeFileName(rawName: string): string {
 }
 
 /**
+ * The purge horizon: a soft-deleted file with `deletedAt` at or before this
+ * instant is treated as already gone by every read path, even between two
+ * hourly purge ticks (D-8).
+ * @returns `now - PURGE_AFTER_MS`.
+ */
+function purgeHorizon(): Date {
+  return new Date(Date.now() - PURGE_AFTER_MS);
+}
+
+/**
  * Maps a stored `MeetingFile` row to its public response shape.
  * @param file - The Prisma row.
  * @returns The file's public DTO — never the storage key or a path.
@@ -213,5 +223,113 @@ export class FilesService {
       throw new NotFoundException('File not found');
     }
     return file;
+  }
+
+  /**
+   * Resolves a single soft-deleted, not-yet-purged file, scoped to both the
+   * meeting and its owner in one lookup — the same compound shape
+   * {@link findFileForOwner} uses, so a file id from another owner's
+   * meeting still 404s here (S-2). A file past the purge horizon is treated
+   * as already gone, matching {@link listDeletedForOwner} and the content
+   * route (D-8).
+   * @param fileId - The file id.
+   * @param meetingId - Id of the meeting the file is expected to belong to.
+   * @param ownerId - Id of the authenticated caller.
+   * @returns The matching file row.
+   * @throws NotFoundException if no deleted, not-yet-purged file matches all three.
+   */
+  private async findDeletedFileForOwner(
+    fileId: string,
+    meetingId: string,
+    ownerId: string,
+  ): Promise<MeetingFile> {
+    const file = await this.prisma.meetingFile.findFirst({
+      where: {
+        id: fileId,
+        meetingId,
+        meeting: { ownerId },
+        deletedAt: { not: null, gt: purgeHorizon() },
+      },
+    });
+    if (!file) {
+      throw new NotFoundException('File not found');
+    }
+    return file;
+  }
+
+  /**
+   * Soft-deletes a file: it stops appearing in the live list and its bytes
+   * stop being served, but its bytes and stored-byte accounting are
+   * untouched until the purge horizon passes (AC-12, D-4).
+   * @param fileId - The file id.
+   * @param meetingId - Id of the meeting the file is expected to belong to.
+   * @param ownerId - Id of the authenticated caller.
+   * @throws NotFoundException if no live file matches all three (S-2).
+   */
+  async delete(
+    fileId: string,
+    meetingId: string,
+    ownerId: string,
+  ): Promise<void> {
+    const file = await this.findFileForOwner(fileId, meetingId, ownerId);
+    await this.prisma.meetingFile.update({
+      where: { id: file.id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  /**
+   * Restores a soft-deleted file to the live list, re-checking the meeting's
+   * live-file cap inside a transaction (the same check and message an
+   * upload gets, D-5) so it can't be restored into an already-full meeting.
+   * @param fileId - The file id.
+   * @param meetingId - Id of the meeting the file is expected to belong to.
+   * @param ownerId - Id of the authenticated caller.
+   * @returns The restored file's public DTO.
+   * @throws NotFoundException if no deleted, not-yet-purged file matches all three (S-2).
+   * @throws ConflictException if the meeting already holds {@link MAX_LIVE_FILES_PER_MEETING} live files.
+   */
+  async restore(
+    fileId: string,
+    meetingId: string,
+    ownerId: string,
+  ): Promise<MeetingFileResponseDto> {
+    const file = await this.findDeletedFileForOwner(fileId, meetingId, ownerId);
+    const restored = await this.prisma.$transaction(async (tx) => {
+      const liveCount = await tx.meetingFile.count({
+        where: { meetingId, deletedAt: null },
+      });
+      if (liveCount >= MAX_LIVE_FILES_PER_MEETING) {
+        throw new ConflictException(LIVE_FILE_CAP_MESSAGE);
+      }
+      return tx.meetingFile.update({
+        where: { id: file.id },
+        data: { deletedAt: null },
+      });
+    });
+    return toResponseDto(restored);
+  }
+
+  /**
+   * Lists a meeting's soft-deleted, not-yet-purged files, newest deletion
+   * first.
+   * @param meetingId - Id of the meeting the caller has already been
+   * confirmed to own.
+   * @param ownerId - Id of the authenticated caller.
+   * @returns The meeting's deleted, not-yet-purged files.
+   */
+  async listDeletedForOwner(
+    meetingId: string,
+    ownerId: string,
+  ): Promise<MeetingFileResponseDto[]> {
+    const files = await this.prisma.meetingFile.findMany({
+      where: {
+        meetingId,
+        meeting: { ownerId },
+        deletedAt: { not: null, gt: purgeHorizon() },
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+    return files.map(toResponseDto);
   }
 }

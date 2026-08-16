@@ -214,22 +214,22 @@ is recoverable for 30 days and unrecoverable after them.
 **Threats**: S-2
 **Tasks**:
 
-- [ ] **3.1** Soft-delete a file and stop serving it — `DELETE /meetings/:meetingId/files/:fileId`
+- [x] **3.1** Soft-delete a file and stop serving it — `DELETE /meetings/:meetingId/files/:fileId`
       answers 204, sets `deletedAt`, drops the file out of the live list and the live-file count,
       and makes its bytes answer the same 404 as a file that never existed, while the bytes stay in
       storage and keep counting against the 20 GB total. Resolved through the same compound lookup
       as 1.5, so a foreign `fileId` is 404 rather than someone else's deletion (S-2). (D-4, S-2)
-- [ ] **3.2** List a meeting's deleted files with time left — `GET /meetings/:meetingId/files/deleted`
+- [x] **3.2** List a meeting's deleted files with time left — `GET /meetings/:meetingId/files/deleted`
       returns each deleted-but-not-purged file of a meeting the caller owns with `deletedAt` and
       `purgeAt`, an absolute ISO timestamp rather than a countdown, so a cached response cannot
       drift. The query filters on the horizon as well as on `deletedAt`, so a file past its 30 days
       is absent the instant it expires, whatever the cron last did. (D-4, D-8)
-- [ ] **3.3** Restore a deleted file — `POST /meetings/:meetingId/files/:fileId/restore` clears
+- [x] **3.3** Restore a deleted file — `POST /meetings/:meetingId/files/:fileId/restore` clears
       `deletedAt`, returning the file to the live list, serving its bytes again and holding a slot
       against the 20-file cap again. Restoring into a meeting already holding 20 live files is
       refused with the same 409 message an upload gets — the user's ruling on the AC-7 / AC-13
       tension. (D-5)
-- [ ] **3.4** Purge files deleted more than 30 days ago — `FilesPurgeService.purgeExpired()` selects
+- [x] **3.4** Purge files deleted more than 30 days ago — `FilesPurgeService.purgeExpired()` selects
       rows with `deletedAt < now − 2_592_000_000 ms`, deletes the bytes then the row per file, and
       also removes anything older than `86_400_000 ms` left in `<STORAGE_ROOT>/tmp`. It is triggered
       by `@Cron(CronExpression.EVERY_HOUR)` from `@nestjs/schedule@6.1.3`, installed for this and
@@ -237,12 +237,17 @@ is recoverable for 30 days and unrecoverable after them.
       the e2e spec calls it directly after backdating `deletedAt` through `app.get(PrismaService)` —
       no waiting for a tick. Logs a count, never a filename. (D-8)
 
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/119
+
 **Done when**: `npm run test:e2e --workspace apps/api` is green with cases for delete → absent from
 the live list, present in the deleted list with `purgeAt`, and its bytes answering 404 while still
 counted against the 20 GB total; restore → served again and holding a slot; restore into a full
 meeting → 409 with the same message an upload gets; a backdated `deletedAt` plus `purgeExpired()` →
 row and bytes both gone, not listed, not served, not counted; and a foreign `fileId` answering 404
-on delete and on restore (S-2). Swagger shows the delete, restore and deleted-list routes.
+on delete and on restore (S-2). Swagger shows the delete, restore and deleted-list routes. **Proven**:
+74/74 e2e (10 new) + 25/25 unit tests green, lint/format/build clean, Swagger confirmed via
+`/api-json`, security review clean (no HIGH/MEDIUM findings, S-2's compound lookup verified reused
+for delete and restore).
 
 ## Phase 4. Meeting page with its file list
 

@@ -1,7 +1,10 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   InternalServerErrorException,
   Param,
   Post,
@@ -18,6 +21,7 @@ import {
   ApiConflictResponse,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -155,6 +159,31 @@ export class FilesController {
   }
 
   /**
+   * Lists a meeting's soft-deleted, not-yet-purged files, each carrying an
+   * absolute `purgeAt` (never a countdown, so a cached response can't
+   * drift). A file past its 30-day purge horizon is absent here the instant
+   * it expires, whatever the cron last did (D-8).
+   * @param meetingId - Id of the meeting, confirmed owned by
+   * {@link MeetingOwnerGuard} before this handler runs.
+   * @param user - The authenticated user, extracted from the JWT.
+   * @returns The meeting's deleted, not-yet-purged files.
+   */
+  @Get('deleted')
+  @ApiOperation({ summary: "List a meeting's deleted, not-yet-purged files" })
+  @ApiOkResponse({
+    description: 'The meeting’s deleted, not-yet-purged files',
+    type: [MeetingFileResponseDto],
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiNotFoundResponse({ description: 'Meeting not found' })
+  listDeleted(
+    @Param('meetingId') meetingId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<MeetingFileResponseDto[]> {
+    return this.filesService.listDeletedForOwner(meetingId, user.userId);
+  }
+
+  /**
    * Serves a file's bytes to its owner only.
    * @param meetingId - Id of the meeting, confirmed owned by
    * {@link MeetingOwnerGuard} before this handler runs.
@@ -207,5 +236,59 @@ export class FilesController {
       acceptRanges: true,
       dotfiles: 'deny',
     });
+  }
+
+  /**
+   * Soft-deletes a file: it stops appearing in the live list and its bytes
+   * stop being served, but stays counted against the owner's byte quota
+   * until the purge horizon passes (AC-12).
+   * @param meetingId - Id of the meeting, confirmed owned by
+   * {@link MeetingOwnerGuard} before this handler runs.
+   * @param fileId - The file id.
+   * @param user - The authenticated user, extracted from the JWT.
+   */
+  @Delete(':fileId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft-delete a file' })
+  @ApiNoContentResponse({ description: 'File soft-deleted' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiNotFoundResponse({ description: 'Meeting or file not found' })
+  async remove(
+    @Param('meetingId') meetingId: string,
+    @Param('fileId') fileId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.filesService.delete(fileId, meetingId, user.userId);
+  }
+
+  /**
+   * Restores a soft-deleted file: it returns to the live list, is served
+   * again, and holds a slot against the meeting's 20-file cap again —
+   * refused with the same 409 an upload gets if the meeting is already full
+   * (the user's ruling on the AC-7/AC-13 tension).
+   * @param meetingId - Id of the meeting, confirmed owned by
+   * {@link MeetingOwnerGuard} before this handler runs.
+   * @param fileId - The file id.
+   * @param user - The authenticated user, extracted from the JWT.
+   * @returns The restored file's public DTO.
+   */
+  @Post(':fileId/restore')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Restore a soft-deleted file' })
+  @ApiOkResponse({
+    description: 'File restored',
+    type: MeetingFileResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiNotFoundResponse({ description: 'Meeting or file not found' })
+  @ApiConflictResponse({
+    description: 'Meeting already holds 20 live files',
+  })
+  async restore(
+    @Param('meetingId') meetingId: string,
+    @Param('fileId') fileId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<MeetingFileResponseDto> {
+    return this.filesService.restore(fileId, meetingId, user.userId);
   }
 }
