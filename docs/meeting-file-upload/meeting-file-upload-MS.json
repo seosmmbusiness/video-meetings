@@ -149,7 +149,8 @@
       "phase": 3,
       "title": "Soft delete, restore and purge",
       "covers": ["AC-7", "AC-8", "AC-12", "AC-13", "AC-14"],
-      "status": "pending",
+      "status": "in-progress",
+      "branch": "feature/meeting-file-upload-phase-3",
       "milestone": {
         "number": 20,
         "title": "MFU 3 · Soft delete, restore and purge",
@@ -358,7 +359,7 @@
   "progress": {
     "updatedAt": "2026-08-16",
     "completedPhases": [1, 2],
-    "currentPhase": null,
+    "currentPhase": 3,
     "nextPhase": {
       "phase": 3,
       "milestone": 20,
