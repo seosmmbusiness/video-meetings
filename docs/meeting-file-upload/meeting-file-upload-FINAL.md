@@ -260,30 +260,32 @@ the first phase anything is visible in a browser.
 **Threats**: S-4, S-7
 **Tasks**:
 
-- [ ] **4.1** Add the meeting page at /meetings/:id — a Server Component at
+- [x] **4.1** Add the meeting page at /meetings/:id — a Server Component at
       `apps/web/src/app/meetings/[id]/page.tsx` showing the meeting's title, description, date and
       participants, read-only. `getSession()` is checked first and `redirect('/login')` runs before
       any JSX when there is no session, per `apps/web/CLAUDE.md`'s auth-gated rule; a meeting the
       caller does not own renders exactly what a nonexistent id renders. Data comes from a new
       server-only `apps/web/src/lib/files-api.ts`, shaped like `meetings-api.ts`. (D-10)
-- [ ] **4.2** Link the dashboard's meeting rows to the page — every meeting row on `/` becomes a
+- [x] **4.2** Link the dashboard's meeting rows to the page — every meeting row on `/` becomes a
       link to that meeting's own page, so it is reachable without typing a URL (AC-19). (D-10)
-- [ ] **4.3** Show the meeting's files, or an empty state — one row per file with its name, size,
+- [x] **4.3** Show the meeting's files, or an empty state — one row per file with its name, size,
       type and upload time, or copy saying nothing has been uploaded yet. Names render as React
       children, never through `dangerouslySetInnerHTML`, so a name of HTML or script markup is
       literal text (AC-18). (D-10)
-- [ ] **4.4** Download a listed file from the page — a control on each row hands back exactly the
+- [x] **4.4** Download a listed file from the page — a control on each row hands back exactly the
       bytes that were uploaded, and only to the owner's own session; no URL the page exposes yields
       bytes to anyone else. The proxy returns the upstream `status`, `content-type`,
       `content-length`, `content-disposition`, `accept-ranges`, `content-range` and — unchanged —
       `cache-control`, so the `private, no-store` phase 1 set survives the hop (S-7). (D-7, S-7)
-- [ ] **4.5** Refuse an unauthenticated request at the proxy — the byte route at
+- [x] **4.5** Refuse an unauthenticated request at the proxy — the byte route at
       `apps/web/src/app/api/meetings/[meetingId]/files/[fileId]/content/route.ts` (Next 16 hands
       `params` as a Promise) calls `getSession()` first and returns 401 without opening an upstream
       request at all. The upstream request is built from an allow-list — method, body,
       `content-type`, `content-length`, `range` — with the token attached server-side; the caller's
       own `Authorization` is never forwarded, and ids go into the path through `encodeURIComponent`,
       never into the host (S-4). (D-6, S-4)
+
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/121
 
 **Done when**: `npm run test:e2e:web` is green with a new spec covering the meeting's own fields,
 the file list, the empty state, a download whose bytes match what was uploaded, the signed-out
@@ -292,7 +294,9 @@ redirect to `/login`, a direct request to the byte route with the session cookie
 not-found parity for another owner's meeting, a file name of script markup rendered as text, a
 `cache-control` of `private` on the proxied response (S-7), and a click on a dashboard row landing
 on that meeting's page (AC-19). Files are seeded through `apps/api` directly, as `e2e/home.spec.ts`
-already seeds meetings.
+already seeds meetings. **Proven**: 23/23 e2e (9 new) green, lint/format/build clean, security
+review clean (one low-severity consistency nit fixed before push), visually verified via headless
+screenshot.
 
 ## Phase 5. Upload files from the meeting page
 
