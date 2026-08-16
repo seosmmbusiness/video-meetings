@@ -4,8 +4,9 @@ Architecture and function reference for the meeting files module: store a meetin
 it back, scoped to the meeting's owner and behind an abstract, backend-agnostic storage boundary,
 with every PRD limit (size, detected type, live-file count, owner byte quota) enforced at the API
 itself, plus soft delete, restore and a scheduled purge of the 30-day-expired ones. Part of the
-`meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD, research and threat
-model this module implements (phases 1–3: `docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
+`meeting-file-upload` feature — see `docs/archive/meeting-file-upload/` for the PRD, research and
+threat model this module implements (phases 1–3:
+`docs/archive/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`: confirm
 `test/files.e2e-spec.ts` (and unit specs) are green before refactoring, then re-run after each step.

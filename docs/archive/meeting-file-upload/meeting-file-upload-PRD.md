@@ -2,7 +2,8 @@
 
 **Key**: MFU
 **Date**: 2026-08-08
-**Status**: draft
+**Status**: done
+**Completed**: 2026-08-16
 
 ## 1. Goal
 
@@ -86,25 +87,25 @@ The only account holder in this product is the **meeting owner**; participants a
 
 ## 5. Acceptance criteria
 
-- [ ] **AC-1** A signed-in owner opening `/meetings/<id>` for their own meeting sees that meeting's title, description, date and participants, and its file list — each row showing name, size, type and upload time — or an empty state saying no files have been uploaded yet.
-- [ ] **AC-2** Selecting N files at once produces N rows that upload independently; each file appears in the meeting's file list as its own row completes, with no page reload, and is still there after reloading the page.
-- [ ] **AC-3** For a file of at least 100 MB, its row reports at least three distinct intermediate percentages between 0 and 100 before completing — a row that sits at 0 until the transfer ends falsifies this.
-- [ ] **AC-4** Cancelling an in-flight upload removes its row within 2 seconds, leaves the other rows of the same batch uploading, and stores nothing: after a reload the cancelled file is absent from the list and its bytes are not retrievable.
-- [ ] **AC-5** A file larger than 500 MB is rejected with a message stating the 500 MB limit and nothing is stored — including when the upload is sent straight to `apps/api`, bypassing the page.
-- [ ] **AC-6** A file whose type is outside the accepted list is rejected with a message naming the accepted types, the other files of the batch keep uploading, and nothing is stored for the rejected file — including when the upload is sent straight to `apps/api`, and including a file whose extension is renamed to an accepted one.
-- [ ] **AC-7** An upload into a meeting already holding 20 live files is rejected with a message stating the 20-file limit; deleting one file makes the identical upload succeed immediately afterwards.
-- [ ] **AC-8** An upload that would take the owner's stored total past 20 GB is rejected with a message stating the space remaining, where the total counts deleted-but-not-yet-purged files as well as live ones.
-- [ ] **AC-9** An upload interrupted by a connection or server failure leaves its row in a failed state naming the reason and offering Retry and Dismiss; Retry re-sends the whole file and can succeed; before that retry, no partial file is listed, downloadable, or counted against either limit.
-- [ ] **AC-10** A video or audio file plays inside the meeting page without navigating away; an image or PDF renders inside the page; a file of any other accepted type downloads instead of previewing.
-- [ ] **AC-11** Every listed file can be downloaded, and the downloaded bytes are identical to the bytes that were uploaded.
-- [ ] **AC-12** Deleting a file removes it from the main list, places it under "Deleted files" with the time remaining before purge and a Restore control, drops the meeting's live-file count by one, and leaves it neither playable nor downloadable while it sits there.
-- [ ] **AC-13** Restoring a file from "Deleted files" returns it to the main list, playable and downloadable again, and counting against the 20-file cap again.
-- [ ] **AC-14** A file deleted more than 30 days ago is absent from "Deleted files", is not retrievable by any request, and its stored bytes no longer exist — provable by backdating a deleted file's deletion time.
-- [ ] **AC-15** A signed-in user who does not own a meeting gets the same not-found answer for that meeting's page, its file list and each of its files as for a meeting id that does not exist: no filename, size, count, type or byte is disclosed, and nothing in the response distinguishes "no such meeting" from "not yours".
-- [ ] **AC-16** A signed-out visitor is redirected to `/login` from the meeting page and receives no file content from any file request; a request carrying a missing, malformed or expired token is refused and returns no bytes.
-- [ ] **AC-17** A file's bytes are served only to a request that proves the caller owns the meeting: there is no URL — including a direct request to wherever the bytes are kept — that returns a stored file without a valid session for its owner.
-- [ ] **AC-18** A file whose name contains HTML or script markup is shown as literal text on the meeting page, and a name containing path separators or traversal sequences never causes a file to be stored or served from outside its own meeting's location.
-- [ ] **AC-19** Every meeting row on the dashboard is a link to that meeting's own page: following the row for a meeting the signed-in owner owns lands on `/meetings/<id>` for that meeting, so the page is reachable without typing a URL.
+- [x] **AC-1** A signed-in owner opening `/meetings/<id>` for their own meeting sees that meeting's title, description, date and participants, and its file list — each row showing name, size, type and upload time — or an empty state saying no files have been uploaded yet.
+- [x] **AC-2** Selecting N files at once produces N rows that upload independently; each file appears in the meeting's file list as its own row completes, with no page reload, and is still there after reloading the page.
+- [x] **AC-3** For a file of at least 100 MB, its row reports at least three distinct intermediate percentages between 0 and 100 before completing — a row that sits at 0 until the transfer ends falsifies this.
+- [x] **AC-4** Cancelling an in-flight upload removes its row within 2 seconds, leaves the other rows of the same batch uploading, and stores nothing: after a reload the cancelled file is absent from the list and its bytes are not retrievable.
+- [x] **AC-5** A file larger than 500 MB is rejected with a message stating the 500 MB limit and nothing is stored — including when the upload is sent straight to `apps/api`, bypassing the page.
+- [x] **AC-6** A file whose type is outside the accepted list is rejected with a message naming the accepted types, the other files of the batch keep uploading, and nothing is stored for the rejected file — including when the upload is sent straight to `apps/api`, and including a file whose extension is renamed to an accepted one.
+- [x] **AC-7** An upload into a meeting already holding 20 live files is rejected with a message stating the 20-file limit; deleting one file makes the identical upload succeed immediately afterwards.
+- [x] **AC-8** An upload that would take the owner's stored total past 20 GB is rejected with a message stating the space remaining, where the total counts deleted-but-not-yet-purged files as well as live ones.
+- [x] **AC-9** An upload interrupted by a connection or server failure leaves its row in a failed state naming the reason and offering Retry and Dismiss; Retry re-sends the whole file and can succeed; before that retry, no partial file is listed, downloadable, or counted against either limit.
+- [x] **AC-10** A video or audio file plays inside the meeting page without navigating away; an image or PDF renders inside the page; a file of any other accepted type downloads instead of previewing.
+- [x] **AC-11** Every listed file can be downloaded, and the downloaded bytes are identical to the bytes that were uploaded.
+- [x] **AC-12** Deleting a file removes it from the main list, places it under "Deleted files" with the time remaining before purge and a Restore control, drops the meeting's live-file count by one, and leaves it neither playable nor downloadable while it sits there.
+- [x] **AC-13** Restoring a file from "Deleted files" returns it to the main list, playable and downloadable again, and counting against the 20-file cap again.
+- [x] **AC-14** A file deleted more than 30 days ago is absent from "Deleted files", is not retrievable by any request, and its stored bytes no longer exist — provable by backdating a deleted file's deletion time.
+- [x] **AC-15** A signed-in user who does not own a meeting gets the same not-found answer for that meeting's page, its file list and each of its files as for a meeting id that does not exist: no filename, size, count, type or byte is disclosed, and nothing in the response distinguishes "no such meeting" from "not yours".
+- [x] **AC-16** A signed-out visitor is redirected to `/login` from the meeting page and receives no file content from any file request; a request carrying a missing, malformed or expired token is refused and returns no bytes.
+- [x] **AC-17** A file's bytes are served only to a request that proves the caller owns the meeting: there is no URL — including a direct request to wherever the bytes are kept — that returns a stored file without a valid session for its owner.
+- [x] **AC-18** A file whose name contains HTML or script markup is shown as literal text on the meeting page, and a name containing path separators or traversal sequences never causes a file to be stored or served from outside its own meeting's location.
+- [x] **AC-19** Every meeting row on the dashboard is a link to that meeting's own page: following the row for a meeting the signed-in owner owns lands on `/meetings/<id>` for that meeting, so the page is reachable without typing a URL.
 
 ## Asked & assumed
 
