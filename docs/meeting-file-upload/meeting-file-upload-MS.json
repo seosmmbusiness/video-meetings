@@ -149,8 +149,13 @@
       "phase": 3,
       "title": "Soft delete, restore and purge",
       "covers": ["AC-7", "AC-8", "AC-12", "AC-13", "AC-14"],
-      "status": "in-progress",
+      "status": "in-review",
       "branch": "feature/meeting-file-upload-phase-3",
+      "pr": {
+        "number": 119,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/119",
+        "state": "open"
+      },
       "milestone": {
         "number": 20,
         "title": "MFU 3 · Soft delete, restore and purge",
