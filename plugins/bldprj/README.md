@@ -67,7 +67,7 @@ claude plugin validate <path to this folder>
 
 ## The validator
 
-`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, acceptance-criteria coverage and duplicates, D-/S- citation integrity in both directions (a cited id resolves to a live block, a superseded one is not cited as current, and a decision or finding a FINAL cites nowhere is a warning), plan ↔ final plan ↔ backlog agreement (including a backlog left behind by a newer FINAL), and resolvable links that stay inside the project.
+`scripts/docs-lint.mjs` checks what `PIPELINE.md` makes mechanical: key uniqueness, task numbering, label and phase-title lengths, the five-building-tasks-per-phase ceiling (a `tests:` task is exempt), every phase naming the workflow it is **Verified by** (a warning, and not asked of already-archived work), acceptance-criteria coverage and duplicates, D-/S- citation integrity in both directions (a cited id resolves to a live block, a superseded one is not cited as current, and a decision or finding a FINAL cites nowhere is a warning), plan ↔ final plan ↔ backlog agreement (including a backlog left behind by a newer FINAL), and resolvable links that stay inside the project.
 
 It reads the project's `docs/` tree, which it cannot infer from its own location inside the plugin, so the project root comes from the first argument, else `$CLAUDE_PROJECT_DIR`, else the working directory:
 
@@ -84,5 +84,5 @@ The stages are project-agnostic: commands, layers, stacks and conventions are **
 
 - `docs/` as the documents' home — `docs/<slug>/` per work item, `docs/INDEX.md`, `docs/archive/`, `docs/Features.md` / `docs/Refactor.md`; the skills create each of these on first use.
 - `gh` authenticated against the repo, for `issues`, `build-phase` and `close-feature`.
-- Project docs that actually state its conventions — how to run tests, lint and build, where module docs live — since the skills read them instead of assuming a stack.
+- Project docs that actually state its conventions — how to run tests, lint and build, where module docs live, **and how each layer is written and verified** — since the skills read them instead of assuming a stack. That last one is what `plan-phase` copies into every phase's **Verified by** and `build-phase` writes code to; a project silent about it gets a pipeline silent about it.
 - The labels its backlog uses (e.g. layer labels plus `security`, `test`, `refactor`, `performance`); `issues` applies only labels the repo has and asks before creating a missing one.

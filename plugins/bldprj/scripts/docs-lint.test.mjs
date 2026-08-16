@@ -82,6 +82,7 @@ function cleanFeature() {
       '',
       '**Goal**: X works',
       '**Covers**: AC-1',
+      '**Verified by**: e2e spec over the scenario, per CLAUDE.md',
       '**Tasks**:',
       '',
       '- [ ] **1.1** Do X — X becomes true',
@@ -100,6 +101,107 @@ test('a consistent feature folder lints clean', () => {
   const run = lint(cleanFeature());
   assert.equal(run.status, 0, run.stdout);
   assert.match(run.stdout, /0 errors, 0 warnings/);
+});
+
+test('a phase that names no workflow is a warning', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PLAN.md'] = files['docs/demo/demo-PLAN.md'].replace(
+    '**Verified by**: e2e spec over the scenario, per CLAUDE.md\n',
+    '',
+  );
+  const run = lint(files);
+  assert.equal(run.status, 0, run.stdout);
+  assert.match(run.stdout, /phase 1 has no \*\*Verified by\*\*/);
+});
+
+test('archived work is not held to a field the contract gained later', () => {
+  const run = lint({
+    'docs/INDEX.md': [
+      '# Docs index',
+      '',
+      '| Key | Feature | What it is | Documents |',
+      '| --- | ------- | ---------- | --------- |',
+      '| OLD | old | Shipped. | [PRD](archive/old/old-PRD.md) · [Plan](archive/old/old-PLAN.md) |',
+      '',
+    ].join('\n'),
+    'docs/archive/old/old-PRD.md': [
+      '# PRD: Old',
+      '',
+      '**Key**: OLD',
+      '**Date**: 2026-08-07',
+      '**Status**: done',
+      '',
+      '## 5. Acceptance criteria',
+      '',
+      '- [ ] **AC-1** Doing X returns Y.',
+      '',
+      '## Asked & assumed',
+      '',
+      '- **Assumed** — nothing · nothing.',
+      '',
+    ].join('\n'),
+    'docs/archive/old/old-PLAN.md': [
+      '# Plan: Old',
+      '',
+      '**Key**: OLD',
+      '**Date**: 2026-08-07',
+      '**Status**: shipped',
+      '',
+      '## Phase 1. Tracer',
+      '',
+      '**Goal**: X works',
+      '**Covers**: AC-1',
+      '**Tasks**:',
+      '',
+      '- [ ] **1.1** Do X — X becomes true',
+      '',
+      '**Done when**: X observed',
+      '',
+      '## Asked & assumed',
+      '',
+      '- **Assumed** — nothing · nothing.',
+      '',
+    ].join('\n'),
+  });
+  assert.equal(run.status, 0, run.stdout);
+  assert.match(run.stdout, /0 errors, 0 warnings/);
+});
+
+test('a tests: task is exempt from the phase ceiling, wrapped marker included', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PLAN.md'] = files['docs/demo/demo-PLAN.md'].replace(
+    '- [ ] **1.1** Do X — X becomes true',
+    [
+      '- [ ] **1.1** Cover X through Z with failing specs —',
+      '      tests: the e2e cases for AC-1, red before 1.2 starts',
+      '- [ ] **1.2** Do X — X becomes true',
+      '- [ ] **1.3** Do Y — Y becomes true',
+      '- [ ] **1.4** Do Z — Z becomes true',
+      '- [ ] **1.5** Do V — V becomes true',
+      '- [ ] **1.6** Do W — W becomes true',
+    ].join('\n'),
+  );
+  const run = lint(files);
+  assert.equal(run.status, 0, run.stdout);
+  assert.match(run.stdout, /0 errors, 0 warnings/);
+});
+
+test('a sixth building task is over the phase ceiling', () => {
+  const files = cleanFeature();
+  files['docs/demo/demo-PLAN.md'] = files['docs/demo/demo-PLAN.md'].replace(
+    '- [ ] **1.1** Do X — X becomes true',
+    [
+      '- [ ] **1.1** Do X — X becomes true',
+      '- [ ] **1.2** Do Y — Y becomes true',
+      '- [ ] **1.3** Do Z — Z becomes true',
+      '- [ ] **1.4** Do V — V becomes true',
+      '- [ ] **1.5** Do W — W becomes true',
+      '- [ ] **1.6** Do U — U becomes true',
+    ].join('\n'),
+  );
+  const run = lint(files);
+  assert.equal(run.status, 1);
+  assert.match(run.stdout, /carries 6 live building tasks, over the 5/);
 });
 
 test('a versioned plan file is an error — the plan is revised in place', () => {
@@ -133,6 +235,7 @@ test('a backlog published from a superseded FINAL is stale', () => {
       '',
       '**Goal**: X works',
       '**Covers**: AC-1',
+      '**Verified by**: e2e spec over the scenario, per CLAUDE.md',
       '**Tasks**:',
       '',
       '- [ ] **1.1** Do X — X becomes true',
@@ -201,9 +304,10 @@ test('refactor acceptance criteria are held to coverage like a feature', () => {
       '## Phase R1. Characterization tests',
       '',
       '**Covers**: AC-1',
+      '**Verified by**: green baseline → change → green, no existing test edited',
       '**Tasks**:',
       '',
-      '- [ ] **R1.1** Pin behaviour — test passes before code moves',
+      '- [ ] **R1.1** Pin behaviour — tests: passes before code moves',
       '',
       '**Done when**: suite green',
       '',
@@ -301,6 +405,7 @@ function consolidatedFeature(parts = {}) {
     '**Covers**: AC-1',
     parts.decisions ?? '**Decisions**: D-1',
     parts.threats ?? '**Threats**: S-1',
+    '**Verified by**: e2e spec over the scenario, per CLAUDE.md',
     '**Tasks**:',
     '',
     '- [ ] **1.1** Do X — X becomes true',

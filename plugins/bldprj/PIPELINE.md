@@ -81,6 +81,38 @@ Two documents carry phases and tasks. The plan is the **preliminary** one and is
 
 **After a revision the backlog is stale.** Re-run `/bldprj:pre-issues`, then `/bldprj:issues` on the FINAL it wrote: `issues` reconciles by task number, tops up what is missing, and reports the issues whose task no longer exists rather than closing them.
 
+## The project's workflow
+
+How a layer is written and verified belongs to the **host project's docs**, not to this pipeline: one project develops its API test-first, another proves a screen with an e2e spec, a third does neither. What the pipeline owns is carrying that rule from the project's docs to the commit, so it is still legible where the work is done rather than only where the plan was read.
+
+Every phase block therefore carries a **Verified by** line, next to **Done when**:
+
+```markdown
+**Verified by**: Red/Green/Refactor per apps/api/CLAUDE.md — e2e cases, security cases
+included, written and reviewed before the implementation.
+```
+
+| Stage         | What it does with the line                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------- |
+| `plan-phase`  | reads the project's docs for the layers in **Touches** and writes the line, in the project's own words        |
+| `research`    | leaves it alone unless a decision changes how a layer can be proven, and then revises it citing its `D-<n>`   |
+| `pre-issues`  | carries it into FINAL and hardens it, the way it hardens **Done when** — the actual suite, spec file, command |
+| `issues`      | renders it into every issue body, so it reaches whoever opens the issue                                       |
+| `build-phase` | follows it as step 5's testing idiom, and shows its evidence in the PR body                                   |
+
+**Done when** says what proves the phase finished; **Verified by** says how the work gets written on the way there. A phase carrying neither an observation nor an idiom is what lets a workflow the project mandates go missing between the plan and the commit — the linter warns on a phase with no **Verified by**.
+
+### When the workflow is its own task
+
+Where a project writes its tests first, a phase's specs are a unit of work in their own right, and folding them into the task that also writes the implementation is exactly what makes the red state unprovable afterwards. That task is written with `tests:` opening its description:
+
+```markdown
+- [ ] **1.1** Cover upload, list and download with failing specs — tests: the e2e cases for
+      AC-1 and AC-11, security cases included, red before 1.2 starts.
+```
+
+The marker is read rather than guessed: `issues` takes the `test` label from it, and the five-tasks-per-phase ceiling counts only the tasks that **build** — a phase never has to choose between splitting itself and writing its specs down. Such a task still traces to the `AC-<n>` its specs prove; it is exempt from the ceiling, not from the fence.
+
 ## Re-running a stage
 
 The chain runs forward once, and that single pass is complete on its own: nothing in this section is needed for a feature to reach `issues`.

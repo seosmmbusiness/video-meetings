@@ -35,13 +35,15 @@ Done when you can say, for each acceptance criterion, what has to exist for it t
 
 Read the project's root docs, the docs of each part the PRD touches, and its module docs where it keeps them — then the docs of the modules this feature extends. What already exists shortens phases, and the project's workflow shapes them: how each layer is written and verified is the project docs' to say (e.g. an API developed test-first, a frontend verified with e2e specs).
 
-Done when you can name, for every phase you are about to write, the existing module it extends or the new one it creates.
+**Quote the workflow, don't summarise it.** Whatever the project's docs mandate for a layer — the cycle, what has to be written before what, the case classes that are not optional — is copied out now, with the file it came from, because it becomes each phase's **Verified by** line in step 5 and no later stage can recover it from the repo (**The project's workflow** in `PIPELINE.md`). A layer whose docs mandate nothing gets the line anyway, saying what will be observed instead.
+
+Done when you can name, for every phase you are about to write, the existing module it extends or the new one it creates, and the workflow each layer it touches is held to, with the doc that states it.
 
 ### 3. Cut the phases
 
 Apply the phasing rules below to the acceptance criteria from step 1, in order, starting from the tracer bullet.
 
-Done when every acceptance criterion in the PRD is covered by at least one phase, no phase carries more than five tasks, and each phase's **Done when** is something a person can run or observe.
+Done when every acceptance criterion in the PRD is covered by at least one phase, no phase carries more than five building tasks, and each phase's **Done when** is something a person can run or observe.
 
 ### 4. Put the cut to the user
 
@@ -58,7 +60,7 @@ Done when the phase order is the user's, and no phase rests on a requirement you
 - **Path**: next to its PRD, `docs/<slug>/<slug>-PLAN.md`, reusing the PRD's slug exactly.
 - **Shape**: the template below, one block per phase.
 
-Done when every phase block carries all five fields, every task has its number and its label, and every PRD acceptance criterion appears in at least one phase's **Covers**.
+Done when every phase block carries all six fields, every task has its number and its label, every phase's **Verified by** names a workflow from step 2 with the doc behind it, and every PRD acceptance criterion appears in at least one phase's **Covers**.
 
 ### 6. Add the plan to the index
 
@@ -74,9 +76,10 @@ The path, each phase as one line with its layer and covered criteria, whatever t
 
 - **Phase 1 is a tracer bullet**: the thinnest slice that proves the path works, taken through the layer that owns it. The layer that consumes it follows in its own phase.
 - Every phase leaves the repo working and verified — a stop after any phase is a usable stop.
-- Five tasks per phase at most; a sixth task is the signal to split the phase in two.
+- Five **building** tasks per phase at most; a sixth is the signal to split the phase in two. A `tests:` task does not count against the five (**The project's workflow** in `PIPELINE.md`), so writing the specs down never costs a phase a split it would not otherwise need.
 - One layer per phase: the layer that owns the data or API runs first and goes green, the phase consuming it comes after (e.g. backend phases before the frontend that calls them).
-- Every task traces to a PRD acceptance criterion, and whatever the PRD put Out of scope stays out of the plan. A phase's **Covers** lists the criteria its tasks serve.
+- Every task traces to a PRD acceptance criterion, and whatever the PRD put Out of scope stays out of the plan. A phase's **Covers** lists the criteria its tasks serve. A `tests:` task traces like any other — to the criteria its specs prove.
+- **The workflow is a field, and sometimes a task.** Every phase carries **Verified by**, quoted from the project's docs in step 2. Where those docs mandate that tests come first, the phase opens with a `tests:` task holding the specs for what the phase is about to build, and the tasks that build it follow — one red state, written down, ahead of the work it constrains. Where they mandate nothing of the sort, the field alone carries it and no test task is invented.
 - Phases name outcomes, not mechanisms — "store the uploaded file and return its id", not "store it with library X".
 - A phase's name is short enough to read inside a milestone title: **50 characters at most**, the same discipline as a task's 60-character label — `issues` renders it as `<KEY> <phase> · <phase name>`.
 - A phase's **Done when** is a command or an observation: the layer's test suite green, `POST /meetings/:id/files` returning 201, an e2e spec passing. Where the mechanism that would name it exactly is still `research`'s to choose, write the observation and leave the exact route, command or number to `pre-issues`, which hardens it in FINAL.
@@ -95,6 +98,15 @@ A task is three things in one line — **number**, **label**, **description**:
 - **Label** is what a person reads in a list: imperative, **60 characters at most**, no trailing period. `issues` renders it as the issue title — `MFU 1.2 — Store uploads behind StorageService` — so a label that needs its phase heading to make sense is too short, and a label that carries the whole acceptance criterion is too long.
 - **Description** is everything the label had to drop: what has to be true when the task is done, the constraint it must respect, the file it touches. It becomes the issue body.
 
+A task whose whole output is test code opens its description with `tests:`, and says which criteria the specs cover and what must be red before which task starts:
+
+```markdown
+- [ ] **1.1** Cover upload, list and download with failing specs — tests: the e2e cases for
+      AC-1 and AC-11, security cases included, red before 1.2 starts.
+```
+
+The marker is the contract, not decoration: `issues` labels the issue `test` from it and the linter counts the phase's ceiling around it. A task that also writes implementation is not a `tests:` task, however many specs it carries.
+
 ## Template
 
 ```markdown
@@ -110,10 +122,11 @@ A task is three things in one line — **number**, **label**, **description**:
 **Goal**: <what works after this phase that did not work before>
 **Touches**: <the layers this phase moves — e.g. api · web · database>
 **Covers**: <AC-1, AC-3>
+**Verified by**: <the workflow these layers are held to, in the project's words, with the doc it came from>
 **Tasks**:
 
 - [ ] **1.1** <label, imperative, 60 chars at most> — <what has to be true when it is done>
-- [ ] **1.2** <five per phase at most>
+- [ ] **1.2** <five building tasks per phase at most; a `tests:` task is extra>
 
 **Done when**: <the command or observation that proves the phase is finished>
 

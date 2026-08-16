@@ -27,13 +27,15 @@ Path to a final plan (`/bldprj:issues docs/meeting-file-upload/meeting-file-uplo
 
 ### 1. Read the final plan
 
-The key from its header, then every phase block: number, title, **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Tasks** with their numbers, labels and descriptions, **Done when**. Note the `-PRD.md`, `-PLAN.md`, `-RESEARCH.md` and `-THREATS.md` paths from its header and the FINAL's own version — they go into the MS file's `sources`.
+The key from its header, then every phase block: number, title, **Goal**, **Touches**, **Covers**, **Decisions**, **Threats**, **Verified by**, **Tasks** with their numbers, labels and descriptions, **Done when**. Note the `-PRD.md`, `-PLAN.md`, `-RESEARCH.md` and `-THREATS.md` paths from its header and the FINAL's own version — they go into the MS file's `sources`.
 
 FINAL already carries each phase's `D-<n>` and `S-<n>`, so those lines are copied from it, not re-derived; a phase carrying an `S-<n>` takes the `security` label. Read the research **decision map** and the threats **threat map** only to check that FINAL agrees with them, and report a mismatch instead of publishing over it — the ids belong to `pre-issues` to reconcile.
 
-A task marked `- [~]` is dropped: it gets no new issue, and step 2 decides what happens to the one it may already have.
+A task marked `- [~]` is dropped: it gets no new issue, and step 2 decides what happens to the one it may already have. A task whose description opens with `tests:` is test-only (**The project's workflow** in `PIPELINE.md`): it becomes an issue like any other and takes the `test` label from that marker.
 
-Done when you hold the full list — every phase with its ordered, numbered tasks, its decisions and its findings — and the counts to expect on GitHub.
+A phase with no **Verified by** → say so and offer `/bldprj:pre-issues` first, rather than publishing issues whose body cannot tell the builder how the layer is written. An issue that is silent about it leaves every implementation run to rediscover the workflow, or to miss it.
+
+Done when you hold the full list — every phase with its ordered, numbered tasks, its decisions, its findings and its **Verified by** — and the counts to expect on GitHub.
 
 ### 2. Check the ground before writing anything
 
@@ -101,10 +103,13 @@ gh issue create --title "MFU 1.2 — Store uploads behind StorageService" \
 
 **Decisions**: <the phase's D-2, D-4> · [RESEARCH](path)
 **Threats**: <the phase's S-1, with the control the task carries> · [THREATS](path)
+**Verified by**: <the phase's Verified by, copied whole>
 **Phase done when**: <the phase's Done when>
 ```
 
-**Labels**: four at most, taken only from what `gh label list` returned, in this priority order — `refactor` on the refactor track, then the layer labels matching the phase's **Touches** (e.g. `backend`, `frontend`), then the driver (`security` for a phase carrying an `S-<n>` or a task about access control, validation or hardening, `performance`, `documentation` for a doc task), then `test` for a test-writing task. A label the plan needs and the repo lacks → ask before creating it.
+`**Verified by**` is copied, not condensed: it is the only place the person picking the issue up learns how this layer is written, and a summary of a workflow is not one.
+
+**Labels**: four at most, taken only from what `gh label list` returned, in this priority order — `refactor` on the refactor track, then the layer labels matching the phase's **Touches** (e.g. `backend`, `frontend`), then the driver (`security` for a phase carrying an `S-<n>` or a task about access control, validation or hardening, `performance`, `documentation` for a doc task), then `test` on a task whose description opens with `tests:`. A label the plan needs and the repo lacks → ask before creating it.
 
 Done when every live task in the plan has exactly one issue under the right milestone, with its number and URL captured.
 
