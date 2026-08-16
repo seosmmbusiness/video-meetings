@@ -206,8 +206,13 @@
       "phase": 4,
       "title": "Meeting page with its file list",
       "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18", "AC-19"],
-      "status": "in-progress",
+      "status": "in-review",
       "branch": "feature/meeting-file-upload-phase-4",
+      "pr": {
+        "number": 121,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/121",
+        "state": "open"
+      },
       "milestone": {
         "number": 21,
         "title": "MFU 4 · Meeting page with its file list",
