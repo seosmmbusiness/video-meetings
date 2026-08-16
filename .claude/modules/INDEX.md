@@ -9,3 +9,4 @@ Per-module architecture and function references, split out of the CLAUDE.md file
 - [apps/api meetings module](module-api-meetings.md) — `src/meetings`: create/list/get meetings scoped to owner, plus the JWT auth guard/strategy added in `src/auth` to protect them.
 - [apps/api files module](module-api-files.md) — `src/files`: store/list/serve a meeting's files behind an abstract `FileStorage` boundary, owner-scoped.
 - [apps/web auth pages](module-web-auth.md) — `app/register`, `app/login`, `app/actions/auth.ts`, `lib/auth-api.ts`, `lib/session.ts`: registration/login UI against `apps/api`'s `src/auth`, cookie-based session, and the home page's signed-in state.
+- [apps/web meeting page + file proxy](module-web-meeting-files.md) — `app/meetings/[id]`, `app/api/meetings/[meetingId]/files/[fileId]/content`, `lib/files-api.ts`, `lib/api-proxy.ts`: the meeting detail page and its file list/download, proxied same-origin so the session token never reaches the browser.
