@@ -64,9 +64,10 @@ path, before any limit, lifecycle or screen exists.
 **Covers**: AC-1, AC-11, AC-15, AC-16, AC-17, AC-18
 **Decisions**: D-1, D-3, D-4, D-7, D-9, D-11
 **Threats**: S-1, S-2, S-5, S-6, S-7
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/115
 **Tasks**:
 
-- [ ] **1.1** Add the MeetingFile model and its migration — model `MeetingFile` → table
+- [x] **1.1** Add the MeetingFile model and its migration — model `MeetingFile` → table
       `meeting_files` (not `File`: that is a global in Node 24). Fields: `id` uuid, `meetingId` +
       relation to `Meeting` with `onDelete: Restrict`, `name` `@db.VarChar(255)`, `size Int`,
       `mimeType` `@db.VarChar(128)`, `storageKey` `@unique`, `createdAt`, `updatedAt`,
@@ -74,7 +75,7 @@ path, before any limit, lifecycle or screen exists.
       `Meeting` gains `files MeetingFile[]` and the missing `@@index([ownerId])` the quota query
       needs. `size` is `Int` because 500 MB fits and `BigInt` breaks `JSON.stringify`. Migration
       checked in; `.claude/modules/module-api-prisma.md` updated. (D-4)
-- [ ] **1.2** Keep file bytes behind one storage boundary — abstract class `FileStorage`
+- [x] **1.2** Keep file bytes behind one storage boundary — abstract class `FileStorage`
       (`apps/api/src/files/storage/file-storage.ts`) with `save(key, tempPath)`,
       `createReadStream(key, range?)`, `delete(key)`, `stat(key)` and `localPathFor(key)`, bound as
       `{ provide: FileStorage, useClass: LocalDiskFileStorage }`. Nothing else in `apps/api` touches
@@ -86,10 +87,11 @@ path, before any limit, lifecycle or screen exists.
       `rename` (a cross-device one fails `EXDEV`). Directory created `{ recursive: true, mode: 0o700 }`,
       files written `0o600`; `/.data/` added to `.gitignore` and `STORAGE_ROOT` to `.env.example`.
       (D-1, S-5)
-- [ ] **1.3** Accept an upload onto a meeting the caller owns — `POST /meetings/:meetingId/files`,
+- [x] **1.3** Accept an upload onto a meeting the caller owns — `POST /meetings/:meetingId/files`,
       multipart field `file`, `FileInterceptor` over a `diskStorage` writing to
       `<STORAGE_ROOT>/tmp` under a `randomUUID` filename, with
-      `limits: { fileSize: 524_288_000, files: 1, fields: 0, parts: 1 }` and
+      `limits: { fileSize: 524_288_000, files: 1, fields: 0, parts: 2 }` (measured: busboy counts the
+      closing multipart boundary as a part of its own — `parts: 1` 400s a single valid upload) and
       `defParamCharset: 'utf8'` — without that last one every Cyrillic filename arrives as
       mojibake. A `MeetingOwnerGuard` resolves the meeting through
       `MeetingsService.findOneForOwner(meetingId, userId)` (so `MeetingsModule` exports the service)
@@ -102,23 +104,26 @@ path, before any limit, lifecycle or screen exists.
       `req.ip` — without it every user shares one 20/60 s bucket behind the web proxy and a 20-file
       batch alone trips it (D-9). Swagger annotations on the route and both DTOs. (D-3, D-4, D-9,
       S-1, S-6)
-- [ ] **1.4** List a meeting's files, owner-scoped — `GET /meetings/:meetingId/files` returns each
+- [x] **1.4** List a meeting's files, owner-scoped — `GET /meetings/:meetingId/files` returns each
       live file's `name`, `size`, `mimeType` and `createdAt` for a meeting the caller owns, and the
       same 404 otherwise. Every file query goes through one
       `FilesService.findFileForOwner(fileId, meetingId, ownerId)` /
       `listForOwner(meetingId, ownerId)` keyed on `{ meetingId, meeting: { ownerId } }` and
       `deletedAt: null` — never on a file id alone (S-2). This is the data AC-1's list renders in
       phase 4. (D-4, S-2)
-- [ ] **1.5** Serve a file's bytes to its owner only — `GET /meetings/:meetingId/files/:fileId/content`.
+- [x] **1.5** Serve a file's bytes to its owner only — `GET /meetings/:meetingId/files/:fileId/content`.
       One compound lookup, `findFirst({ where: { id: fileId, meetingId, meeting: { ownerId } } })`,
       so a file id from another meeting answers 404 (S-2). Then set `Content-Type` from the stored
       `mimeType`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` — `send`
       writes `public, max-age=0` if the header is absent (S-7) — and `Content-Disposition` via the
       `content-disposition` encoder: `inline` for `image/*`, `application/pdf`, `video/*` and
       `audio/*`, `attachment` for everything else. Hand off with
-      `res.sendFile(localPathFor(key), { acceptRanges: true, dotfiles: 'deny' })`, which answers
-      `Range` with 206 so a 500 MB recording seeks; when `localPathFor` returns `null` fall back to
-      `createReadStream(key, range)` with a hand-written 206. Throttle
+      `res.sendFile(basename(localPathFor(key)), { root: dirname(localPathFor(key)), acceptRanges:
+true, dotfiles: 'deny' })` — measured: passed the full absolute path with no `root`, `send`'s
+      `dotfiles: 'deny'` inspects every path segment and 403s on `STORAGE_ROOT`'s own `.data`
+      segment, so `root`/`basename` are split to check only the storage key's own (UUID) segments —
+      which answers `Range` with 206 so a 500 MB recording seeks; when `localPathFor` returns `null`
+      fall back to `createReadStream(key, range)` with a hand-written 206. Throttle
       `@Throttle({ default: { limit: 240, ttl: 60_000 } })`. (D-7, S-2, S-7)
 
 **Done when**: `npm run test:e2e --workspace apps/api` is green with new cases in `apps/api/test`
