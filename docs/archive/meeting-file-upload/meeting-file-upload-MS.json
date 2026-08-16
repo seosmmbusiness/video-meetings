@@ -5,11 +5,11 @@
   "repo": "seosmmbusiness/video-meetings",
   "createdAt": "2026-08-16",
   "sources": {
-    "prd": "docs/meeting-file-upload/meeting-file-upload-PRD.md",
-    "plan": "docs/meeting-file-upload/meeting-file-upload-PLAN.md",
-    "research": "docs/meeting-file-upload/meeting-file-upload-RESEARCH.md",
-    "threats": "docs/meeting-file-upload/meeting-file-upload-THREATS.md",
-    "final": "docs/meeting-file-upload/meeting-file-upload-FINAL.md",
+    "prd": "docs/archive/meeting-file-upload/meeting-file-upload-PRD.md",
+    "plan": "docs/archive/meeting-file-upload/meeting-file-upload-PLAN.md",
+    "research": "docs/archive/meeting-file-upload/meeting-file-upload-RESEARCH.md",
+    "threats": "docs/archive/meeting-file-upload/meeting-file-upload-THREATS.md",
+    "final": "docs/archive/meeting-file-upload/meeting-file-upload-FINAL.md",
     "finalVersion": 1
   },
   "phases": [

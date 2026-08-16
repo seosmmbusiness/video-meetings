@@ -3,10 +3,10 @@
 Architecture and function reference for the meeting detail page (`/meetings/[id]`), the
 same-origin proxies that serve and accept a file's bytes without ever exposing the session token
 to the browser, the multi-file uploader, and in-page preview/delete/restore. Part of the
-`meeting-file-upload` feature — see `docs/meeting-file-upload/` for the PRD, research and threat
-model this module implements (phase 4 built the page and download; phase 5 added upload; phase 6
-added playback/preview and delete/restore — see
-`docs/meeting-file-upload/meeting-file-upload-FINAL.md`).
+`meeting-file-upload` feature — see `docs/archive/meeting-file-upload/` for the PRD, research and
+threat model this module implements (phase 4 built the page and download; phase 5 added upload;
+phase 6 added playback/preview and delete/restore — see
+`docs/archive/meeting-file-upload/meeting-file-upload-FINAL.md`).
 
 This module talks to `apps/api`'s `src/meetings` (`GET /meetings/:id`, see
 `module-api-meetings.md`) and `src/files` (`GET /meetings/:meetingId/files`,
