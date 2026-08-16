@@ -206,18 +206,19 @@
       "phase": 4,
       "title": "Meeting page with its file list",
       "covers": ["AC-1", "AC-11", "AC-15", "AC-16", "AC-17", "AC-18", "AC-19"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/meeting-file-upload-phase-4",
       "pr": {
         "number": 121,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/121",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 21,
         "title": "MFU 4 · Meeting page with its file list",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/21",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-16"
       },
       "issues": [
         {
@@ -226,7 +227,8 @@
           "title": "MFU 4.1 — Add the meeting page at /meetings/:id",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/100",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "4.2",
@@ -234,7 +236,8 @@
           "title": "MFU 4.2 — Link the dashboard's meeting rows to the page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/101",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "4.3",
@@ -242,7 +245,8 @@
           "title": "MFU 4.3 — Show the meeting's files, or an empty state",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/102",
           "labels": ["frontend"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "4.4",
@@ -250,7 +254,8 @@
           "title": "MFU 4.4 — Download a listed file from the page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/103",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         },
         {
           "task": "4.5",
@@ -258,7 +263,8 @@
           "title": "MFU 4.5 — Refuse an unauthenticated request at the proxy",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/104",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-16"
         }
       ]
     },
@@ -374,13 +380,13 @@
   ],
   "progress": {
     "updatedAt": "2026-08-16",
-    "completedPhases": [1, 2, 3],
-    "currentPhase": 4,
+    "completedPhases": [1, 2, 3, 4],
+    "currentPhase": null,
     "nextPhase": {
-      "phase": 4,
-      "milestone": 21,
-      "title": "MFU 4 · Meeting page with its file list",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/21"
+      "phase": 5,
+      "milestone": 22,
+      "title": "MFU 5 · Upload files from the meeting page",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/22"
     }
   }
 }
