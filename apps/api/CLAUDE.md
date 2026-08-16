@@ -1,6 +1,8 @@
 # apps/api
 
-NestJS 11.1.28 backend, TypeScript.
+NestJS 11.2.1 backend, TypeScript.
+
+Why anything here is the way it is: [`HISTORY.md`](HISTORY.md) (repo-wide changes: [root `HISTORY.md`](../../HISTORY.md)).
 
 ## Structure
 
@@ -74,4 +76,12 @@ Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). G
 
 ## Status
 
-Postgres-backed email/password auth is implemented (`POST /auth/register`, `POST /auth/login`). `src/auth` was split into three CQRS-composed modules: `src/auth` (JWT issuance/verification, register/login orchestration — see `.claude/modules/module-api-auth.md`), `src/users` (user persistence — `.claude/modules/module-api-users.md`), and `src/credentials` (password hashing/verification — `.claude/modules/module-api-credentials.md`), all on top of Prisma (`User` model — see `.claude/modules/module-api-prisma.md`). A JWT verification guard (`JwtAuthGuard`/`JwtStrategy`, passport-jwt) protects routes. The meetings module (`POST /meetings`, `GET /meetings`, `GET /meetings/:id`, all guarded and scoped to the caller — see `.claude/modules/module-api-meetings.md`) is the first consumer of that guard. A files module now stores, lists and serves a meeting's files (`POST /meetings/:meetingId/files`, `GET /meetings/:meetingId/files`, `GET /meetings/:meetingId/files/:fileId/content`), scoped to the meeting's owner and backed by local disk behind an abstract `FileStorage` boundary, and enforces every upload limit at the route itself — 500 MB per file, content-sniffed type (12 accepted types), 20 live files per meeting, 20 GB per owner (counting soft-deleted-but-not-purged files, reserved in-process for the life of an upload so concurrent uploads can't outrun it), and a 60-second inactivity timeout distinct from the app's 30-minute total request timeout. It also now soft-deletes (`DELETE /meetings/:meetingId/files/:fileId`), restores (`POST /meetings/:meetingId/files/:fileId/restore`, refused with the same 409 an upload gets if the meeting is full again) and lists a meeting's deleted-but-not-purged files (`GET /meetings/:meetingId/files/deleted`), with a `FilesPurgeService` (`@nestjs/schedule`, hourly `@Cron`) permanently deleting bytes and rows 30 days after soft-deletion and sweeping stale upload temp files — see `.claude/modules/module-api-files.md`; the meeting-file-upload feature's first three phases, with the web UI still to come. The global throttler is now tracked by credential (`sha256` of the `Authorization` header) rather than by socket, since `apps/web` calls this API server-to-server. Redis is still unused. Testing gained its middle tier on 2026-08-16: `test/jest-int.json` + `npm run test:int` run `src/**/*.int-spec.ts` — real Nest modules against the dev Postgres with no HTTP layer — seeded by `src/users/users.int-spec.ts`, which covers the CQRS create/find round trip and the unique-email constraint's `P2002` → 409 translation that only a real database can reach. Update this file as more domain modules land, and add a corresponding `.claude/modules/module-api-<name>.md` doc per the root `CLAUDE.md`'s Module documentation section.
+Where things stand now. **How it got here — and why — is in [`HISTORY.md`](HISTORY.md)**; per-module architecture and function references are in `.claude/modules/`.
+
+- **auth** — `POST /auth/register`, `POST /auth/login` issuing JWTs, composed over CQRS with `users` (persistence) and `credentials` (bcrypt hashing/verification); `JwtAuthGuard`/`JwtStrategy` protect everything else.
+- **meetings** — `POST /meetings`, `GET /meetings`, `GET /meetings/:id`, guarded and scoped to the caller.
+- **files** — upload, list and byte-serving under `/meetings/:meetingId/files`, owner-scoped, behind an abstract `FileStorage` boundary (local disk today). Every limit is enforced at the route: 500 MB per file, content-sniffed type, 20 live files per meeting, 20 GB per owner (reserved in-process for the life of an upload), plus a 60-second inactivity timeout distinct from the app's 30-minute total. Soft delete, restore and a `FilesPurgeService` cron that purges 30 days after deletion.
+- The global throttler tracks callers by hashed credential rather than by socket.
+- Three test tiers — unit, integration, e2e — per the Development workflow section. Redis is still unused.
+
+Update this section when the current state changes, record the change itself in `HISTORY.md`, and add a `.claude/modules/module-api-<name>.md` doc for each new module per the root `CLAUDE.md`'s Module documentation section.

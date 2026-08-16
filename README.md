@@ -2,8 +2,10 @@
 
 Monorepo (npm workspaces) with two independent apps:
 
-- **apps/web** — [Next.js 16.2.12](https://nextjs.org/docs/app/getting-started/installation) (App Router, TypeScript, ESLint)
-- **apps/api** — [NestJS 11.1.28](https://docs.nestjs.com/) (TypeScript, ESLint, Prettier via eslint-plugin-prettier, Jest)
+- **apps/web** — [Next.js 16.3.1](https://nextjs.org/docs/app/getting-started/installation) (App Router, TypeScript, ESLint)
+- **apps/api** — [NestJS 11.2.1](https://docs.nestjs.com/) (TypeScript, ESLint, Prettier via eslint-plugin-prettier, Jest)
+
+Why the project is built the way it is — decisions, constraints and what was tried and rejected — is recorded in [`HISTORY.md`](HISTORY.md), with per-app logs in [`apps/api/HISTORY.md`](apps/api/HISTORY.md) and [`apps/web/HISTORY.md`](apps/web/HISTORY.md).
 
 ## Requirements
 
