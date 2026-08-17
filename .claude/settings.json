@@ -1,5 +1,87 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Bash(npm test)",
+      "Bash(npm run lint*)",
+      "Bash(npm run format*)",
+      "Bash(npm run test*)",
+      "Bash(npm run build*)",
+      "Bash(npm run db:up)",
+      "Bash(npm run db:down)",
+      "Bash(npm run prisma:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx prisma *)",
+      "Bash(npx prettier *)",
+      "Bash(npx jest *)",
+      "Bash(npx vitest *)",
+      "Bash(npx playwright *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Bash(docker compose *)",
+      "Bash(node .claude/*)",
+      "Bash(node plugins/bldprj/scripts/docs-lint.mjs*)",
+      "Bash(node --check *)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(jq *)",
+      "Bash(date*)",
+      "Bash(mkdir -p *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean*)",
+      "Bash(gh repo delete*)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Read(./.env)",
+      "Read(./.env.local)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-bash.js",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stop.js",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stop.js",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",

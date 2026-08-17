@@ -60,6 +60,12 @@ pnpm-debug.log*
 # Claude Code local overrides
 .claude/settings.local.json
 
+# ralph loop runtime state (config in .claude/ralph.config.json is committed; this is per-run)
+.claude/ralph.state.json
+.claude/ralph.stop
+.claude/ralph.lock
+.claude/ralph-logs/
+
 # playwright mcp screenshots
 /screenshots/
 
