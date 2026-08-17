@@ -55,7 +55,7 @@ Per-app specifics — how each tier is written, which tools it uses, and what ge
 
 ## Autonomous builds — the Ralph loop
 
-`node .claude/ralph-start.js` works a feature's backlog unattended, one fresh session per task. It does not replace `/bldprj:build-phase` — it runs the same contract, cut into sessions, and settles each phase through the skill itself. The contract every session reads is [`.claude/ralph.md`](.claude/ralph.md); the chain and its ceilings are `.claude/ralph.config.json` and `.claude/ralph/`.
+`node .claude/ralph-start.js` works a feature's backlog unattended, one fresh session per task. It does not replace `/bldprj:build-phase` — it runs the same contract, cut into sessions, and settles each phase through the skill itself. **How to run one: [`docs/ralph-loop.md`](docs/ralph-loop.md)** — commands, configuration, what to do when it stops. The contract every session reads is [`.claude/ralph.md`](.claude/ralph.md); the chain and its ceilings are `.claude/ralph.config.json` and `.claude/ralph/`.
 
 The loop merges its own PRs, so the gate is mechanical rather than human: `.claude/ralph/verify.js` re-runs the phase's whole check set and the docs linter, and merges only on exit code zero. `.claude/hooks/guard-bash.js` refuses the commands no unattended run may reach for (`--no-verify`, force pushes, pushes to `main`, `reset --hard`, `git clean`, `gh pr merge`, `migrate reset`). Halt any run with `touch .claude/ralph.stop`; see where it got to with `node .claude/ralph-start.js --status`. Why it is built this way is in [`HISTORY.md`](HISTORY.md).
 

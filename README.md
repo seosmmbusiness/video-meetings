@@ -81,3 +81,16 @@ npm run db:down         # stop
 - **Both apps are developed test-first (TDD)** across three tiers — unit (`*.spec.ts`), integration (`*.int-spec.ts`) and e2e — following Red/Green/Refactor outside in: the e2e spec for a scenario is written and its cases reviewed before implementation (red), then each unit it needs gets its own red unit/integration spec before the code that turns it green, refactors start only from a green baseline and re-run the suites after each step, and any test rewrite is confirmed with the requester first rather than done silently. E2e coverage on its own is not enough. `apps/api` runs Jest (three configs, split by filename); `apps/web` runs Vitest + React Testing Library for the two lower tiers and Playwright for e2e. See the root `CLAUDE.md`'s Testing section, then `apps/api/CLAUDE.md` / `apps/web/CLAUDE.md`.
 - Two Husky hooks, split so the red half of that cycle can be committed: `pre-commit` runs `npm run lint`, `pre-push` runs `npm test` (both apps' unit suites). A failing spec may be committed on a branch; the branch tip has to be green before it can be pushed. Neither gate runs the integration or e2e suites — those need Postgres up (`npm run db:up && npm run test:int:api && npm run test:e2e:api`), so run them yourself before opening a PR.
 - **apps/api** documents its HTTP surface with `@nestjs/swagger` (Swagger UI); every controller/route/DTO is annotated, and the generated docs are checked after adding or changing endpoints. See `apps/api/CLAUDE.md`.
+
+## Autonomous builds
+
+`node .claude/ralph-start.js` works a planned feature's backlog unattended — one session per task, following the same `/bldprj:build-phase` contract a hand-driven build does, and merging a phase only after re-running its whole check set itself. It needs the pipeline's documents and the GitHub backlog to exist first.
+
+```bash
+node .claude/ralph-start.js --dry-run    # decide and print every step, spawn nothing
+node .claude/ralph-start.js              # start
+node .claude/ralph-start.js --status     # where a run got to
+touch .claude/ralph.stop                 # halt it
+```
+
+Full guide — configuration, watching a run, and what to do when it stops: [`docs/ralph-loop.md`](docs/ralph-loop.md).
