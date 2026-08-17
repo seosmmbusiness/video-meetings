@@ -112,7 +112,10 @@ by someone with database access.
 
 - [ ] **AC-1** A signed-in user opening the profile page sees, in the server's first response, their
       email, their current name (blank when never set) and their current avatar (the default
-      placeholder when none is set) — no state that flips after the page hydrates.
+      placeholder when none is set) — no session state that flips after the page hydrates. Clarified
+      by T-1's sibling ruling **T-2** (2026-08-17): this is the project's no-flash rule about
+      signed-in state; the avatar image painting after its own markup is an ordinary resource load,
+      not a state flip.
 - [ ] **AC-2** Saving a name of 1–80 characters stores it with leading and trailing whitespace
       removed; reloading the profile page and the dashboard both show the stored value.
 - [ ] **AC-3** Saving a name longer than 80 characters after trimming is refused with a message
@@ -129,7 +132,10 @@ by someone with database access.
       naming the three accepted formats, and stores nothing — including a file renamed to `.png`
       whose content is something else.
 - [ ] **AC-9** Removing the avatar returns the profile page and the dashboard to the default
-      placeholder, and the removed image's bytes are no longer served.
+      placeholder, and the removed image's bytes are no longer served by the server. Amended by
+      **T-1** (2026-08-17): the owner's own browser may still paint its cached copy for up to 60
+      seconds if it re-requests the exact previous URL — nobody else can, and every change to the
+      avatar moves that URL.
 - [ ] **AC-10** A password change submitted with the correct current password succeeds and says so;
       the new password then works at `/login` and the old one is refused there.
 - [ ] **AC-11** A password change submitted with a wrong current password is refused with a message
@@ -183,6 +189,13 @@ by someone with database access.
   rather than a number stated here · `security-analyse` owns whether the current-password check
   needs a stricter one than the global 20 req/60 s, the way `/auth/login` does. **Settled**: it does
   — AC-20 below, added 2026-08-17.
+- **Asked** (2026-08-17, `pre-issues`) — Whether the avatar's `no-store` header or the no-resizing
+  fence should give way, given that together they cost up to 5 MB per dashboard render → **T-1**:
+  the header gives way (`private, max-age=60`), and AC-9 is amended to name the 60-second window it
+  opens in the owner's own browser. Resizing stays out of scope.
+- **Asked** (2026-08-17, `pre-issues`) — Whether AC-1's "no state that flips" forbids an avatar
+  fallback showing while the image loads → **T-2**: no; AC-1 is the no-flash rule about signed-in
+  state, and its wording now says so. No work changed.
 - **Asked** (2026-08-17, `security-analyse`) — Three controls the threat pass found reachable had no
   criterion to prove them against → the user raised all three: **AC-18** (S-1 — the users module's
   query returns the whole row, hash and revocation counter included), **AC-19** (S-3 — Server

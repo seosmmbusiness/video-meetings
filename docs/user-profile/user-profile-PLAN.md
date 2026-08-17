@@ -3,7 +3,7 @@
 **Key**: UP
 **PRD**: [user-profile-PRD.md](./user-profile-PRD.md)
 **Date**: 2026-08-17
-**Status**: preliminary
+**Status**: superseded by [user-profile-FINAL.md](./user-profile-FINAL.md)
 
 Six phases, alternating between the layer that owns the data and the layer that consumes it, one
 capability at a time: name, then avatar, then password. Each phase leaves both apps green and
