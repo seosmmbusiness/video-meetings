@@ -150,6 +150,13 @@ by someone with database access.
       page and the dashboard and executes nothing.
 - [ ] **AC-17** Neither the session token nor any password — current or new — appears in the profile
       page's HTML source, its client bundle, or any browser-visible response it makes.
+- [ ] **AC-18** No response from any profile route carries the account's password hash, its
+      session-revocation counter or its avatar storage key: each response body holds exactly the
+      fields the profile shows, and nothing else.
+- [ ] **AC-19** A profile Server Action invoked without a valid session — by a direct request rather
+      than through the rendered form — changes nothing and makes no call on the user's behalf.
+- [ ] **AC-20** The password-change route refuses more than 10 attempts per minute from one caller,
+      answering the refusal rather than checking the password an 11th time.
 
 ## Asked & assumed
 
@@ -174,4 +181,10 @@ by someone with database access.
   is wrong it is a one-line change in AC-2, AC-3 and the scope entry.
 - **Assumed** — Rate limiting on the password-change route follows the project's existing throttling
   rather than a number stated here · `security-analyse` owns whether the current-password check
-  needs a stricter one than the global 20 req/60 s, the way `/auth/login` does.
+  needs a stricter one than the global 20 req/60 s, the way `/auth/login` does. **Settled**: it does
+  — AC-20 below, added 2026-08-17.
+- **Asked** (2026-08-17, `security-analyse`) — Three controls the threat pass found reachable had no
+  criterion to prove them against → the user raised all three: **AC-18** (S-1 — the users module's
+  query returns the whole row, hash and revocation counter included), **AC-19** (S-3 — Server
+  Actions are reachable by direct POST, not only through the form), **AC-20** (S-4 — the
+  password route is a password oracle by construction). AC-1…AC-17 were left untouched.

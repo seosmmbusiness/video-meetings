@@ -14,8 +14,9 @@ usable — stopping after phase 2 leaves a working profile page with a name on i
 **Goal**: an account can hold a name, and the signed-in caller can read and change their own — and
 only their own.
 **Touches**: api · database
-**Covers**: AC-2, AC-3, AC-4, AC-15
+**Covers**: AC-2, AC-3, AC-4, AC-15, AC-18
 **Decisions**: D-1, D-2, D-3
+**Threats**: S-1, S-2
 **Verified by**: Red/Green/Refactor per `apps/api/CLAUDE.md`'s Development workflow — the e2e cases
 are written and reviewed with the requester first and land red in their own `test(api): …` commit,
 then each unit gets its `*.spec.ts` (or `*.int-spec.ts`, if it needs Postgres) red before the code
@@ -27,8 +28,9 @@ each at the tier that proves it. Suites: `npm run test:api`, `npm run test:int:a
 
 - [ ] **1.1** Cover reading and updating the caller's own name — tests: the e2e cases for AC-2,
       AC-3, AC-4 and AC-15 (another account's name is unreachable, and no path or body field is
-      accepted as the subject of the change), plus the trim/length and mass-assignment unit cases;
-      red before 1.2 starts.
+      accepted as the subject of the change), plus the trim/length and mass-assignment unit cases.
+      AC-18's case asserts the response body's **exact key set**, not merely the absence of one
+      field (S-1), and one case posts a NUL-bearing name (S-2); red before 1.2 starts.
 - [ ] **1.2** Give an account a name it can store — the `User` model gains
       `name String? @db.VarChar(80)` (D-2). One migration, `add_user_profile`, carries this phase's
       column and the ones phases 3 and 5 need (D-5, D-9) so the schema moves once; every
@@ -39,11 +41,15 @@ each at the tier that proves it. Suites: `npm run test:api`, `npm run test:int:a
       query (D-9), so its result shape has to carry more than the two display fields.
 - [ ] **1.4** Update the caller's own name — a command stores the name with leading and trailing
       whitespace removed, refuses one longer than 80 characters after trimming with the limit
-      stated, and treats an empty submission as clearing the name (AC-2, AC-3, AC-4).
+      stated, and treats an empty submission as clearing the name (AC-2, AC-3, AC-4). The DTO's
+      transform also strips C0 control bytes before the length check — normalise, don't reject, as
+      `FilesService` does with a file name — so a NUL cannot reach Postgres and answer 500 (S-2).
 - [ ] **1.5** Expose both behind the JWT guard — a new `src/profile` module (D-1) exposes
       `GET /profile` and `PATCH /profile`, guarded, resolving the subject from the verified token
       alone, never from a path segment or a body field, so there is nothing for a caller to point at
-      another account (AC-15); Swagger-annotated per `apps/api/CLAUDE.md`.
+      another account (AC-15); Swagger-annotated per `apps/api/CLAUDE.md`. Both answer through an
+      explicit `ProfileResponseDto` built field by field — never the Prisma row and never a spread,
+      because that row carries `passwordHash`, `tokenVersion` and `avatarKey` (S-1, AC-18).
 - [ ] **1.6** Update the users module doc — `.claude/modules/module-api-users.md` gains the new
       commands/queries, a new `.claude/modules/module-api-profile.md` covers the module from D-1,
       both get their rows in `.claude/modules/INDEX.md` and a pointer in `apps/api/CLAUDE.md`; JSDoc
@@ -59,8 +65,9 @@ aiming at another account.
 **Goal**: the user has a page showing their email and name, can change the name there, and the
 dashboard greets them by it instead of by their email address.
 **Touches**: web
-**Covers**: AC-1, AC-2, AC-3, AC-4, AC-5, AC-14, AC-16, AC-17
+**Covers**: AC-1, AC-2, AC-3, AC-4, AC-5, AC-14, AC-16, AC-17, AC-19
 **Decisions**: D-5, D-12, D-13
+**Threats**: S-3
 **Verified by**: "Tests come before the code, at every tier that applies — not e2e alone"
 (`apps/web/CLAUDE.md`, Development workflow): Vitest + RTL for `src/lib` and Client Components,
 Server Actions called directly as `*.int-spec.ts(x)`, Playwright for the page, its auth gate and
@@ -74,7 +81,9 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
 
 - [ ] **2.1** Cover the profile page and the dashboard's name — tests: Playwright cases for AC-1,
       AC-5, AC-14 and AC-16 plus AC-17's "no token in the HTML or the bundle", and Vitest cases for
-      the name form's feedback and the server-only profile client; red before 2.2 starts.
+      the name form's feedback and the server-only profile client. AC-19's case calls the exported
+      Server Action directly with `next/headers` mocked to no cookie and asserts no upstream `fetch`
+      happened (S-3); red before 2.2 starts.
 - [ ] **2.2** Read the caller's profile server-side — a server-only client for phase 1's routes,
       sitting beside `lib/meetings-api.ts` and throwing `ApiError` on a non-2xx exactly as it does
       (`.claude/modules/module-web-auth.md`).
@@ -86,7 +95,10 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
 - [ ] **2.4** Change the name from the page — a Server Action submits the name (D-12: fields go
       through actions, only bytes need a route), re-renders the page with the stored value on
       success and shows the API's refusal message verbatim on failure; any client-side feedback
-      mirrors the API's rules rather than replacing them (AC-2, AC-3, AC-4).
+      mirrors the API's rules rather than replacing them (AC-2, AC-3, AC-4). The action reads
+      `getSession()` as its first statement and returns the signed-out outcome without calling
+      `apps/api` — a Server Action is reachable by direct POST, not only through the form
+      (S-3, AC-19), exactly as `actions/files.ts` already guards.
 - [ ] **2.5** Greet the user by name on the dashboard — `/` shows the name when one is set and the
       email when not, in the server-rendered HTML, with no client-side read after mount (AC-5).
 - [ ] **2.6** Document the profile module — a new `.claude/modules/module-web-profile.md` per the
@@ -104,8 +116,9 @@ response; a name containing markup renders as text.
 **Goal**: an account can hold one avatar image — its owner uploads, replaces, fetches and removes
 it, and nobody else can fetch it.
 **Touches**: api · database · storage
-**Covers**: AC-6, AC-7, AC-8, AC-9, AC-15
+**Covers**: AC-6, AC-7, AC-8, AC-9, AC-15, AC-18
 **Decisions**: D-1, D-3, D-4, D-5, D-6, D-7, D-8
+**Threats**: S-1, S-5
 **Verified by**: same as phase 1 — Red/Green/Refactor per `apps/api/CLAUDE.md`'s Development
 workflow, e2e cases red and committed first, unit/integration inner loop after, mandatory security
 cases (IDOR on the bytes, auth bypass, refusal of a file whose content contradicts its name). D-4
@@ -117,7 +130,9 @@ green on the current code", then re-run after each step. Suites: `npm run test:a
 
 - [ ] **3.1** Cover avatar upload, serving and removal — tests: the e2e cases for AC-6, AC-7, AC-8,
       AC-9 and AC-15, including a file over 5 MB, a non-image renamed to `.png`, and another
-      account's avatar answering a refusal rather than bytes; red before 3.2 starts.
+      account's avatar answering a refusal rather than bytes; AC-18's key-set assertion on the
+      avatar routes' JSON (S-1), and an integration case proving a replaced avatar's bytes are gone
+      from storage (S-5); red before 3.2 starts.
 - [ ] **3.2** Give an account an avatar it can store — the avatar's four columns
       (`avatarKey @unique`, `avatarMimeType`, `avatarSize`, `avatarUpdatedAt`) land on `User` in the
       migration 1.2 created (D-5); every already-registered row starts without one, and the response
@@ -139,7 +154,9 @@ green on the current code", then re-run after each step. Suites: `npm run test:a
 - [ ] **3.5** Serve and remove the owner's avatar — guarded routes return the caller's own image
       bytes and remove it back to "no avatar", both resolving the subject from the verified token
       alone (AC-9, AC-15), with `Cache-Control: private, no-store`, `nosniff` and the
-      `root`+basename split `send` needs, all as the file content route already does (D-8).
+      `root`+basename split `send` needs, all as the file content route already does (D-8). Their
+      JSON answers go through the same explicit DTO as 1.5 — no storage key, no hash, no revocation
+      counter (S-1, AC-18).
 - [ ] **3.6** Update the storage, files and profile module docs — a new
       `.claude/modules/module-api-storage.md` for the extracted module, `module-api-files.md`
       pointing at it, `module-api-profile.md` gaining the avatar routes, `.claude/modules/INDEX.md`
@@ -199,8 +216,9 @@ reason on screen, removes it back to the placeholder; and the UI review pass has
 **Goal**: the owner changes their password by proving the current one, and every other session of
 that account stops working the moment they do.
 **Touches**: api · database
-**Covers**: AC-10, AC-11, AC-12, AC-13, AC-15
+**Covers**: AC-10, AC-11, AC-12, AC-13, AC-15, AC-18, AC-20
 **Decisions**: D-1, D-3, D-9, D-10, D-11
+**Threats**: S-1, S-4
 **Verified by**: same as phase 1, with the rate-limiting/brute-force class of `apps/api/CLAUDE.md`'s
 mandatory security cases applying here as it does to login — the current-password check is a
 credential check on a route a signed-in caller can hammer. E2e proves the revocation through real
@@ -211,13 +229,18 @@ HTTP with two tokens; the guard's own decision is a unit spec. Suites: `npm run 
 - [ ] **5.1** Cover the password change and session revocation — tests: the e2e cases for AC-10,
       AC-11, AC-12, AC-13 (a token minted before the change is refused after it, while the token
       that made the change keeps working) and AC-15, plus unit cases for the new password's rules
-      and the guard's revocation decision; red before 5.2 starts.
+      and the guard's revocation decision. AC-20's case fires 11 wrong-current-password attempts
+      inside the window and asserts the 11th is `429` (S-4); AC-18's asserts the response body holds
+      `accessToken` and nothing else (S-1); red before 5.2 starts.
 - [ ] **5.2** Change the password behind the current one — `PATCH /profile/password` verifies the
       current password through the credentials module's existing timing-safe verification
       (`.claude/modules/module-api-credentials.md`) and stores the new hash; a wrong current password
       is refused with **403**, not 401 — `apps/web` reads 401 as "signed out" and would sign the user
       out on a typo, and D-9 makes 401 the revoked-token answer (D-11) — changing nothing and ending
-      no session (AC-10, AC-11).
+      no session (AC-10, AC-11). The route carries
+      `@Throttle({ default: { limit: 10, ttl: 60_000 } })`, the same override `/auth/login` has:
+      it answers whether a supplied password is the account's, so it is a password oracle behind one
+      stolen session (S-4, AC-20).
 - [ ] **5.3** Hold the new password to the registration rules — the same length and complexity
       bounds `RegisterDto` enforces, with the failed rule named in the refusal (AC-12).
 - [ ] **5.4** Make a session revocable per account — `User.tokenVersion` (migration from 1.2), a
@@ -228,8 +251,10 @@ HTTP with two tokens; the guard's own decision is a unit spec. Suites: `npm run 
       `UPDATE` (D-9). This touches the authentication path of **every** guarded route.
 - [ ] **5.5** Keep the changing session alive — the route answers with a freshly signed token
       carrying the new `ver`, minted through auth's `IssueAccessTokenCommand` so the claim set lives
-      in one place (D-10); the caller continues without signing in again while every other token for
-      that account is refused on its next request (AC-13).
+      in one place (D-10), and the response body is `{ accessToken }` alone — the user row it was
+      built from never reaches the wire (S-1, AC-18). The token is signed **after** the increment,
+      so the caller continues without signing in again while every other token for that account is
+      refused on its next request (AC-13).
 - [ ] **5.6** Update the auth and credentials module docs — `.claude/modules/module-api-auth.md`
       (the revocation check and what the guard now reads), `module-api-users.md` and
       `module-api-credentials.md` where they change, Swagger for the new route and DTO, JSDoc, and
@@ -245,8 +270,9 @@ refused afterwards while the changing caller's own token still works.
 **Goal**: the user changes their password from the profile page and both outcomes land — their own
 session carries on, and a session revoked elsewhere ends up on `/login`.
 **Touches**: web
-**Covers**: AC-10, AC-11, AC-12, AC-13, AC-14, AC-17
+**Covers**: AC-10, AC-11, AC-12, AC-13, AC-14, AC-17, AC-19
 **Decisions**: D-9, D-11, D-12
+**Threats**: S-3, S-6
 **Verified by**: same as phase 2 — tests first at every tier: the Server Action and the session
 write as `*.int-spec.ts`, the form's confirmation feedback through Vitest + RTL, and the two-session
 behaviour through Playwright with a second browser context. Mandatory security cases: no password
@@ -257,17 +283,22 @@ protected page against a revoked session. UI reviewed with `web-design-guideline
 
 - [ ] **6.1** Cover the password form and the revoked session — tests: Playwright cases for AC-10,
       AC-11, AC-12 and AC-13 (a second browser context is refused after the first changes the
-      password) plus AC-17, and Vitest cases for the confirmation mismatch and the Server Action;
+      password) plus AC-17, and Vitest cases for the confirmation mismatch and the Server Action.
+      AC-19's case invokes the action with no cookie and asserts nothing was called (S-3); a further
+      case serialises the action's returned state and asserts it holds no JWT-shaped string (S-6);
       red before 6.2 starts.
 - [ ] **6.2** Change the password from the profile page — a form taking the current password, the
       new one and its confirmation, submitting through a Server Action (D-12), showing a
       confirmation on success and the API's refusal verbatim on failure; a **403** is a form error
       shown in place, never a sign-out (D-11); the mismatch gate runs server-side so it still holds
-      with JavaScript disabled (AC-10, AC-11, AC-12).
+      with JavaScript disabled (AC-10, AC-11, AC-12). Like 2.4, it reads `getSession()` first and
+      changes nothing without one (S-3, AC-19).
 - [ ] **6.3** Keep the caller signed in after the change — the `accessToken` phase 5 returns is
       written to the session cookie by the Server Action through the existing `setSessionCookie`, so
       the user continues without re-login and the token still never reaches the browser (D-10,
-      AC-13, AC-17).
+      AC-13, AC-17). The action's **returned state** carries `{ ok }` or `{ error }` and never the
+      token or the API's response object — an action's return value is serialised into the page
+      payload, where `httpOnly` protects nothing (S-6).
 - [ ] **6.4** Land a revoked session on `/login` — a `401` caused by a revoked token is treated as
       signed-out on every page that can meet it, the way `.claude/modules/module-web-auth.md`
       already treats a `401` from `listMeetings`; the profile client keeps `401` (signed out) and
@@ -319,3 +350,19 @@ the other to `/login` on its next action; and the UI review pass has run.
 - 2026-08-17 — 5.2 fixes 403 (not 401) for a wrong current password, 5.4 names
   `tokenVersion`/`ver`/`JwtStrategy`, 5.5 names `IssueAccessTokenCommand` — D-9, D-10, D-11.
 - 2026-08-17 — 6.2, 6.3 and 6.4 name the 401-vs-403 split and the cookie rewrite — D-10, D-11, D-12.
+- 2026-08-17 — phases 1, 2, 3, 5 and 6 gained their **Threats** line; AC-18 joined phases 1, 3 and
+  5's **Covers**, AC-19 phases 2 and 6's, AC-20 phase 5's — threats S-1…S-6, criteria approved by
+  the user the same day.
+- 2026-08-17 — 1.5, 3.5 and 5.5 now answer through an explicit DTO built field by field, never the
+  Prisma row (which carries `passwordHash`, `tokenVersion`, `avatarKey`) — threats S-1.
+- 2026-08-17 — 1.4 strips C0 control bytes in the DTO transform before the length check — threats
+  S-2.
+- 2026-08-17 — 2.4 and 6.2 check `getSession()` as their first statement, since a Server Action is
+  reachable by direct POST — threats S-3.
+- 2026-08-17 — 5.2 carries `@Throttle({ limit: 10, ttl: 60_000 })`, the `/auth/login` override —
+  threats S-4.
+- 2026-08-17 — 6.3's action returns `{ ok }`/`{ error }` and never the re-issued token — threats
+  S-6.
+- 2026-08-17 — 1.1, 2.1, 3.1, 5.1 and 6.1 gained the cases that prove the controls above — threats
+  S-1…S-6. No task number was added: every phase but 6 is at the five-building-task ceiling, and the
+  user ruled that controls go into the tasks that build their entry points.
