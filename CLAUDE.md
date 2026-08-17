@@ -53,6 +53,12 @@ The git hooks gate only what runs anywhere with no infrastructure: `pre-commit` 
 
 Per-app specifics — how each tier is written, which tools it uses, and what genuinely can't be tested below e2e — live in `apps/api/CLAUDE.md` and `apps/web/CLAUDE.md`.
 
+## Autonomous builds — the Ralph loop
+
+`node .claude/ralph-start.js` works a feature's backlog unattended, one fresh session per task. It does not replace `/bldprj:build-phase` — it runs the same contract, cut into sessions, and settles each phase through the skill itself. The contract every session reads is [`.claude/ralph.md`](.claude/ralph.md); the chain and its ceilings are `.claude/ralph.config.json` and `.claude/ralph/`.
+
+The loop merges its own PRs, so the gate is mechanical rather than human: `.claude/ralph/verify.js` re-runs the phase's whole check set and the docs linter, and merges only on exit code zero. `.claude/hooks/guard-bash.js` refuses the commands no unattended run may reach for (`--no-verify`, force pushes, pushes to `main`, `reset --hard`, `git clean`, `gh pr merge`, `migrate reset`). Halt any run with `touch .claude/ralph.stop`; see where it got to with `node .claude/ralph-start.js --status`. Why it is built this way is in [`HISTORY.md`](HISTORY.md).
+
 ## Module documentation
 
 CLAUDE.md files stay brief on purpose — one line per module, not full architecture write-ups. Detailed per-module docs (architecture + function-by-function reference) live in this repo under `.claude/modules/`, named `module-<app>-<name>.md` (e.g. `module-api-auth.md`), indexed in `.claude/modules/INDEX.md`. These are committed like any other file, so any teammate cloning the repo (or CI) can read them.
