@@ -161,6 +161,10 @@ function printStatus(config) {
   );
 }
 
+// A dry run decides and prints every link it would spawn, and spawns none. `lib` reads this each
+// time rather than at load, so setting it here reaches the spawn.
+if (flag('dry-run')) process.env.RALPH_DRY_RUN = '1';
+
 const config = lib.readConfig();
 
 if (flag('status')) {

@@ -28,8 +28,17 @@ const CONTRACT = path.join('.claude', 'ralph.md');
 /** Stages that need no session — `advance()` performs them and moves straight on. */
 const SILENT_STAGES = new Set(['merge', 'settle-merge', 'next']);
 
-/** True when the environment asks for a dry run: decide and print, spawn nothing. */
-const DRY = process.env.RALPH_DRY_RUN === '1';
+/**
+ * Whether this process is only deciding, not spawning.
+ *
+ * Read each time rather than captured at load, so a caller that parses its own `--dry-run` flag
+ * after requiring this module can still set it.
+ *
+ * @returns {boolean} True when `RALPH_DRY_RUN=1`.
+ */
+function isDry() {
+  return process.env.RALPH_DRY_RUN === '1';
+}
 
 /**
  * Reads the committed loop config.
@@ -340,7 +349,7 @@ function spawnLink(state, label, cmd, args) {
     runDir(state),
     `${String(state.sessions).padStart(3, '0')}-${label}.log`,
   );
-  if (DRY) {
+  if (isDry()) {
     process.stdout.write(
       `[dry-run] ${label}\n  ${cmd} ${args.map((a) => JSON.stringify(a)).join(' ')}\n  → ${logFile}\n`,
     );
@@ -836,7 +845,7 @@ module.exports = {
   STOP_PATH,
   LOCK_PATH,
   LOG_ROOT,
-  DRY,
+  isDry,
   advance,
   clearLock,
   event,
