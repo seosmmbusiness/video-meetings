@@ -39,8 +39,6 @@
       "Bash(git push origin HEAD:main*)",
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
-      "Bash(git rebase*)",
-      "Bash(gh pr merge*)",
       "Bash(gh repo delete*)",
       "Bash(npx prisma migrate reset*)",
       "Bash(rm -rf *)",
