@@ -269,9 +269,11 @@ What the repo already covers, so no plan task needs new code for it:
 - **Rejected**: fixed key (torn writes, stale caches); content-hash key (deduplication nobody asked
   for, and two users sharing one blob makes "no longer served" untrue for the other).
 - **Exposure**: keys are server-generated UUIDs under a per-user prefix and never leave the server
-  (D-5), so there is no user-controlled segment to traverse with. Orphaned bytes from a failed delete
-  are unreachable — no row references them — and are the one loose end this decision accepts (see
-  Risks).
+  (D-5), so there is no user-controlled segment to traverse with. Orphaned bytes are unreachable — no
+  row references them — and are the one loose end this decision accepts (see Risks); they arise two
+  ways, not one: a delete that fails **and** two uploads for the same account that interleave between
+  reading the old key and writing the new one, the second of which this line missed until S-5 named
+  it (round 2).
 - **Fits in at**: `apps/api/src/profile/profile.service.ts`, over `FileStorage` from D-4.
 - **Sources**: `apps/api/src/files/files.service.ts` (create/save/unlink ordering),
   `.claude/modules/module-api-files.md`.
@@ -406,10 +408,15 @@ What the repo already covers, so no plan task needs new code for it:
 - **Rejected**: everything through Server Actions (raises a global body limit to solve one route,
   and gives up the proxy's header allow-list); everything through Route Handlers (loses no-JS form
   submission for the name and password forms).
-- **Exposure**: the proxy is the seam where a session token could leak; `proxyToApi` already refuses
-  before any upstream call when there is no session, forwards only three request headers, and never
-  echoes the caller's own `Authorization`. Nothing about the avatar changes that contract — the route
-  passes `/profile/avatar` with no caller-controlled path segment at all.
+- **Exposure**: the proxy is **one** of two seams where a session token could leak; `proxyToApi`
+  already refuses before any upstream call when there is no session, forwards only three request
+  headers, and never echoes the caller's own `Authorization`. Nothing about the avatar changes that
+  contract — the route passes `/profile/avatar` with no caller-controlled path segment at all. The
+  second seam, which this line missed until S-6 named it (round 2), is the **return value** of a
+  Server Action: it is serialised into the page payload, so an action that returns the API's
+  response object — the password route's `{ accessToken }` above all — publishes a live token to the
+  browser, where `httpOnly` protects nothing. Actions return `{ ok }` / `{ error }`, never upstream
+  bodies. Reachability of the actions themselves is S-3's control, not this line's.
 - **Fits in at**: `apps/web/src/app/api/profile/avatar/route.ts`,
   `apps/web/src/app/actions/profile.ts`, `apps/web/src/lib/profile-api.ts`.
 - **Sources**: `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverActions.md`
@@ -444,28 +451,29 @@ What the repo already covers, so no plan task needs new code for it:
 
 Values implementation copies verbatim.
 
-| Name                                 | Value                                                                                                                                                                                 | Where                                                               | Source                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `MAX_NAME_LENGTH`                    | `80`                                                                                                                                                                                  | `profile.constants.ts`, `@db.VarChar(80)`                           | PRD AC-2/AC-3                                                       |
-| `MAX_AVATAR_BYTES`                   | `5_242_880` (5 MiB)                                                                                                                                                                   | `profile.constants.ts`, multer `limits.fileSize`, `AvatarSizeGuard` | PRD "5 MB"; binary reading matches `MAX_FILE_BYTES = 524_288_000`   |
-| `ACCEPTED_AVATAR_MIME_TYPES`         | `png → image/png`, `jpg → image/jpeg`, `webp → image/webp`                                                                                                                            | `profile.constants.ts`, passed to `FileTypeService.detect`          | PRD AC-8; all three detectable by `file-type@21.3.4`                |
-| `AVATAR_UPLOAD_IDLE_TIMEOUT_MS`      | `60_000`                                                                                                                                                                              | `AvatarSizeGuard` via `request.setTimeout`                          | mirrors `UPLOAD_IDLE_TIMEOUT_MS`                                    |
-| Avatar storage key                   | `users/<userId>/avatar/<randomUUID()>`                                                                                                                                                | `profile.service.ts`                                                | D-7                                                                 |
-| 413 message                          | `Avatar exceeds the 5 MB limit.`                                                                                                                                                      | `profile.constants.ts`                                              | shape of `FILE_SIZE_LIMIT_MESSAGE`                                  |
-| 415 message                          | `Unsupported image type. Accepted types: png, jpg, webp.`                                                                                                                             | `profile.constants.ts`                                              | shape of `UNSUPPORTED_TYPE_MESSAGE`                                 |
-| 400 name message                     | `Name must be 80 characters or fewer.`                                                                                                                                                | `update-profile.dto.ts`                                             | AC-3                                                                |
-| 403 message                          | `Current password is incorrect.`                                                                                                                                                      | `profile.service.ts`                                                | AC-11, D-11                                                         |
-| New-password rules                   | 8–72 chars, `PASSWORD_COMPLEXITY_REGEX` (≥1 lower, ≥1 upper, ≥1 digit)                                                                                                                | `change-password.dto.ts`                                            | reused from `RegisterDto`                                           |
-| Throttle — `PATCH /profile/password` | `{ limit: 10, ttl: 60_000 }`                                                                                                                                                          | route `@Throttle`                                                   | mirrors `/auth/login`; `security-analyse` owns the final number     |
-| Throttle — avatar `POST`/`DELETE`    | `{ limit: 30, ttl: 60_000 }`                                                                                                                                                          | route `@Throttle`                                                   | proposed, between login and file upload (60/60 s)                   |
-| Throttle — avatar `GET`              | `{ limit: 240, ttl: 60_000 }`                                                                                                                                                         | route `@Throttle`                                                   | matches the file content route — it is fetched on every page render |
-| Schema — `User`                      | `name String? @db.VarChar(80)`, `avatarKey String? @unique`, `avatarMimeType String? @db.VarChar(64)`, `avatarSize Int?`, `avatarUpdatedAt DateTime?`, `tokenVersion Int @default(0)` | one migration, `add_user_profile`                                   | D-2, D-5, D-9                                                       |
-| JWT payload                          | `{ sub, email, ver }`; a missing `ver` reads as `0`                                                                                                                                   | `issue-access-token.handler.ts`, `jwt.strategy.ts`                  | D-9, D-10                                                           |
-| API routes                           | `GET /profile`, `PATCH /profile`, `PATCH /profile/password`, `POST /profile/avatar`, `GET /profile/avatar`, `DELETE /profile/avatar`                                                  | `profile.controller.ts`                                             | D-1                                                                 |
-| Web routes                           | page `/profile`; proxy `/api/profile/avatar` (`GET`/`POST`/`DELETE`)                                                                                                                  | `apps/web/src/app/`                                                 | D-12                                                                |
-| Avatar cache headers                 | `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`                                                                                  | `profile.controller.ts`                                             | D-8                                                                 |
-| Avatar URL cache-buster              | `?v=<avatarUpdatedAt epoch ms>`                                                                                                                                                       | `user-avatar.tsx`                                                   | D-8                                                                 |
-| New env vars                         | **none** — `STORAGE_ROOT`, `JWT_SECRET`, `API_BASE_URL` all reused                                                                                                                    | —                                                                   | `.env.example`                                                      |
+| Name                                 | Value                                                                                                                                                                                   | Where                                                               | Source                                                                                     |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `MAX_NAME_LENGTH`                    | `80`                                                                                                                                                                                    | `profile.constants.ts`, `@db.VarChar(80)`                           | PRD AC-2/AC-3                                                                              |
+| Name normalisation (order matters)   | strip `U+0000`–`U+001F` and `U+007F`, then the bidi overrides/embeddings/isolates `U+202A`–`U+202E` and `U+2066`–`U+2069`; **keep** `U+200E`/`U+200F`; then trim; then `@MaxLength(80)` | `update-profile.dto.ts` `@Transform`, beside `normalizeEmail`       | S-4's sibling S-2 needs it (round 2); C0 rule from `FilesService`'s filename normalisation |
+| `MAX_AVATAR_BYTES`                   | `5_242_880` (5 MiB)                                                                                                                                                                     | `profile.constants.ts`, multer `limits.fileSize`, `AvatarSizeGuard` | PRD "5 MB"; binary reading matches `MAX_FILE_BYTES = 524_288_000`                          |
+| `ACCEPTED_AVATAR_MIME_TYPES`         | `png → image/png`, `jpg → image/jpeg`, `webp → image/webp`                                                                                                                              | `profile.constants.ts`, passed to `FileTypeService.detect`          | PRD AC-8; all three detectable by `file-type@21.3.4`                                       |
+| `AVATAR_UPLOAD_IDLE_TIMEOUT_MS`      | `60_000`                                                                                                                                                                                | `AvatarSizeGuard` via `request.setTimeout`                          | mirrors `UPLOAD_IDLE_TIMEOUT_MS`                                                           |
+| Avatar storage key                   | `users/<userId>/avatar/<randomUUID()>`                                                                                                                                                  | `profile.service.ts`                                                | D-7                                                                                        |
+| 413 message                          | `Avatar exceeds the 5 MB limit.`                                                                                                                                                        | `profile.constants.ts`                                              | shape of `FILE_SIZE_LIMIT_MESSAGE`                                                         |
+| 415 message                          | `Unsupported image type. Accepted types: png, jpg, webp.`                                                                                                                               | `profile.constants.ts`                                              | shape of `UNSUPPORTED_TYPE_MESSAGE`                                                        |
+| 400 name message                     | `Name must be 80 characters or fewer.`                                                                                                                                                  | `update-profile.dto.ts`                                             | AC-3                                                                                       |
+| 403 message                          | `Current password is incorrect.`                                                                                                                                                        | `profile.service.ts`                                                | AC-11, D-11                                                                                |
+| New-password rules                   | 8–72 chars, `PASSWORD_COMPLEXITY_REGEX` (≥1 lower, ≥1 upper, ≥1 digit)                                                                                                                  | `change-password.dto.ts`                                            | reused from `RegisterDto`                                                                  |
+| Throttle — `PATCH /profile/password` | `{ limit: 10, ttl: 60_000 }`                                                                                                                                                            | route `@Throttle`                                                   | mirrors `/auth/login`; **ratified** by S-4 and promised as AC-20, round 2                  |
+| Throttle — avatar `POST`/`DELETE`    | `{ limit: 30, ttl: 60_000 }`                                                                                                                                                            | route `@Throttle`                                                   | between login and file upload (60/60 s); **ratified** — S-5 is held partly on it, round 2  |
+| Throttle — avatar `GET`              | `{ limit: 240, ttl: 60_000 }`                                                                                                                                                           | route `@Throttle`                                                   | matches the file content route — it is fetched on every page render                        |
+| Schema — `User`                      | `name String? @db.VarChar(80)`, `avatarKey String? @unique`, `avatarMimeType String? @db.VarChar(64)`, `avatarSize Int?`, `avatarUpdatedAt DateTime?`, `tokenVersion Int @default(0)`   | one migration, `add_user_profile`                                   | D-2, D-5, D-9                                                                              |
+| JWT payload                          | `{ sub, email, ver }`; a missing `ver` reads as `0`                                                                                                                                     | `issue-access-token.handler.ts`, `jwt.strategy.ts`                  | D-9, D-10                                                                                  |
+| API routes                           | `GET /profile`, `PATCH /profile`, `PATCH /profile/password`, `POST /profile/avatar`, `GET /profile/avatar`, `DELETE /profile/avatar`                                                    | `profile.controller.ts`                                             | D-1                                                                                        |
+| Web routes                           | page `/profile`; proxy `/api/profile/avatar` (`GET`/`POST`/`DELETE`)                                                                                                                    | `apps/web/src/app/`                                                 | D-12                                                                                       |
+| Avatar cache headers                 | `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`                                                                                    | `profile.controller.ts`                                             | D-8                                                                                        |
+| Avatar URL cache-buster              | `?v=<avatarUpdatedAt epoch ms>`                                                                                                                                                         | `user-avatar.tsx`                                                   | D-8                                                                                        |
+| New env vars                         | **none** — `STORAGE_ROOT`, `JWT_SECRET`, `API_BASE_URL` all reused                                                                                                                      | —                                                                   | `.env.example`                                                                             |
 
 ## 6. Dependencies
 
@@ -524,7 +532,9 @@ the root one. `README.md` and `.env.example` need **no** change — no new scrip
   documented next step is a short-TTL cache keyed by user id — but only behind a Redis-optional
   fallback, and it would weaken AC-13 from "next request" to "within the TTL", which is a PRD
   change, not a research one.
-- **Orphaned avatar bytes.** A failed delete after a successful row update leaves unreachable bytes
+- **Orphaned avatar bytes.** A failed delete after a successful row update — or two uploads for the
+  same account interleaving between the read of the old key and the write of the new one (S-5,
+  round 2) — leaves unreachable bytes
   on disk. No user-visible effect and no quota to breach (avatars are outside the meeting-file
   accounting, D-5); a sweep could later be added to the existing `FilesPurgeService`, which already
   sweeps `<STORAGE_ROOT>/tmp`. Not planned in this iteration.
@@ -573,8 +583,32 @@ say so and `plan-phase` can re-cut; nothing else in this document changes.
 - **Assumed** — The profile's three sections live on one route, `/profile`, as the plan assumes ·
   splitting them changes only D-12's action/route inventory.
 - **Assumed** — The throttle numbers in Parameters are proposals inheriting from comparable existing
-  routes; `security-analyse` owns the final values, as the PRD already deferred.
+  routes; `security-analyse` owns the final values, as the PRD already deferred. **Settled in
+  round 2**: 10/60 s ratified by S-4 and promised as AC-20, 30/60 s ratified by S-5.
+- **Assumed** (round 2) — Name normalisation strips the bidi **overrides, embeddings and isolates**
+  (`U+202A`–`U+202E`, `U+2066`–`U+2069`) but keeps the plain marks `U+200E`/`U+200F`, because those
+  two are how a legitimate Hebrew or Arabic display name sets its direction · if the marks should go
+  too, it is one character class in the transform and one more unit case; if nothing but C0 should
+  be stripped, S-2's "a bidi override in, clean text out" case in task 1.1 has to go with it.
 
 ## Revisions
 
 <!-- One line per revision round: what moved and the S-<n> behind it, or that nothing did. -->
+
+- 2026-08-17 — round 2: read S-1…S-6 against D-1…D-13. **No decision superseded and no new one
+  taken** — trigger 1 (mechanism cannot carry the control) and trigger 3 (control needs a mechanism
+  nobody chose) fired on nothing: every one of the six controls is implementable on what D-1…D-13
+  already chose, and S-1's own parameter — the response DTO's field set — is already in D-5.
+- 2026-08-17 — round 2: trigger 2 — added the **Name normalisation** row to Parameters; S-2's
+  control strips control characters before the length check and this file named no set to strip.
+  The C0 half follows `FilesService`'s filename rule; the bidi half keeps `U+200E`/`U+200F` so an
+  RTL name survives (see Asked & assumed).
+- 2026-08-17 — round 2: trigger 2 — the password (10/60 s) and avatar write (30/60 s) throttle rows
+  shipped marked "proposed, `security-analyse` owns the final number". It does now: S-4 ratified the
+  first and AC-20 promises it, S-5 is held partly on the second. Values unchanged, sourcing fixed.
+- 2026-08-17 — round 2: trigger 5 — D-7's **Exposure** named only a failed delete as the way bytes
+  are orphaned; S-5 found the second, a concurrent-upload interleave. Line corrected, choice
+  untouched; §8's risk bullet follows it.
+- 2026-08-17 — round 2: trigger 5 — D-12's **Exposure** treated the proxy as the only seam a token
+  could leak through; S-6 found the second, a Server Action's return value being serialised into the
+  page payload. Line corrected, choice untouched.

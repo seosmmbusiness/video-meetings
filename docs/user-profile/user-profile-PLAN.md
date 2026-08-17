@@ -42,8 +42,10 @@ each at the tier that proves it. Suites: `npm run test:api`, `npm run test:int:a
 - [ ] **1.4** Update the caller's own name — a command stores the name with leading and trailing
       whitespace removed, refuses one longer than 80 characters after trimming with the limit
       stated, and treats an empty submission as clearing the name (AC-2, AC-3, AC-4). The DTO's
-      transform also strips C0 control bytes before the length check — normalise, don't reject, as
-      `FilesService` does with a file name — so a NUL cannot reach Postgres and answer 500 (S-2).
+      transform also strips the control characters listed in the research's **Name normalisation**
+      row — C0, DEL and the bidi overrides/isolates, keeping `U+200E`/`U+200F` — before the length
+      check, normalising rather than rejecting as `FilesService` does with a file name, so a NUL
+      cannot reach Postgres and answer 500 (S-2).
 - [ ] **1.5** Expose both behind the JWT guard — a new `src/profile` module (D-1) exposes
       `GET /profile` and `PATCH /profile`, guarded, resolving the subject from the verified token
       alone, never from a path segment or a body field, so there is nothing for a caller to point at
@@ -366,3 +368,6 @@ the other to `/login` on its next action; and the UI review pass has run.
 - 2026-08-17 — 1.1, 2.1, 3.1, 5.1 and 6.1 gained the cases that prove the controls above — threats
   S-1…S-6. No task number was added: every phase but 6 is at the five-building-task ceiling, and the
   user ruled that controls go into the tasks that build their entry points.
+- 2026-08-17 — research round 2: 1.4 now points at the **Name normalisation** parameter rather than
+  saying "C0 control bytes", since that row also covers DEL and the bidi overrides — research
+  round 2, trigger 2, behind threats S-2. Nothing else in the plan moved.
