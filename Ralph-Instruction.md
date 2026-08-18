@@ -5,6 +5,8 @@ cut off, what happens when it is cut off, and how to pick values for a feature o
 
 This is the operator's companion to [`docs/ralph-loop.md`](docs/ralph-loop.md), which covers running
 and watching a loop. Everything here is about `.claude/ralph.config.json` and its override layer.
+A Russian translation lives beside it in
+[`Ralph-Instruction-RU.md`](Ralph-Instruction-RU.md); this file is the one to change first.
 
 ## Where the settings live
 
@@ -255,6 +257,7 @@ grep -h '"type":"result"' .claude/ralph-logs/<runId>/*.jsonl \
 
 ## See also
 
+- [`Ralph-Instruction-RU.md`](Ralph-Instruction-RU.md) — the same document in Russian.
 - [`docs/ralph-loop.md`](docs/ralph-loop.md) — running, watching and steering a loop.
 - [`.claude/ralph.md`](.claude/ralph.md) — the contract every session reads.
 - [`HISTORY.md`](HISTORY.md) — why the loop is built this way.
