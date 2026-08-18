@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
+import { ProfileController } from './profile.controller';
+import { ProfileService } from './profile.service';
+
+/**
+ * Owns the signed-in caller's self-service routes (D-1); depends on
+ * {@link AuthModule} for the JWT guard that protects every one of them, and
+ * reaches persistence only over the CQRS buses.
+ */
+@Module({
+  imports: [AuthModule],
+  controllers: [ProfileController],
+  providers: [ProfileService],
+})
+export class ProfileModule {}
