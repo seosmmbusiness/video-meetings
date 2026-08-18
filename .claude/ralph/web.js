@@ -573,7 +573,12 @@ function createServer(opts) {
       try {
         body = await readBody(req);
       } catch (err) {
-        res.writeHead(400, { 'content-type': 'application/json' });
+        // The body was refused unread, so this connection cannot be reused: the parser would still
+        // be looking at the rest of it. Say so, and let node close the socket after the answer.
+        res.writeHead(400, {
+          'content-type': 'application/json',
+          connection: 'close',
+        });
         res.end(JSON.stringify({ ok: false, why: err.message }));
         return;
       }
@@ -606,9 +611,25 @@ function createServer(opts) {
 
   server.on('close', () => {
     clearInterval(tick);
-    for (const client of clients) client.end();
     clients.clear();
   });
+
+  /**
+   * Closes the dashboard, ending the streams first.
+   *
+   * `server.close()` on its own waits for open connections to end, and an SSE connection never ends
+   * on its own — so closing has to hang up on the streams before it asks the server to close, or it
+   * waits forever.
+   *
+   * @param {Function} [done] Called once the server is closed.
+   * @returns {void}
+   */
+  server.shutdown = (done) => {
+    clearInterval(tick);
+    for (const client of clients) client.end();
+    clients.clear();
+    server.close(done);
+  };
 
   /**
    * Tells the server which port it actually got, when it was asked to take any free one.

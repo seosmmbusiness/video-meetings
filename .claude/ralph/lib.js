@@ -13,6 +13,7 @@
  */
 
 const { spawn, spawnSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -30,6 +31,12 @@ const CONTRACT = path.join('.claude', 'ralph.md');
 
 /** Stages that need no session — `advance()` performs them and moves straight on. */
 const SILENT_STAGES = new Set(['merge', 'settle-merge', 'next']);
+
+/**
+ * The state a dry run composed, held in memory because a dry run writes nothing. Only ever read
+ * back under `RALPH_DRY_RUN`, so a real run cannot see it.
+ */
+let dryState = null;
 
 /**
  * Whether this process is only deciding, not spawning.
@@ -116,6 +123,7 @@ function readMs(config) {
  * @returns {object|null} The parsed state, or `null` when no run has been started.
  */
 function readState() {
+  if (isDry() && dryState) return dryState;
   if (!fs.existsSync(STATE_PATH)) return null;
   return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
 }
@@ -128,8 +136,13 @@ function readState() {
  */
 function writeState(state) {
   // A dry run decides and prints; it records nothing. Without this it would claim a run id, bump the
-  // session count and leave a lock behind, so the real run that followed would refuse to start.
-  if (isDry()) return;
+  // session count and leave a lock behind, so the real run that followed would refuse to start. The
+  // state it composes is kept in memory instead, because the decision it is about to print is made
+  // against that state and not against whatever an older run left on disk.
+  if (isDry()) {
+    dryState = state;
+    return;
+  }
   const tmp = `${STATE_PATH}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
   fs.renameSync(tmp, STATE_PATH);
@@ -274,6 +287,9 @@ function run(cmd, args, opts = {}) {
   });
   return {
     code: res.status === null ? 1 : res.status,
+    // A command killed by a signal exits with a null status, which is not the same thing as failing
+    // — the merge gate has to tell "the tests went red" from "somebody stopped the run".
+    signal: res.signal || null,
     stdout: res.stdout || '',
     stderr: res.stderr || (res.error ? String(res.error.message) : ''),
   };
@@ -770,10 +786,10 @@ function reconcile(config, ms, state) {
  *
  * @returns {boolean} True when the holder is gone, or has held it far longer than a decision takes.
  */
-function advanceLockStale() {
+function advanceLockStale(lockPath = ADVANCE_LOCK_PATH) {
   let held;
   try {
-    held = JSON.parse(fs.readFileSync(ADVANCE_LOCK_PATH, 'utf8'));
+    held = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
   } catch {
     return true;
   }
@@ -795,28 +811,56 @@ function advanceLockStale() {
  * task onto the same working tree. The claim is a file rather than anything in-process, because the
  * callers are separate processes.
  *
+ * @param {string} [lockPath] Where the claim is written; a suite passes a path of its own so it
+ *   never touches the lock a live run depends on.
  * @returns {Function|null} A release function, or `null` when somebody else is deciding.
  */
-function claimAdvance() {
+function claimAdvance(lockPath = ADVANCE_LOCK_PATH) {
+  const nonce = `${process.pid}-${crypto.randomUUID()}`;
+
+  /**
+   * Whether the lock on disk is still the one this call wrote.
+   *
+   * @returns {boolean} True when the file holds this claim's nonce.
+   */
+  const holdsIt = () => {
+    try {
+      return JSON.parse(fs.readFileSync(lockPath, 'utf8')).nonce === nonce;
+    } catch {
+      return false;
+    }
+  };
+
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const takeover = attempt > 0;
     try {
       fs.writeFileSync(
-        ADVANCE_LOCK_PATH,
-        `${JSON.stringify({ pid: process.pid, at: new Date().toISOString() })}\n`,
+        lockPath,
+        `${JSON.stringify({ pid: process.pid, nonce, at: new Date().toISOString() })}\n`,
         { flag: 'wx' },
       );
+      // Taking a stale lock is unlink-then-create, and two processes can interleave those and both
+      // believe they hold it. Waiting a moment and re-reading settles which of them actually does;
+      // the ordinary uncontended claim skips this entirely.
+      if (takeover) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+        if (!holdsIt()) return null;
+      }
       return () => {
+        // Only ever release a lock this call still owns, or a slow release would delete the claim
+        // somebody else has since made.
+        if (!holdsIt()) return;
         try {
-          fs.unlinkSync(ADVANCE_LOCK_PATH);
+          fs.unlinkSync(lockPath);
         } catch {
           /* already released */
         }
       };
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
-      if (!advanceLockStale()) return null;
+      if (!advanceLockStale(lockPath)) return null;
       try {
-        fs.unlinkSync(ADVANCE_LOCK_PATH);
+        fs.unlinkSync(lockPath);
       } catch {
         /* somebody else cleared it first */
       }
@@ -840,6 +884,10 @@ function advance(hookInput = {}) {
     process.stdout.write(
       'Ralph: not advancing — another decision is already in flight\n',
     );
+    // Recorded rather than only printed: this line is written into a detached step's log file that
+    // nobody is watching, and a chain that stopped here should be visible in the run's own history.
+    const held = readState();
+    if (held) event(held, { type: 'advance-refused', why: 'lock held' });
     return undefined;
   }
   try {

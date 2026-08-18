@@ -228,7 +228,9 @@ const state = {
 };
 
 if (option('stage')) state.stage = option('stage');
-if (lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
+// Starting a run clears the halt it is starting from — but a dry run must not, or looking at what
+// would happen next would quietly un-halt a loop somebody stopped on purpose.
+if (!flag('dry-run') && lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
 
 lib.writeState(state);
 lib.writeLock(state);

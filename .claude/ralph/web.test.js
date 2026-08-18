@@ -132,7 +132,7 @@ test('a request target URL refuses is answered, not crashed on', async () => {
     const after = await rawRequest(port, '/nothing-here');
     assert.match(after, /^HTTP\/1\.1 40[13]/, after.slice(0, 80));
   } finally {
-    server.close();
+    server.shutdown();
   }
 });
 
@@ -165,7 +165,7 @@ test('an oversized command body is refused with an answer, not a reset', async (
     assert.equal(response.status, 400);
     assert.match(response.body, /too large/);
   } finally {
-    server.close();
+    server.shutdown();
   }
 });
 
@@ -176,13 +176,15 @@ test('a snapshot that throws becomes an answer, not a dead dashboard', async () 
     throw new Error('the MS file is half-written');
   };
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/snapshot?token=${token}`);
+    const res = await fetch(`http://127.0.0.1:${port}/snapshot?token=${token}`, {
+      signal: AbortSignal.timeout(5000),
+    });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.ok, false);
     assert.match(body.why, /half-written/);
   } finally {
     monitor.snapshot = real;
-    server.close();
+    server.shutdown();
   }
 });

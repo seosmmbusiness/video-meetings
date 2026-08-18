@@ -36,7 +36,16 @@ function stopApiServer() {
   try {
     process.kill(-pid, 'SIGTERM');
   } catch {
-    /* already gone */
+    return; // already gone
+  }
+  // This process is usually about to exit, so there is no event loop left to wait on: block briefly
+  // and make sure. A dev server left holding port 3001 would answer the next merge gate's readiness
+  // probe and let a browser suite run green against the previous build.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 700);
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    /* it went on the first signal */
   }
 }
 
@@ -97,7 +106,7 @@ function waitForPort(port, timeoutMs) {
  * Runs one npm script and reports how it went.
  *
  * @param {string} script The root script name, e.g. `test:int:api`.
- * @returns {{ script: string, code: number, tail: string }} Its exit code and the tail of its output.
+ * @returns {{ script: string, code: number, signal: string|null, tail: string }} How it went.
  */
 function npmRun(script) {
   process.stdout.write(`\n=== npm run ${script} ===\n`);
@@ -105,13 +114,13 @@ function npmRun(script) {
   process.stdout.write(res.stdout);
   process.stdout.write(res.stderr);
   const tail = `${res.stdout}${res.stderr}`.split('\n').slice(-25).join('\n');
-  return { script, code: res.code, tail };
+  return { script, code: res.code, signal: res.signal, tail };
 }
 
 /**
  * Runs the pipeline's documentation linter, which every commit touching `docs/` has to pass.
  *
- * @returns {{ script: string, code: number, tail: string }} Its exit code and output tail.
+ * @returns {{ script: string, code: number, signal: string|null, tail: string }} How it went.
  */
 function docsLint() {
   process.stdout.write('\n=== docs-lint ===\n');
@@ -125,7 +134,7 @@ function docsLint() {
   process.stdout.write(res.stdout);
   process.stdout.write(res.stderr);
   const tail = `${res.stdout}${res.stderr}`.split('\n').slice(-25).join('\n');
-  return { script: 'docs-lint', code: res.code, tail };
+  return { script: 'docs-lint', code: res.code, signal: res.signal, tail };
 }
 
 /**
@@ -183,6 +192,19 @@ async function runChecks(config, phaseIndex, scope) {
 }
 
 /**
+ * The check that was killed rather than failed, if any.
+ *
+ * A command terminated by a signal comes back with no exit code, and the merge gate must not read
+ * that as a red check set: it is what being stopped looks like from in here.
+ *
+ * @param {Array<object>} results The check results so far.
+ * @returns {object|null} The killed check, or `null` when every check ran to an exit code.
+ */
+function abandoned(results) {
+  return (results || []).find((r) => r && r.signal) || null;
+}
+
+/**
  * Runs the checks, merges the PR when they all pass, and hands the chain on.
  *
  * @returns {Promise<void>} Resolves once the successor has been spawned or the chain has halted.
@@ -198,6 +220,19 @@ async function main() {
   }
 
   const results = await runChecks(config, opts.phaseIndex, opts.scope);
+
+  // Being killed is not a red check set. The monitor's Stop and Rollback write the stop or pause
+  // file *before* they signal this step's process group, and a check that dies with its parent comes
+  // back with a signal rather than an exit code — either way, what happened is that a person stopped
+  // the run, and reporting it as a failed gate would comment on the PR and halt with a false reason.
+  const aborted = abandoned(results);
+  if (aborted || lib.stopRequested() || lib.pauseRequested()) {
+    process.stdout.write(
+      `\nRalph: checks abandoned — ${aborted ? `\`${aborted.script}\` was killed by ${aborted.signal}` : 'the run was halted or paused while they ran'}. Nothing reported.\n`,
+    );
+    return;
+  }
+
   const receipt = {
     at: new Date().toISOString(),
     phase: opts.phaseIndex + 1,
@@ -256,8 +291,13 @@ async function main() {
   lib.advance();
 }
 
-main().catch((err) => {
-  const state = lib.readState();
-  lib.halt(`verify step threw: ${err.message}`, state);
-  process.exitCode = 1;
-});
+module.exports = { abandoned, parseArgs };
+
+// Only when run as a step of the chain: requiring this file — a suite does — must not merge a PR.
+if (require.main === module) {
+  main().catch((err) => {
+    const state = lib.readState();
+    lib.halt(`verify step threw: ${err.message}`, state);
+    process.exitCode = 1;
+  });
+}

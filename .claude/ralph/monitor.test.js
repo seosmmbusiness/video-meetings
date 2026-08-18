@@ -118,6 +118,26 @@ test('parseStream collects tool calls in order, newest last', () => {
   assert.equal(parsed.activity.at(-1).kind, 'tool');
 });
 
+test('parseStream finds the session id in a tail that lost the init line', () => {
+  // A long session's log is read from the end, so the id has to come off whatever line is there.
+  const parsed = monitor.parseStream(
+    [
+      assistantLine([{ type: 'text', text: 'still working' }], {
+        session_id: 'sess-A',
+      }),
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        session_id: 'sess-A',
+        total_cost_usd: 0.4,
+      }),
+    ].join('\n'),
+  );
+  assert.equal(parsed.sessionId, 'sess-A');
+  assert.equal(parsed.finished, true);
+});
+
 test('parseStream keeps assistant prose as activity of its own', () => {
   const parsed = monitor.parseStream(
     assistantLine([
@@ -738,8 +758,9 @@ test('planRollback does not take a done label off a bookend link', () => {
 });
 
 test('planRollback keeps back-one-task inside the phase it is in', () => {
+  // Phase 2 under way, with only phase 1's checkpoints recorded: they name a branch that has already
+  // merged, and must not be reachable from here.
   const plan = monitor.planRollback('back-one-task', {
-    // Phase 2, whose branch has no checkpoints yet — phase 1's must not be reachable from here.
     state: {
       phaseIndex: 1,
       stage: 'task',
@@ -747,11 +768,35 @@ test('planRollback keeps back-one-task inside the phase it is in', () => {
       checkpoints: CHECKPOINTS,
       link: null,
     },
-    ms: MS,
+    ms: {
+      ...MS,
+      phases: [
+        { ...MS.phases[0], status: 'completed' },
+        { ...MS.phases[1], status: 'in-progress', issues: [] },
+      ],
+    },
     config: { baseBranch: 'main' },
   });
   assert.equal(plan.ok, false);
   assert.match(plan.why, /checkpoint/i);
+});
+
+test('planRollback refuses back-one-task once the phase has left in-progress', () => {
+  for (const status of ['in-review', 'completed']) {
+    const plan = monitor.planRollback('back-one-task', {
+      state: {
+        phaseIndex: 0,
+        stage: 'settle',
+        currentIssue: null,
+        checkpoints: CHECKPOINTS,
+        link: null,
+      },
+      ms: { ...MS, phases: [{ ...MS.phases[0], status }, MS.phases[1]] },
+      config: { baseBranch: 'main' },
+    });
+    assert.equal(plan.ok, false, `${status} still offered a reset`);
+    assert.match(plan.why, new RegExp(status));
+  }
 });
 
 test('lastMerge means the phase PR, not the settle PR that followed it', () => {

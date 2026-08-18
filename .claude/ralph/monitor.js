@@ -200,8 +200,11 @@ function parseStream(text, opts = {}) {
   }
 
   for (const object of objects) {
+    // Every line carries the session id, and only the first carries `cwd` — which matters because a
+    // tail of a long log never contains that first line, and the id is what makes standing in for a
+    // finished session idempotent with its own late hook.
+    if (object.session_id) parsed.sessionId = object.session_id;
     if (object.type === 'system' && object.subtype === 'init') {
-      parsed.sessionId = object.session_id || parsed.sessionId;
       parsed.model = object.model || parsed.model;
       if (object.cwd) parsed.root = object.cwd;
       continue;
@@ -441,6 +444,15 @@ function planRollback(mode, ctx) {
       return {
         ok: false,
         why: 'no phase is in flight — nothing to walk back to',
+      };
+    }
+    // Only while the phase is still being worked. Once its PR is open or merged, the branch these
+    // checkpoints name is in review or in the base branch, and resetting it would rewrite history
+    // somebody else already has.
+    if (phase.status !== 'in-progress') {
+      return {
+        ok: false,
+        why: `phase ${phase.phase} is ${phase.status} — its tasks are no longer a rollback away`,
       };
     }
     const branch = lib.phaseBranch(ms, state.phaseIndex);
@@ -1037,6 +1049,27 @@ function waitForLink(state, graceMs = 8000, hardMs = 3000) {
 }
 
 /**
+ * Waits for whatever decision is in flight to finish, so what follows acts on the chain's settled
+ * state rather than on a snapshot that is about to change under it.
+ *
+ * @param {number} [timeoutMs] How long to wait before giving up.
+ * @returns {boolean} True when no decision is in flight any more.
+ */
+function settleDecision(timeoutMs = 3000) {
+  const clock = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const release = lib.claimAdvance();
+    if (release) {
+      release();
+      return true;
+    }
+    if (Date.now() >= deadline) return false;
+    Atomics.wait(clock, 0, 0, 100);
+  }
+}
+
+/**
  * Halts the run. The stop file goes down before anything is killed, so the dying session's own Stop
  * hook finds the halt already in place and spawns no successor.
  *
@@ -1050,7 +1083,12 @@ function stop(opts = {}) {
   if (!opts.kill)
     return { ok: true, why: 'halted — the link in flight finishes first' };
 
-  const killed = killLink(state, 'SIGTERM');
+  // A decision that began just before the halt landed is still allowed to spawn its link; waiting
+  // for it to finish means the kill reaches whatever is actually running, rather than the link that
+  // was running when the button was pressed.
+  settleDecision();
+  const current = lib.readState() || state;
+  const killed = killLink(current, 'SIGTERM');
   if (killed) {
     setTimeout(() => {
       const now = lib.readState();
@@ -1064,100 +1102,125 @@ function stop(opts = {}) {
 }
 
 /**
- * Runs a rollback: the plan is built first, the link in flight is killed, every step runs in order,
- * and the state the plan names is written only once they all succeeded.
+ * Runs a rollback.
+ *
+ * The order matters and is the whole safety of the thing. The right to decide is claimed first, so
+ * no hook can spawn a link into the middle of this; the state is read under that claim, so what is
+ * killed is what is actually running; the plan is built before anything is destroyed, so a refused
+ * rollback leaves the run exactly as it found it; and only then is the chain paused, the link killed
+ * and the steps run.
  *
  * @param {string} mode One of `ROLLBACK_MODES`' keys.
  * @param {object} [opts] `{ clean }` to drop untracked files as well.
  * @returns {{ ok: boolean, why: string, plan?: object, ran?: Array<object> }} The outcome.
  */
 function rollback(mode, opts = {}) {
-  const config = lib.readConfig();
-  const state = lib.readState();
-  if (!state) return { ok: false, why: 'no run state to roll back' };
-  let ms;
-  try {
-    ms = lib.readMs(config);
-  } catch (err) {
-    return { ok: false, why: `cannot read the MS file: ${err.message}` };
-  }
-
-  // The plan is built before anything is destroyed. A refused rollback — a mode with no checkpoint
-  // to walk back to, a revert with nothing merged — must leave the run exactly as it found it; the
-  // first cut killed the session first and left a refusal holding a dead chain.
-  const merge =
-    mode === 'revert-merge'
-      ? resolveMerge(lastMerge(readEvents(lib.runDir(state))))
-      : null;
-  const plan = planRollback(mode, {
-    state,
-    ms,
-    config,
-    merge,
-    clean: opts.clean,
-  });
-  if (!plan.ok) return plan;
-
-  // Only now: the pause goes down first, so a killed session's Stop hook finds the chain already
-  // held rather than spawning the next link into the middle of a reset. A pause somebody else set is
-  // left in place at the end rather than cleared on their behalf.
-  const wasPaused = lib.pauseRequested();
-  pause(`rollback: ${mode}`);
-  killLink(state, 'SIGTERM');
-  if (!waitForLink(state)) {
-    if (!wasPaused && fs.existsSync(lib.PAUSE_PATH))
-      fs.unlinkSync(lib.PAUSE_PATH);
+  const release = lib.claimAdvance();
+  if (!release) {
     return {
       ok: false,
-      why: `the link in flight (pid ${state.link.pid}) will not die — nothing was rolled back`,
+      why: 'the chain is deciding its next link — try again in a moment',
     };
   }
+  let spawnAfter = null;
+  try {
+    const config = lib.readConfig();
+    const state = lib.readState();
+    if (!state) return { ok: false, why: 'no run state to roll back' };
+    let ms;
+    try {
+      ms = lib.readMs(config);
+    } catch (err) {
+      return { ok: false, why: `cannot read the MS file: ${err.message}` };
+    }
 
-  const ran = [];
-  for (const step of plan.steps) {
-    const [cmd, ...args] = step.argv;
-    const result = lib.run(cmd, args);
-    ran.push({ argv: step.argv, code: result.code });
-    if (result.code !== 0 && !step.allowFail) {
-      record({ type: 'rollback-failed', mode, step: step.argv.join(' ') });
-      lib.halt(
-        `rollback (${mode}) stopped at \`${step.argv.join(' ')}\`: ${result.stderr.trim() || result.stdout.trim()}`,
-        state,
-      );
+    const merge =
+      mode === 'revert-merge'
+        ? resolveMerge(lastMerge(readEvents(lib.runDir(state))))
+        : null;
+    const plan = planRollback(mode, {
+      state,
+      ms,
+      config,
+      merge,
+      clean: opts.clean,
+    });
+    if (!plan.ok) return plan;
+
+    // The pause goes down before the kill, so a killed session's Stop hook finds the chain already
+    // held. A pause somebody else set is left in place at the end rather than cleared for them.
+    const wasPaused = lib.pauseRequested();
+    pause(`rollback: ${mode}`);
+    killLink(state, 'SIGTERM');
+    if (!waitForLink(state)) {
+      if (!wasPaused && fs.existsSync(lib.PAUSE_PATH))
+        fs.unlinkSync(lib.PAUSE_PATH);
       return {
         ok: false,
-        why: `\`${step.argv.join(' ')}\` exited ${result.code}`,
+        why: `the link in flight (pid ${state.link.pid}) will not die — nothing was rolled back`,
+      };
+    }
+
+    const ran = [];
+    for (const step of plan.steps) {
+      const [cmd, ...args] = step.argv;
+      const result = lib.run(cmd, args);
+      ran.push({ argv: step.argv, code: result.code });
+      if (result.code !== 0 && !step.allowFail) {
+        record({ type: 'rollback-failed', mode, step: step.argv.join(' ') });
+        lib.halt(
+          `rollback (${mode}) stopped at \`${step.argv.join(' ')}\`: ${result.stderr.trim() || result.stdout.trim()}`,
+          state,
+        );
+        return {
+          ok: false,
+          why: `\`${step.argv.join(' ')}\` exited ${result.code}`,
+          plan,
+          ran,
+        };
+      }
+    }
+
+    const next = lib.readState() || state;
+    Object.assign(next, plan.nextState);
+    lib.writeState(next);
+    record({
+      type: 'rollback',
+      mode,
+      target: plan.target,
+      backup: plan.backup,
+    });
+
+    if (plan.halts) {
+      lib.halt(`rolled back: ${plan.summary}`, next);
+      return {
+        ok: true,
+        why: `${plan.summary} — the run is halted`,
         plan,
         ran,
       };
     }
-  }
-
-  const next = lib.readState() || state;
-  Object.assign(next, plan.nextState);
-  lib.writeState(next);
-  record({ type: 'rollback', mode, target: plan.target, backup: plan.backup });
-
-  if (plan.halts) {
-    lib.halt(`rolled back: ${plan.summary}`, next);
-    return { ok: true, why: `${plan.summary} — the run is halted`, plan, ran };
-  }
-  if (wasPaused) {
+    if (wasPaused) {
+      return {
+        ok: true,
+        why: `${plan.summary} — still paused, as it was before the rollback`,
+        plan,
+        ran,
+      };
+    }
+    if (fs.existsSync(lib.PAUSE_PATH)) fs.unlinkSync(lib.PAUSE_PATH);
+    // Spawned after the claim is released, since the step it spawns has to claim it in turn.
+    spawnAfter = next;
     return {
       ok: true,
-      why: `${plan.summary} — still paused, as it was before the rollback`,
+      why: `${plan.summary} — the chain is running again`,
       plan,
       ran,
     };
+  } finally {
+    release();
+    if (spawnAfter) spawnAdvance(spawnAfter);
   }
-  if (fs.existsSync(lib.PAUSE_PATH)) fs.unlinkSync(lib.PAUSE_PATH);
-  spawnAdvance(next);
-  return {
-    ok: true,
-    why: `${plan.summary} — the chain is running again`,
-    plan,
-    ran,
-  };
 }
 
 /**
@@ -1208,6 +1271,7 @@ module.exports = {
   resume,
   rollback,
   runCost,
+  settleDecision,
   shortPath,
   snapshot,
   spawnAdvance,
