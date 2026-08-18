@@ -102,3 +102,6 @@ model, effort and ceilings the next session will get, and offers pause, stop and
 view leaves the run going.
 
 Full guide — configuration, watching a run, and what to do when it stops: [`docs/ralph-loop.md`](docs/ralph-loop.md).
+
+Turn and dollar ceilings — what they mean, what happens when a session hits one, how to recover it, and
+recommended settings from a small feature to a heavy one: [`Ralph-Instruction.md`](Ralph-Instruction.md).
