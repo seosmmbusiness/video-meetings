@@ -7,6 +7,7 @@ import type { User } from '../../generated/prisma/client';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserCommand } from './commands/create-user.command';
+import { UpdateUserNameCommand } from './commands/update-user-name.command';
 import { FindUserByEmailQuery } from './queries/find-user-by-email.query';
 import { FindUserByIdQuery } from './queries/find-user-by-id.query';
 import { UsersModule } from './users.module';
@@ -222,6 +223,122 @@ describe('Users module (integration)', () => {
       expect(found?.id).toBe(userB.id);
       expect(found?.email).toBe(emailB);
       expect(found?.id).not.toBe(userA.id);
+    });
+  });
+
+  describe('UpdateUserNameCommand', () => {
+    it("writes the name onto the caller's own row and answers with the updated row", async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      const updated = await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      expect(updated.id).toBe(created.id);
+      expect(updated.name).toBe('Ada Lovelace');
+      await expect(
+        prisma.user.findUnique({ where: { id: created.id } }),
+      ).resolves.toMatchObject({ name: 'Ada Lovelace' });
+    });
+
+    it('stores an empty name as NULL — that is how a name is cleared (AC-4)', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      // The DTO trims to '' rather than rejecting, so '' arriving here is the
+      // caller clearing their name, not a missing value.
+      const cleared = await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, ''),
+      );
+
+      expect(cleared.name).toBeNull();
+    });
+
+    it('stores an explicit null as NULL', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      const cleared = await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, null),
+      );
+
+      expect(cleared.name).toBeNull();
+    });
+
+    it('stores an 80-character name the DTO already normalised', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      const name = 'a'.repeat(80);
+
+      const updated = await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, name),
+      );
+
+      expect(updated.name).toBe(name);
+    });
+
+    it('writes nothing to any other account (the id from the token is the only key)', async () => {
+      const emailA = uniqueEmail();
+      const emailB = uniqueEmail();
+      createdEmails.push(emailA, emailB);
+
+      const userA = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailA, PASSWORD_HASH, true),
+      );
+      const userB = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailB, PASSWORD_HASH, true),
+      );
+
+      await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(userB.id, 'Only B'),
+      );
+
+      await expect(
+        prisma.user.findUnique({ where: { id: userA.id } }),
+      ).resolves.toMatchObject({ name: null });
+    });
+
+    it('leaves the rest of the row alone', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      const updated = await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      // The name is the only column this command owns: the credential and the
+      // revocation counter move through their own commands (D-3, D-9).
+      expect(updated.email).toBe(email);
+      expect(updated.passwordHash).toBe(PASSWORD_HASH);
+      expect(updated.tokenVersion).toBe(0);
+      expect(updated.avatarKey).toBeNull();
     });
   });
 
