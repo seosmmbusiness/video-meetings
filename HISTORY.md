@@ -16,6 +16,74 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-18 — Watching a Ralph run: two views over one monitor core
+
+The loop as first written was unwatchable. Sessions were spawned with `--output-format text`, which
+writes nothing to the log until the session has already ended, so a run in progress showed an empty
+file and `--status` showed one line of state — for a chain that spends hours and real money, that is
+not enough to decide anything. Sessions now write `stream-json`, which costs nothing and puts every
+tool call, turn, thinking estimate and the final cost into the log as it happens; a session log is
+`NNN-<stage>.jsonl`, a `node` step's is still `NNN-<stage>.log`, and `.claude/ralph/monitor.js`
+folds either into one snapshot.
+
+**Two views, one core, no decisions in either.** `--watch` draws a terminal panel and `--ui` serves a
+loopback dashboard; both render `monitor.snapshot()` and call the same commands, so neither can
+drift from the other or from the chain. A snapshot reads local files only — it is taken twice a
+second by every view — and GitHub is touched once, when a rollback needs the commit a merge landed
+as. Views attach to and detach from a running chain freely, because the chain is detached processes
+and never depended on a terminal.
+
+**Pause is not halt.** `.claude/ralph.pause` holds the chain at the next link boundary, keeping the
+link in flight; `.claude/ralph.stop` is still the halt, which means the loop refusing to go on. Both
+are checked in `guards()`, so a paused chain simply declines to spawn instead of needing anything
+killed. Stop can kill the link in flight, and when it does the stop file goes down **first** — a
+session killed while the chain was still open would have its own `Stop` hook spawn the successor.
+
+**Only one thing decides at a time.** `advance()` was safe by construction while the only caller was
+the link that had just ended; a Resume button broke that, because two views — or two clicks a second
+apart — each start a decision, and two decisions reconcile the same stage and spawn two sessions onto
+one working tree. Deciding now takes `.claude/ralph.advance.lock` first, a file rather than anything
+in-process, since the callers are separate processes. Resume also stopped treating a live pid as
+proof the chain will move on: a session whose hook fired while the pause was down had its one chance
+refused, so the monitor reads the link's own log, and when the log shows the session over it stands
+in for it — passing that session's id, so the marker that already makes `Stop` and `SessionEnd`
+idempotent covers the stand-in too.
+
+**Rollback is planned before it runs.** Resetting a branch or reverting a merge from a keypress is
+exactly the sort of thing that is regretted at 3 a.m., so `planRollback()` returns the argv of every
+step as data, the suite asserts them, and the view shows what it is about to do before it does it.
+The plan is also built **before** anything is killed: the first cut killed the session first, so a
+mode that turned out to be impossible — "undo the last finished task" while the phase's first task is
+still running — left a dead session, no successor and a silently stopped build.
+Three modes: restart the current link, undo the last finished task, or revert a merged phase PR. The
+first two rewind to a checkpoint the chain records immediately before each link — the chain takes it,
+not the monitor, because only the chain knows the instant a link begins — and anything discarded is
+kept on a `ralph-backup/<runId>-<stamp>` branch. The revert never pushes to the base branch: it opens
+a PR and halts the run, which keeps the loop's own rule that nothing reaches `main` except through a
+merge.
+
+**Settings change the next link, not the running one.** Model, fallback, effort, turn ceilings,
+budget and retries are editable from either view and land in `.claude/ralph.overrides.json`
+(gitignored), merged over the committed config at spawn time. The config stays the record of what the
+run was asked to do. `effort` is new to the config as well, passed through as `claude --effort`.
+Workers is displayed and deliberately fixed at `1`: the chain shares one working tree and one branch,
+and its guarantees about commit order and the red-before-green sequence come from being serial.
+
+**The dashboard is a control surface, so it is treated as one.** It binds `127.0.0.1`, every request
+carries a token minted at startup, cross-origin requests are refused, and a `Host` header that is not
+the loopback is refused too — that last one is what DNS rebinding looks like, and without it a page
+in the same browser could halt a build. The terminal view strips control characters out of everything
+it prints, because the activity lines come from a log a session wrote and a terminal that renders
+escape sequences out of a log is a terminal that log can drive.
+
+One thing the checkpoints exposed on the way: `--dry-run` was not dry. It wrote state, claimed a run
+id, bumped the session count and left a lock behind, so the real run that followed refused to start
+against a lock nobody held. `writeState`, `writeLock`, `event` and `halt` now return early under
+`RALPH_DRY_RUN`, and a dry run decides and prints exactly as before while recording nothing.
+
+`npm run test:tools` runs the tooling suites (`.claude/hooks` and `.claude/ralph`). It is not wired
+into `npm test`, which stays what `pre-push` gates on — the two apps' unit suites.
+
 ### 2026-08-18 — The Ralph loop: unattended builds, one session per task
 
 `node .claude/ralph-start.js` now works a feature's backlog without a person driving each step. The first cut of it drove the loop from a `Stop` hook that called `execSync('claude -p …')`, and that shape cannot work: hooks are killed at their timeout — 60 s by default — while the session inside was given 500 turns, and because the child inherits the same `settings.json`, its own `Stop` hook launched a grandchild _inside_ the child, nesting the chain instead of advancing it. The rewrite keeps the hook as the driver but makes it a tail call: it reads its stdin, decides, spawns one **detached** successor with `spawn(..., { detached: true })` and exits in ~20 ms. `SessionEnd` runs the same script as a backstop for a session that dies on its turn ceiling without `Stop` firing, and a per-session marker file makes the pair idempotent so the two events cannot spawn two successors.

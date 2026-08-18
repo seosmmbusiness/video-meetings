@@ -13,6 +13,7 @@
  */
 
 const { spawn, spawnSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -21,12 +22,21 @@ const CLAUDE_DIR = path.join(ROOT, '.claude');
 const CONFIG_PATH = path.join(CLAUDE_DIR, 'ralph.config.json');
 const STATE_PATH = path.join(CLAUDE_DIR, 'ralph.state.json');
 const STOP_PATH = path.join(CLAUDE_DIR, 'ralph.stop');
+const PAUSE_PATH = path.join(CLAUDE_DIR, 'ralph.pause');
+const OVERRIDES_PATH = path.join(CLAUDE_DIR, 'ralph.overrides.json');
 const LOCK_PATH = path.join(CLAUDE_DIR, 'ralph.lock');
+const ADVANCE_LOCK_PATH = path.join(CLAUDE_DIR, 'ralph.advance.lock');
 const LOG_ROOT = path.join(CLAUDE_DIR, 'ralph-logs');
 const CONTRACT = path.join('.claude', 'ralph.md');
 
 /** Stages that need no session — `advance()` performs them and moves straight on. */
 const SILENT_STAGES = new Set(['merge', 'settle-merge', 'next']);
+
+/**
+ * The state a dry run composed, held in memory because a dry run writes nothing. Only ever read
+ * back under `RALPH_DRY_RUN`, so a real run cannot see it.
+ */
+let dryState = null;
 
 /**
  * Whether this process is only deciding, not spawning.
@@ -51,6 +61,52 @@ function readConfig() {
 }
 
 /**
+ * Reads the settings a monitor has changed while the run was in flight.
+ *
+ * These live outside the committed config on purpose: the config is the run's record of what it was
+ * meant to do, and a person turning the model down at two in the morning is not that record.
+ *
+ * @returns {object} The overrides, or an empty object when none have been set.
+ */
+function readOverrides() {
+  if (!fs.existsSync(OVERRIDES_PATH)) return {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(OVERRIDES_PATH, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Merges a patch into the overrides file, dropping any key set back to `null`.
+ *
+ * @param {object} patch The settings to change.
+ * @returns {object} The overrides as they now stand.
+ */
+function writeOverrides(patch) {
+  const next = { ...readOverrides() };
+  for (const [key, value] of Object.entries(patch || {})) {
+    if (value === null || value === undefined) delete next[key];
+    else next[key] = value;
+  }
+  const tmp = `${OVERRIDES_PATH}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(next, null, 2)}\n`);
+  fs.renameSync(tmp, OVERRIDES_PATH);
+  return next;
+}
+
+/**
+ * The config a link is actually spawned with: what is committed, with the run's overrides on top.
+ *
+ * @param {object} [config] The committed config; read from disk when omitted.
+ * @returns {object} The effective config.
+ */
+function effectiveConfig(config = readConfig()) {
+  return { ...config, ...readOverrides() };
+}
+
+/**
  * Reads the feature's milestone map, which the pipeline's skills keep current.
  *
  * @param {object} config The loop config, for its `ms` path.
@@ -67,6 +123,7 @@ function readMs(config) {
  * @returns {object|null} The parsed state, or `null` when no run has been started.
  */
 function readState() {
+  if (isDry() && dryState) return dryState;
   if (!fs.existsSync(STATE_PATH)) return null;
   return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
 }
@@ -78,6 +135,14 @@ function readState() {
  * @returns {void}
  */
 function writeState(state) {
+  // A dry run decides and prints; it records nothing. Without this it would claim a run id, bump the
+  // session count and leave a lock behind, so the real run that followed would refuse to start. The
+  // state it composes is kept in memory instead, because the decision it is about to print is made
+  // against that state and not against whatever an older run left on disk.
+  if (isDry()) {
+    dryState = state;
+    return;
+  }
   const tmp = `${STATE_PATH}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, `${JSON.stringify(state, null, 2)}\n`);
   fs.renameSync(tmp, STATE_PATH);
@@ -93,6 +158,33 @@ function stopRequested() {
 }
 
 /**
+ * Why the chain was halted.
+ *
+ * @returns {string|null} The stop file's contents, or `null` when no halt is in place.
+ */
+function stopReason() {
+  if (!stopRequested()) return null;
+  try {
+    return fs.readFileSync(STOP_PATH, 'utf8').trim() || 'halted';
+  } catch {
+    return 'halted';
+  }
+}
+
+/**
+ * Whether the chain is being held at the next link boundary.
+ *
+ * A pause differs from a halt in what it means rather than in what it does: a halt is the loop
+ * refusing to go on, and needs a person to decide something; a pause is a person holding it, and is
+ * lifted by pressing the same button again.
+ *
+ * @returns {boolean} True when the pause file exists.
+ */
+function pauseRequested() {
+  return fs.existsSync(PAUSE_PATH);
+}
+
+/**
  * Halts the chain: writes the stop file with a reason and records the halt in the event log.
  *
  * @param {string} reason Why the chain stopped, in enough detail to act on.
@@ -100,8 +192,10 @@ function stopRequested() {
  * @returns {void}
  */
 function halt(reason, state = null) {
-  fs.writeFileSync(STOP_PATH, `${new Date().toISOString()} ${reason}\n`);
-  if (state) event(state, { type: 'halt', reason });
+  if (!isDry()) {
+    fs.writeFileSync(STOP_PATH, `${new Date().toISOString()} ${reason}\n`);
+    if (state) event(state, { type: 'halt', reason });
+  }
   process.stdout.write(`⛔ Ralph halted: ${reason}\n`);
 }
 
@@ -113,7 +207,9 @@ function halt(reason, state = null) {
  */
 function runDir(state) {
   const dir = path.join(LOG_ROOT, String(state.runId));
-  fs.mkdirSync(dir, { recursive: true });
+  // A dry run wants the path for the line it prints, not the directory: creating one would leave an
+  // empty run behind every time somebody looked at what the loop would do next.
+  if (!isDry()) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
@@ -125,6 +221,7 @@ function runDir(state) {
  * @returns {void}
  */
 function event(state, entry) {
+  if (isDry()) return;
   const line = {
     at: new Date().toISOString(),
     phase: state.phaseIndex + 1,
@@ -144,6 +241,7 @@ function event(state, entry) {
  * @returns {void}
  */
 function writeLock(state) {
+  if (isDry()) return;
   fs.writeFileSync(
     LOCK_PATH,
     `${JSON.stringify({ runId: state.runId, pid: process.pid })}\n`,
@@ -191,6 +289,9 @@ function run(cmd, args, opts = {}) {
   });
   return {
     code: res.status === null ? 1 : res.status,
+    // A command killed by a signal exits with a null status, which is not the same thing as failing
+    // — the merge gate has to tell "the tests went red" from "somebody stopped the run".
+    signal: res.signal || null,
     stdout: res.stdout || '',
     stderr: res.stderr || (res.error ? String(res.error.message) : ''),
   };
@@ -342,12 +443,14 @@ function settleBranch(ms, phaseIndex) {
  * @param {string} label What this link is, used for the log filename.
  * @param {string} cmd The executable.
  * @param {string[]} args Its argv.
- * @returns {string|null} The log file's path, or `null` on a dry run.
+ * @param {string} [ext] The log's extension — `jsonl` for a session's event stream, `log` for a step.
+ * @returns {{ log: string, pid: number|null }|null} Where it writes and what it is, or `null` on a
+ *   dry run.
  */
-function spawnLink(state, label, cmd, args) {
+function spawnLink(state, label, cmd, args, ext = 'log') {
   const logFile = path.join(
     runDir(state),
-    `${String(state.sessions).padStart(3, '0')}-${label}.log`,
+    `${String(state.sessions).padStart(3, '0')}-${label}.${ext}`,
   );
   if (isDry()) {
     process.stdout.write(
@@ -365,18 +468,23 @@ function spawnLink(state, label, cmd, args) {
     env: { ...process.env, RALPH_LINK: String(state.runId) },
   });
   child.unref();
-  return logFile;
+  return { log: logFile, pid: child.pid || null };
 }
 
 /**
  * Spawns a headless Claude session for one link of the chain.
  *
- * @param {object} config The loop config, for model, ceilings and permission mode.
+ * The session writes `stream-json` rather than text, which costs nothing and is the whole reason a
+ * person can watch a run: every tool call, turn and cost lands in the log as it happens, instead of
+ * one block of prose arriving after the session has already ended.
+ *
+ * @param {object} config The effective config, for model, effort, ceilings and permission mode.
  * @param {object} state The current state.
  * @param {string} label What this session is, used for the log filename.
  * @param {string} prompt The session's whole instruction.
  * @param {number} maxTurns The turn ceiling for this session.
- * @returns {string|null} The log file's path, or `null` on a dry run.
+ * @returns {{ log: string, pid: number|null }|null} Where it writes and what it is, or `null` on a
+ *   dry run.
  */
 function spawnSession(config, state, label, prompt, maxTurns) {
   const args = [
@@ -389,13 +497,15 @@ function spawnSession(config, state, label, prompt, maxTurns) {
     '--permission-mode',
     'acceptEdits',
     '--output-format',
-    'text',
+    'stream-json',
+    '--verbose',
   ];
+  if (config.effort) args.push('--effort', config.effort);
   if (config.fallbackModel) args.push('--fallback-model', config.fallbackModel);
   if (config.maxBudgetUsdPerSession) {
     args.push('--max-budget-usd', String(config.maxBudgetUsdPerSession));
   }
-  return spawnLink(state, label, 'claude', args);
+  return spawnLink(state, label, 'claude', args, 'jsonl');
 }
 
 /**
@@ -404,7 +514,8 @@ function spawnSession(config, state, label, prompt, maxTurns) {
  * @param {object} state The current state.
  * @param {string} label What this step is, used for the log filename.
  * @param {string[]} args Arguments after the node executable.
- * @returns {string|null} The log file's path, or `null` on a dry run.
+ * @returns {{ log: string, pid: number|null }|null} Where it writes and what it is, or `null` on a
+ *   dry run.
  */
 function spawnStep(state, label, args) {
   return spawnLink(state, label, process.execPath, args);
@@ -510,6 +621,11 @@ function guards(config, state, hookInput = {}) {
       ok: false,
       why: `stop requested: ${fs.readFileSync(STOP_PATH, 'utf8').trim()}`,
     };
+  if (pauseRequested())
+    return {
+      ok: false,
+      why: `paused: ${fs.readFileSync(PAUSE_PATH, 'utf8').trim()}`,
+    };
   if (hookInput.stop_hook_active)
     return { ok: false, why: 'stop_hook_active — refusing to re-enter' };
 
@@ -571,6 +687,48 @@ function markAdvanced(state, sessionId) {
 }
 
 /**
+ * Where the tree stands right before a link is spawned — the point a rollback returns to.
+ *
+ * Taken by the chain rather than by the monitor, because only the chain knows the instant a link
+ * begins, and a checkpoint taken a moment later would already include that link's first commit.
+ *
+ * @param {string} stage The stage about to run.
+ * @param {number|null} issue The issue that stage is working, when it has one.
+ * @returns {{ at: string, stage: string, issue: number|null, sha: string, branch: string }} The
+ *   checkpoint.
+ */
+function checkpoint(stage, issue) {
+  return {
+    at: new Date().toISOString(),
+    stage,
+    issue: issue || null,
+    sha: run('git', ['rev-parse', 'HEAD']).stdout.trim(),
+    branch: run('git', ['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim(),
+  };
+}
+
+/**
+ * Records the link about to run, so a view can say what is in flight and a rollback knows what to
+ * undo. Checkpoints are capped: a long run keeps its recent history, not all of it.
+ *
+ * @param {object} state The current state, mutated in place.
+ * @param {object} link `{ kind, stage, label, issue, model, effort }` describing the link.
+ * @returns {object} The checkpoint taken for it.
+ */
+function beginLink(state, link) {
+  const point = checkpoint(link.stage, link.issue);
+  state.checkpoints = [...(state.checkpoints || []), point].slice(-50);
+  state.link = {
+    ...link,
+    startedAt: point.at,
+    checkpoint: point,
+    pid: null,
+    log: null,
+  };
+  return point;
+}
+
+/**
  * Reconciles the stage the state claims with what the MS file and GitHub actually show, and returns
  * the stage to act on. State is authoritative for the sub-steps the pipeline does not record; the MS
  * file wins wherever it disagrees, so a chain restarted by hand recovers instead of repeating work.
@@ -626,15 +784,129 @@ function reconcile(config, ms, state) {
 }
 
 /**
+ * Whether the lock a previous decision left behind can be taken from it.
+ *
+ * @returns {boolean} True when the holder is gone, or has held it far longer than a decision takes.
+ */
+function advanceLockStale(lockPath = ADVANCE_LOCK_PATH) {
+  let held;
+  try {
+    held = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+  } catch {
+    return true;
+  }
+  if (!held || !held.pid) return true;
+  try {
+    process.kill(held.pid, 0);
+  } catch (err) {
+    if (err.code !== 'EPERM') return true;
+  }
+  return Date.now() - Date.parse(held.at || 0) > 10 * 60_000;
+}
+
+/**
+ * Claims the right to decide what happens next.
+ *
+ * Deciding used to be safe by construction: only the link that had just ended ever called
+ * `advance()`. A monitor's Resume button broke that — two views, or two clicks a second apart, can
+ * each start a decision, and each would reconcile the same stage and spawn a session for the same
+ * task onto the same working tree. The claim is a file rather than anything in-process, because the
+ * callers are separate processes.
+ *
+ * @param {string} [lockPath] Where the claim is written; a suite passes a path of its own so it
+ *   never touches the lock a live run depends on.
+ * @returns {Function|null} A release function, or `null` when somebody else is deciding.
+ */
+function claimAdvance(lockPath = ADVANCE_LOCK_PATH) {
+  const nonce = `${process.pid}-${crypto.randomUUID()}`;
+
+  /**
+   * Whether the lock on disk is still the one this call wrote.
+   *
+   * @returns {boolean} True when the file holds this claim's nonce.
+   */
+  const holdsIt = () => {
+    try {
+      return JSON.parse(fs.readFileSync(lockPath, 'utf8')).nonce === nonce;
+    } catch {
+      return false;
+    }
+  };
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const takeover = attempt > 0;
+    try {
+      fs.writeFileSync(
+        lockPath,
+        `${JSON.stringify({ pid: process.pid, nonce, at: new Date().toISOString() })}\n`,
+        { flag: 'wx' },
+      );
+      // Taking a stale lock is unlink-then-create, and two processes can interleave those and both
+      // believe they hold it. Waiting a moment and re-reading settles which of them actually does;
+      // the ordinary uncontended claim skips this entirely.
+      if (takeover) {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+        if (!holdsIt()) return null;
+      }
+      return () => {
+        // Only ever release a lock this call still owns, or a slow release would delete the claim
+        // somebody else has since made.
+        if (!holdsIt()) return;
+        try {
+          fs.unlinkSync(lockPath);
+        } catch {
+          /* already released */
+        }
+      };
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      if (!advanceLockStale(lockPath)) return null;
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {
+        /* somebody else cleared it first */
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Works out the next link of the chain and spawns it. The one entry point every caller shares —
- * the Stop hook, the verify step and the start script — so the loop has exactly one place that
- * decides what happens next.
+ * the Stop hook, the verify step, the start script and a monitor's Resume — so the loop has exactly
+ * one place that decides what happens next, and only one decision at a time.
  *
  * @param {object} [hookInput] The hook's parsed stdin, when a hook is the caller.
  * @returns {void}
  */
 function advance(hookInput = {}) {
-  const config = readConfig();
+  if (isDry()) return decide(hookInput);
+  const release = claimAdvance();
+  if (!release) {
+    process.stdout.write(
+      'Ralph: not advancing — another decision is already in flight\n',
+    );
+    // Recorded rather than only printed: this line is written into a detached step's log file that
+    // nobody is watching, and a chain that stopped here should be visible in the run's own history.
+    const held = readState();
+    if (held) event(held, { type: 'advance-refused', why: 'lock held' });
+    return undefined;
+  }
+  try {
+    return decide(hookInput);
+  } finally {
+    release();
+  }
+}
+
+/**
+ * The decision itself, run with the advance lock held.
+ *
+ * @param {object} hookInput The hook's parsed stdin, when a hook is the caller.
+ * @returns {void}
+ */
+function decide(hookInput) {
+  const config = effectiveConfig();
   const state = readState();
   const gate = guards(config, state, hookInput);
   if (!gate.ok) {
@@ -643,6 +915,13 @@ function advance(hookInput = {}) {
   }
 
   markAdvanced(state, hookInput.session_id);
+
+  // Whatever called advance() is the link that just ended. Stamping it here is what lets a view say
+  // "finished" without trusting a pid, which the operating system is free to hand to someone else.
+  if (state.link && !state.link.endedAt) {
+    state.link = { ...state.link, endedAt: new Date().toISOString() };
+    writeState(state);
+  }
 
   let ms;
   try {
@@ -709,8 +988,16 @@ function advance(hookInput = {}) {
           ? phase.pr.url
           : openPrForBranch(settleBranch(ms, state.phaseIndex)).url;
       state.sessions += 1;
+      const label = `${stage}-p${phase.phase}`;
+      beginLink(state, {
+        kind: 'step',
+        stage,
+        label,
+        issue: null,
+        pr: target,
+      });
       writeState(state);
-      const log = spawnStep(state, `${stage}-p${phase.phase}`, [
+      const spawned = spawnStep(state, label, [
         path.join(CLAUDE_DIR, 'ralph', 'verify.js'),
         '--phase-index',
         String(state.phaseIndex),
@@ -719,19 +1006,38 @@ function advance(hookInput = {}) {
         '--scope',
         stage === 'merge' ? 'full' : 'docs',
       ]);
-      event(state, { type: 'spawn', link: stage, pr: target, log, why });
+      if (spawned) {
+        state.link = { ...state.link, ...spawned };
+        writeState(state);
+      }
+      event(state, {
+        type: 'spawn',
+        link: stage,
+        pr: target,
+        log: spawned && spawned.log,
+        why,
+      });
       return;
     }
 
     const issue = stage === 'task' ? issueQueue(ms, state.phaseIndex)[0] : null;
     state.currentIssue = issue ? issue.number : null;
     state.sessions += 1;
-    writeState(state);
 
     const current = phaseOf(ms, state.phaseIndex);
     const label = issue
       ? `task-${issue.task.replace('.', '-')}-i${issue.number}`
       : `${stage}${current ? `-p${current.phase}` : ''}`;
+    beginLink(state, {
+      kind: 'session',
+      stage,
+      label,
+      issue: state.currentIssue,
+      model: config.model,
+      effort: config.effort || null,
+    });
+    writeState(state);
+
     const prompt = promptFor(stage, {
       config,
       ms,
@@ -748,12 +1054,18 @@ function advance(hookInput = {}) {
       writeState(state);
     }
 
-    const log = spawnSession(config, state, label, prompt, maxTurns);
+    const spawned = spawnSession(config, state, label, prompt, maxTurns);
+    if (spawned) {
+      state.link = { ...state.link, ...spawned };
+      writeState(state);
+    }
     event(state, {
       type: 'spawn',
       link: stage,
       issue: state.currentIssue,
-      log,
+      model: config.model,
+      effort: config.effort || null,
+      log: spawned && spawned.log,
       why,
     });
     return;
@@ -843,11 +1155,18 @@ module.exports = {
   CONFIG_PATH,
   STATE_PATH,
   STOP_PATH,
+  PAUSE_PATH,
+  OVERRIDES_PATH,
   LOCK_PATH,
+  ADVANCE_LOCK_PATH,
   LOG_ROOT,
   isDry,
   advance,
+  beginLink,
+  checkpoint,
+  claimAdvance,
   clearLock,
+  effectiveConfig,
   event,
   gh,
   guards,
@@ -855,6 +1174,7 @@ module.exports = {
   issueQueue,
   layerOf,
   openPrForBranch,
+  pauseRequested,
   phaseBranch,
   phaseOf,
   prView,
@@ -862,12 +1182,15 @@ module.exports = {
   readConfig,
   readLock,
   readMs,
+  readOverrides,
   readState,
   reconcile,
   run,
   runDir,
   settleBranch,
+  stopReason,
   stopRequested,
   writeLock,
+  writeOverrides,
   writeState,
 };

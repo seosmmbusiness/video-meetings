@@ -40,6 +40,7 @@ npm run db:up
 | `npm run format`             | Format apps/** with Prettier                                    |
 | `npm run format:check`       | Check formatting without writing                                |
 | `npm test`                   | Run both apps' unit suites (what `pre-push` gates on)           |
+| `npm run test:tools`         | Run the tooling suites (`.claude/hooks`, `.claude/ralph`)       |
 | `npm run test:api`           | Run apps/api unit tests (Jest)                                  |
 | `npm run test:web`           | Run apps/web unit + integration tests (Vitest)                  |
 | `npm run test:int:api`       | Run apps/api integration tests (Jest, needs Postgres)           |
@@ -89,8 +90,15 @@ npm run db:down         # stop
 ```bash
 node .claude/ralph-start.js --dry-run    # decide and print every step, spawn nothing
 node .claude/ralph-start.js              # start
+node .claude/ralph-start.js --watch      # start, and watch it in this terminal
+node .claude/ralph-start.js --ui         # start, and open the dashboard on 127.0.0.1:4599
+node .claude/ralph-watch.js              # attach a view to a run already going
 node .claude/ralph-start.js --status     # where a run got to
 touch .claude/ralph.stop                 # halt it
 ```
+
+A view shows which phase and task the run is on, what the running session is doing right now, the
+model, effort and ceilings the next session will get, and offers pause, stop and rollback. Closing a
+view leaves the run going.
 
 Full guide — configuration, watching a run, and what to do when it stops: [`docs/ralph-loop.md`](docs/ralph-loop.md).

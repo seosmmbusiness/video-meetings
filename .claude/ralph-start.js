@@ -14,6 +14,11 @@
  *   node .claude/ralph-start.js --resume           continue the existing state, clearing the halt
  *   node .claude/ralph-start.js --phase 2          start (or resume) at a specific phase number
  *   node .claude/ralph-start.js --status           print where the run got to, change nothing
+ *   node .claude/ralph-start.js --watch            start it, then watch it in this terminal
+ *   node .claude/ralph-start.js --ui [--port N]    start it, and open the dashboard as well
+ *
+ * The run itself never depends on a view: `--watch` and `--ui` only attach one to the chain the
+ * other flags start, and closing it leaves the build running.
  */
 
 const fs = require('node:fs');
@@ -153,7 +158,20 @@ function printStatus(config) {
   });
   if (lib.stopRequested()) {
     process.stdout.write(
-      `\nHALTED: ${fs.readFileSync(lib.STOP_PATH, 'utf8').trim()}\n`,
+      `\nHALTED: ${fs.readFileSync(lib.STOP_PATH, 'utf8').trim() || 'no reason recorded'}\n`,
+    );
+  }
+  if (lib.pauseRequested()) {
+    process.stdout.write(
+      `\nPAUSED: ${fs.readFileSync(lib.PAUSE_PATH, 'utf8').trim()}\n`,
+    );
+  }
+  const overrides = lib.readOverrides();
+  if (Object.keys(overrides).length) {
+    process.stdout.write(
+      `overrides: ${Object.entries(overrides)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(' · ')}\n`,
     );
   }
   process.stdout.write(
@@ -210,7 +228,9 @@ const state = {
 };
 
 if (option('stage')) state.stage = option('stage');
-if (lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
+// Starting a run clears the halt it is starting from — but a dry run must not, or looking at what
+// would happen next would quietly un-halt a loop somebody stopped on purpose.
+if (!flag('dry-run') && lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
 
 lib.writeState(state);
 lib.writeLock(state);
@@ -221,9 +241,21 @@ lib.event(state, {
 
 process.stdout.write(
   `🚀 Ralph run ${state.runId} — ${ms.feature}, phase ${ms.phases[phaseIndex].phase} (${ms.phases[phaseIndex].title})\n` +
-    `   logs:  tail -f ${path.join('.claude/ralph-logs', String(state.runId))}/*.log\n` +
+    `   logs:  tail -f ${path.join('.claude/ralph-logs', String(state.runId))}/*\n` +
+    `   watch: node .claude/ralph-watch.js  (add --ui for the dashboard)\n` +
     `   halt:  touch .claude/ralph.stop\n` +
     `   where: node .claude/ralph-start.js --status\n\n`,
 );
 
 lib.advance();
+
+if (!flag('dry-run') && (flag('watch') || flag('ui'))) {
+  require('./ralph-watch')
+    .attach({ ui: flag('ui'), port: option('port'), noTui: flag('no-tui') })
+    .catch((err) => {
+      process.stdout.write(
+        `The run started; the view did not: ${err.message}\n` +
+          'Attach again with `node .claude/ralph-watch.js`.\n',
+      );
+    });
+}
