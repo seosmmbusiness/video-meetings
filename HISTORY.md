@@ -16,6 +16,24 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-18 — An operator's reference for Ralph's ceilings
+
+`docs/ralph-loop.md` lists the config keys but not what they cost. Two questions kept coming back
+that a key table cannot answer: what a _turn_ actually is (one assistant move, so one tool call — a
+test run, an edit, a commit), and what to do with a session that was cut off halfway. Neither is
+guessable from `maxTurnsPerTask: 200`, and getting them wrong is expensive: the natural reaction to a
+session that ran out of turns is to raise the ceiling, which is usually the wrong fix — a 300-turn
+session drags a context large enough to hit the dollar ceiling first, and the real problem was a task
+that should have been split in the plan.
+
+So `Ralph-Instruction.md` was written beside the operator's guide rather than folded into it: what a
+turn and a dollar budget bound, the full path a cut-off session takes (`SessionEnd` → `advance()` →
+`verifyPreviousStage` → `attempts` → `halt`), why a retry gets a clean context but a dirty working
+tree, the three ways back, and four presets from a small feature to a cross-cutting one. The presets
+carry a worst-case `maxSessionsPerRun × maxBudgetUsdPerSession` column on purpose — the loop has no
+run-level dollar ceiling, and the blast radius of an overnight run should be a number somebody read
+rather than one they discover.
+
 ### 2026-08-18 — Watching a Ralph run: two views over one monitor core
 
 The loop as first written was unwatchable. Sessions were spawned with `--output-format text`, which

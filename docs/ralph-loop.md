@@ -5,6 +5,9 @@ own, and what to do when it stops.
 
 This is the guide for the person starting a run. [`.claude/ralph.md`](../.claude/ralph.md) is a
 different document — the contract each session reads — and you do not need it to operate the loop.
+[`Ralph-Instruction.md`](../Ralph-Instruction.md) is the companion to this one: what a turn and a
+dollar ceiling actually are, what happens when a session hits one, and recommended settings by
+feature size.
 
 ## What it is
 
@@ -238,6 +241,10 @@ run was in flight, which are merged over the config every time a link is spawned
 
 **To point the loop at another feature**, change `feature`, `ms` and the `phases` array; the
 milestone titles, issue numbers and task order all come from the MS file itself.
+
+**How to choose the ceilings** — what a turn costs, what the dollar budget bounds, and four presets
+from a small feature to a cross-cutting one — is in
+[`Ralph-Instruction.md`](../Ralph-Instruction.md).
 
 ## When it stops
 
