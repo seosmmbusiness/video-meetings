@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CreateUserHandler } from './commands/create-user.handler';
+import { UpdateUserNameHandler } from './commands/update-user-name.handler';
 import { FindUserByEmailHandler } from './queries/find-user-by-email.handler';
 import { FindUserByIdHandler } from './queries/find-user-by-id.handler';
 
-const CommandHandlers = [CreateUserHandler];
+const CommandHandlers = [CreateUserHandler, UpdateUserNameHandler];
 const QueryHandlers = [FindUserByEmailHandler, FindUserByIdHandler];
 
 /**
