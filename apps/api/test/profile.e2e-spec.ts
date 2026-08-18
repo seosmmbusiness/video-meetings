@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { sign } from 'jsonwebtoken';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -70,6 +71,19 @@ describe('Profile (e2e)', () => {
   }
 
   /**
+   * Signs a token that expired the moment it was issued, so the expired-JWT
+   * half of the auth-bypass case is exercised rather than assumed.
+   * @returns A correctly signed but already-expired access token.
+   */
+  function expiredToken(): string {
+    return sign(
+      { sub: randomUUID(), email: uniqueEmail() },
+      process.env.JWT_SECRET ?? '',
+      { expiresIn: -1 },
+    );
+  }
+
+  /**
    * Reads the caller's profile through `GET /profile`.
    * @param token - The caller's access token.
    * @returns The profile response body.
@@ -92,6 +106,13 @@ describe('Profile (e2e)', () => {
       await request(app.getHttpServer())
         .get('/profile')
         .set('Authorization', 'Bearer not-a-real-token')
+        .expect(401);
+    });
+
+    it('rejects the request with an expired auth token', async () => {
+      await request(app.getHttpServer())
+        .get('/profile')
+        .set('Authorization', `Bearer ${expiredToken()}`)
         .expect(401);
     });
 
@@ -123,6 +144,14 @@ describe('Profile (e2e)', () => {
       await request(app.getHttpServer())
         .patch('/profile')
         .set('Authorization', 'Bearer not-a-real-token')
+        .send({ name: 'Alice' })
+        .expect(401);
+    });
+
+    it('rejects the request with an expired auth token', async () => {
+      await request(app.getHttpServer())
+        .patch('/profile')
+        .set('Authorization', `Bearer ${expiredToken()}`)
         .send({ name: 'Alice' })
         .expect(401);
     });
