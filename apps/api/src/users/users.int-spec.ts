@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CommandBus, CqrsModule, QueryBus } from '@nestjs/cqrs';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -339,6 +339,16 @@ describe('Users module (integration)', () => {
       expect(updated.passwordHash).toBe(PASSWORD_HASH);
       expect(updated.tokenVersion).toBe(0);
       expect(updated.avatarKey).toBeNull();
+    });
+
+    it('answers a 404 rather than a 500 when the row is already gone', async () => {
+      // The handler's P2025 branch is only reachable against a real database:
+      // it's Prisma's "record to update not found", not the handler's own
+      // logic, that rejects the write. A still-valid token outliving its
+      // account is how a caller reaches this.
+      await expect(
+        commandBus.execute(new UpdateUserNameCommand(randomUUID(), 'Ada')),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
