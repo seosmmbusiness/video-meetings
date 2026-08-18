@@ -10,7 +10,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - `MeetingsController` (`meetings.controller.ts`) is guarded at the class level with `@UseGuards(JwtAuthGuard)`, so every route requires `Authorization: Bearer <token>`. Swagger-annotated (`@ApiTags('meetings')`, `@ApiBearerAuth()`, per-route `@ApiOperation`/response decorators). Pure pass-through to `MeetingsService`, reading the caller's id via the `@CurrentUser()` decorator.
 - `MeetingsService` (`meetings.service.ts`) does the Prisma reads/writes, all scoped by `ownerId`.
 - `dto/` — `CreateMeetingDto`, `MeetingResponseDto`.
-- Prisma `Meeting` model (`prisma/schema.prisma`): `title`, optional `description`, `date`, `participants: String[]` (plain email strings, not a join to `User` — participants need not be registered users), `ownerId` (FK to `User`, `onDelete: Restrict`), indexed (`@@index([ownerId])`, added alongside the `MeetingFile` model — see `.claude/modules/module-api-files.md` — for its owner-quota aggregate). `files MeetingFile[]` is the reverse relation; nothing in this module reads it directly.
+- Prisma `Meeting` model (`prisma/schema.prisma`): `title`, optional `description`, `date`, `participants: String[]` (plain email strings, not a join to `User` — participants need not be registered users), `ownerId` (FK to `User`, `onDelete: Restrict`), indexed (`@@index([ownerId])`, added alongside the `MeetingFile` model — see `docs/modules/module-api-files.md` — for its owner-quota aggregate). `files MeetingFile[]` is the reverse relation; nothing in this module reads it directly.
 
 ## Auth guard added alongside this module (lives in `src/auth`, not here)
 
@@ -19,7 +19,7 @@ Before this module, nothing verified JWTs — `AuthService` only signed them. To
 - `strategies/jwt.strategy.ts` — `JwtStrategy` (passport-jwt), extracts the bearer token, verifies against `JWT_SECRET`, and maps the payload (`{ sub, email }`) to `Request.user` as `{ userId, email }` (`AuthenticatedUser`).
 - `guards/jwt-auth.guard.ts` — `JwtAuthGuard extends AuthGuard('jwt')`. Rejects with 401 on a missing/invalid/expired token.
 - `decorators/current-user.decorator.ts` — `@CurrentUser()` param decorator, pulls `AuthenticatedUser` off the request.
-- `AuthModule` now also imports `PassportModule` and registers `JwtStrategy` as a provider (see `.claude/modules/module-api-auth.md` if it needs updating for this — that doc's function reference is register/login-focused and wasn't rewritten here since register/login behavior itself didn't change).
+- `AuthModule` now also imports `PassportModule` and registers `JwtStrategy` as a provider (see `docs/modules/module-api-auth.md` if it needs updating for this — that doc's function reference is register/login-focused and wasn't rewritten here since register/login behavior itself didn't change).
 
 ## Access control (non-obvious, worth preserving)
 

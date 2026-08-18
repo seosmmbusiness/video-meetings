@@ -97,7 +97,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   `deletedAt DateTime?` (set by delete, cleared by restore, read by the purge job — phase 3).
   Indexed `@@index([meetingId, deletedAt])` and `@@index([deletedAt])`. `Meeting` gained
   `@@index([ownerId])` in the same migration — see
-  `.claude/modules/module-api-meetings.md`.
+  `docs/modules/module-api-meetings.md`.
 
 ## Access control (non-obvious, worth preserving)
 

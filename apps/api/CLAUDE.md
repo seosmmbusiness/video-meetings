@@ -8,15 +8,15 @@ Why anything here is the way it is: [`HISTORY.md`](HISTORY.md) (repo-wide change
 
 - `src/main.ts` — entry point (Nest bootstrap); mounts a global `ValidationPipe` (`whitelist`, `transform`) so DTO validation (`class-validator`) is enforced on every route, and enables CORS (`app.enableCors`) for `apps/web`'s origin (`CORS_ORIGIN` env var, default `http://localhost:3000`) since the browser calls this API cross-origin in dev.
 - `src/app.module.ts` / `app.controller.ts` / `app.service.ts` — root module/controller/service; `AppModule` wires up `ConfigModule` (global, reading the monorepo-root `.env`), a global `ThrottlerGuard` (`@nestjs/throttler`, 20 requests/60s, tracked per caller by hashed `Authorization` header rather than by socket), `CqrsModule.forRoot()` (once, app-wide), `ScheduleModule.forRoot()` (backing the files purge cron), `PrismaModule`, and the feature modules.
-- `src/prisma/` — injectable Prisma client wrapper (`PrismaService`/`PrismaModule`) over Postgres. Architecture + function reference: `.claude/modules/module-api-prisma.md` (see root `CLAUDE.md`'s Module documentation section).
-- `src/auth/` — authentication orchestration only: register/login flow, JWT issuance/verification, rate limiting. Delegates user persistence to `src/users` and password hashing/verification to `src/credentials`, via CQRS (see Conventions below). Architecture + function reference: `.claude/modules/module-api-auth.md` (see root `CLAUDE.md`'s Module documentation section); the JWT verification guard/strategy used to protect routes is documented in `.claude/modules/module-api-meetings.md` (added alongside that module, as its first consumer).
-- `src/users/` — user persistence (Prisma `User` model): creation, lookup by email or id, and the display-name update, exposed only via CQRS commands/queries. Architecture + function reference: `.claude/modules/module-api-users.md`.
-- `src/credentials/` — password hashing/verification (bcrypt), exposed only via CQRS commands/queries. Architecture + function reference: `.claude/modules/module-api-credentials.md`.
-- `src/profile/` — the signed-in caller's own self-service routes (`GET /profile`, `PATCH /profile`), guarded and resolving their subject from the token alone, answering an explicit response DTO. Architecture + function reference: `.claude/modules/module-api-profile.md`.
-- `src/meetings/` — create/list/get meetings, scoped to the authenticated owner. Architecture + function reference: `.claude/modules/module-api-meetings.md`.
-- `src/files/` — store, list and serve a meeting's files (upload, download, byte-serving), scoped to the meeting's owner, behind an abstract `FileStorage` boundary (local disk today); enforces every upload limit (size/type/count/quota) and handles soft delete, restore and a scheduled purge. Architecture + function reference: `.claude/modules/module-api-files.md`.
-- `prisma/schema.prisma` — Prisma schema (`User`, `Meeting`, `MeetingFile` models), output to `generated/prisma` (gitignored, run `npm run prisma:generate` to produce it locally). Generator/adapter rationale: `.claude/modules/module-api-prisma.md`.
-- `prisma.config.ts` — Prisma CLI config; loads the monorepo-root `.env` (two levels up, since CLI commands run with cwd=`apps/api`) and points `datasource.url` at `DATABASE_URL`. Build-exclusion gotcha: `.claude/modules/module-api-prisma.md`.
+- `src/prisma/` — injectable Prisma client wrapper (`PrismaService`/`PrismaModule`) over Postgres. Architecture + function reference: `docs/modules/module-api-prisma.md` (see root `CLAUDE.md`'s Module documentation section).
+- `src/auth/` — authentication orchestration only: register/login flow, JWT issuance/verification, rate limiting. Delegates user persistence to `src/users` and password hashing/verification to `src/credentials`, via CQRS (see Conventions below). Architecture + function reference: `docs/modules/module-api-auth.md` (see root `CLAUDE.md`'s Module documentation section); the JWT verification guard/strategy used to protect routes is documented in `docs/modules/module-api-meetings.md` (added alongside that module, as its first consumer).
+- `src/users/` — user persistence (Prisma `User` model): creation, lookup by email or id, and the display-name update, exposed only via CQRS commands/queries. Architecture + function reference: `docs/modules/module-api-users.md`.
+- `src/credentials/` — password hashing/verification (bcrypt), exposed only via CQRS commands/queries. Architecture + function reference: `docs/modules/module-api-credentials.md`.
+- `src/profile/` — the signed-in caller's own self-service routes (`GET /profile`, `PATCH /profile`), guarded and resolving their subject from the token alone, answering an explicit response DTO. Architecture + function reference: `docs/modules/module-api-profile.md`.
+- `src/meetings/` — create/list/get meetings, scoped to the authenticated owner. Architecture + function reference: `docs/modules/module-api-meetings.md`.
+- `src/files/` — store, list and serve a meeting's files (upload, download, byte-serving), scoped to the meeting's owner, behind an abstract `FileStorage` boundary (local disk today); enforces every upload limit (size/type/count/quota) and handles soft delete, restore and a scheduled purge. Architecture + function reference: `docs/modules/module-api-files.md`.
+- `prisma/schema.prisma` — Prisma schema (`User`, `Meeting`, `MeetingFile` models), output to `generated/prisma` (gitignored, run `npm run prisma:generate` to produce it locally). Generator/adapter rationale: `docs/modules/module-api-prisma.md`.
+- `prisma.config.ts` — Prisma CLI config; loads the monorepo-root `.env` (two levels up, since CLI commands run with cwd=`apps/api`) and points `datasource.url` at `DATABASE_URL`. Build-exclusion gotcha: `docs/modules/module-api-prisma.md`.
 - `test/` — e2e tests (Jest, config in `test/jest-e2e.json`), including `test/auth.e2e-spec.ts` and `test/meetings.e2e-spec.ts`, plus the integration tier's config (`test/jest-int.json`). Unit specs live next to their source as `*.spec.ts` (see `src/app.controller.spec.ts`) and integration specs next to theirs as `*.int-spec.ts` (see `src/users/users.int-spec.ts`) — see the Development workflow section for what belongs where.
 - Own ESLint config, using `eslint-plugin-prettier` — kept separate from `apps/web`'s because the rule sets don't compose.
 
@@ -67,7 +67,7 @@ Run from this directory, or via the root's `npm run dev:api` / `build:api` / `li
 
 A local Postgres 18 instance and a Redis 8 instance are available via the root `docker-compose.yml` (`npm run db:up` from repo root). Connection details live in the root `.env` / `.env.example` (`DATABASE_URL`, `REDIS_URL`, etc.). Redis requires a password (`--requirepass`, set via `REDIS_PASSWORD`) — always connect using `REDIS_URL`, which embeds it. No Redis client is wired up in this app yet.
 
-Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). Generator choice, the required driver adapter, CLI config, and a build gotcha around `prisma.config.ts` are documented in `.claude/modules/module-api-prisma.md` — read it before touching anything Prisma-related.
+Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). Generator choice, the required driver adapter, CLI config, and a build gotcha around `prisma.config.ts` are documented in `docs/modules/module-api-prisma.md` — read it before touching anything Prisma-related.
 
 **Integration and e2e tests run against that same local database**, not a separate or throwaway one — deliberately, since it's already provisioned, already migrated and already what e2e uses. Two rules follow from sharing it, and both are non-negotiable: generate the data a spec depends on per run (`` `users-int-${randomUUID()}@example.com` ``, as the existing specs do) so nothing collides with a previous run or with dev data, and delete the rows a spec created in `afterAll`. Never truncate a table or reset the schema — that's someone's dev data.
 
@@ -75,7 +75,7 @@ Postgres is accessed via **Prisma** (`prisma/schema.prisma`, `PrismaService`). G
 
 ## Status
 
-Where things stand now. **How it got here — and why — is in [`HISTORY.md`](HISTORY.md)**; per-module architecture and function references are in `.claude/modules/`.
+Where things stand now. **How it got here — and why — is in [`HISTORY.md`](HISTORY.md)**; per-module architecture and function references are in `docs/modules/`.
 
 - **auth** — `POST /auth/register`, `POST /auth/login` issuing JWTs, composed over CQRS with `users` (persistence) and `credentials` (bcrypt hashing/verification); `JwtAuthGuard`/`JwtStrategy` protect everything else.
 - **meetings** — `POST /meetings`, `GET /meetings`, `GET /meetings/:id`, guarded and scoped to the caller.
@@ -84,4 +84,4 @@ Where things stand now. **How it got here — and why — is in [`HISTORY.md`](H
 - The global throttler tracks callers by hashed credential rather than by socket.
 - Three test tiers — unit, integration, e2e — per the Development workflow section. Redis is still unused.
 
-Update this section when the current state changes, record the change itself in `HISTORY.md`, and add a `.claude/modules/module-api-<name>.md` doc for each new module per the root `CLAUDE.md`'s Module documentation section.
+Update this section when the current state changes, record the change itself in `HISTORY.md`, and add a `docs/modules/module-api-<name>.md` doc for each new module per the root `CLAUDE.md`'s Module documentation section.

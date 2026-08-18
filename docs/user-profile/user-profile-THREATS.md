@@ -140,7 +140,7 @@ becomes a finding the day an avatar is shown to anyone else.
   authorization boundary.
 - **Control**: the DTO's `@Transform` strips C0 control bytes before `@MaxLength(80)` runs — the same
   normalise-don't-reject rule `FilesService` applies to an uploaded file's name
-  (`.claude/modules/module-api-files.md`, "The file name is normalized, not rejected"), sitting
+  (`docs/modules/module-api-files.md`, "The file name is normalized, not rejected"), sitting
   beside the existing `normalizeEmail` transform.
 - **Proven by**: a unit spec on the transform (NUL, ``, a bidi override in, clean text out) and
   an e2e case posting a NUL-bearing name and asserting a stored, sanitised value rather than a 500.
@@ -150,7 +150,7 @@ becomes a finding the day an avatar is shown to anyone else.
 ### S-3. Anonymous internet caller → direct POST to a profile Server Action → a name or password change with no session
 
 - **Reach**: Server Functions are reachable by direct POST, not only through the rendered form — this
-  repo already writes that down (`.claude/modules/module-web-auth.md`) and `actions/files.ts`
+  repo already writes that down (`docs/modules/module-web-auth.md`) and `actions/files.ts`
   already guards for it. The new name and password actions perform privileged mutations; a signed-out
   `<form>` simply not being rendered is not a boundary. Without an explicit check the action runs
   with `session` undefined and either throws a stack-shaped 500 or forwards a malformed

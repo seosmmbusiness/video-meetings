@@ -49,7 +49,7 @@ Read this run, not remembered:
 | Runtime                                                  | Node `24` pinned, `v24.16.0` installed, npm `11.13.0`                                                                                             | `.nvmrc`, `node -v`                         |
 | apps/api                                                 | `@nestjs/*` 11.2.1, `@nestjs/cqrs` ^11.0.3, `@nestjs/jwt` 11.0.2, `@nestjs/passport` 11.0.5, `@nestjs/swagger` 11.4.6, `@nestjs/throttler` ^6.5.0 | `apps/api/package.json`                     |
 | Database                                                 | `@prisma/client` 7.9.1 + `@prisma/adapter-pg`, three migrations, `User`/`Meeting`/`MeetingFile`                                                   | `apps/api/prisma/`, `package.json`          |
-| Passwords                                                | `bcrypt` 6.0.0, 12 salt rounds, timing-safe dummy-hash verification                                                                               | `.claude/modules/module-api-credentials.md` |
+| Passwords                                                | `bcrypt` 6.0.0, 12 salt rounds, timing-safe dummy-hash verification                                                                               | `docs/modules/module-api-credentials.md` |
 | Validation                                               | global `ValidationPipe({ whitelist: true, transform: true })`, `class-validator` 0.15.1                                                           | `apps/api/src/main.ts`                      |
 | apps/web                                                 | `next` 16.3.1, `react` 19.2.8, `@heroui/react` 3.2.4, Tailwind 4, Vitest ^4.1.10, Playwright ^1.62.1                                              | `apps/web/package.json`, `node_modules`     |
 | Already installed, unused by this feature's own manifest | `multer@2.2.0`, `file-type@21.3.4`, `load-esm@1.0.3`, `sharp@0.35.3` (Next's own)                                                                 | `npm ls`                                    |
@@ -105,9 +105,9 @@ What the repo already covers, so no plan task needs new code for it:
   `ValidationPipe({ whitelist: true })`.
 - **Fits in at**: `apps/api/src/profile/` (`profile.module.ts`, `profile.controller.ts`,
   `profile.service.ts`, `dto/`, `guards/`), documented as
-  `.claude/modules/module-api-profile.md`.
-- **Sources**: `apps/api/CLAUDE.md` (Conventions, CQRS boundary), `.claude/modules/module-api-auth.md`,
-  `.claude/modules/module-api-users.md`, `apps/api/src/auth/auth.module.ts`.
+  `docs/modules/module-api-profile.md`.
+- **Sources**: `apps/api/CLAUDE.md` (Conventions, CQRS boundary), `docs/modules/module-api-auth.md`,
+  `docs/modules/module-api-users.md`, `apps/api/src/auth/auth.module.ts`.
 
 ### D-2. How is the name stored and validated?
 
@@ -158,7 +158,7 @@ What the repo already covers, so no plan task needs new code for it:
   reached with another account's id from outside.
 - **Fits in at**: `apps/api/src/users/commands/`, `apps/api/src/users/queries/`, registered in
   `users.module.ts`; `FindUserByIdQuery` is also what `JwtStrategy` uses in D-9.
-- **Sources**: `.claude/modules/module-api-users.md`, `apps/api/src/users/users.module.ts`.
+- **Sources**: `docs/modules/module-api-users.md`, `apps/api/src/users/users.module.ts`.
 
 ### D-4. How do `files` and `profile` share the byte primitives?
 
@@ -188,10 +188,10 @@ What the repo already covers, so no plan task needs new code for it:
   extraction byte-for-byte. The files suites are what proves they did.
 - **Fits in at**: `apps/api/src/storage/` (`storage.module.ts` + the four moved files);
   `FilesModule` and the new `ProfileModule` both import it. Documented as
-  `.claude/modules/module-api-storage.md`, with `module-api-files.md` updated to point at it.
+  `docs/modules/module-api-storage.md`, with `module-api-files.md` updated to point at it.
 - **Sources**: `apps/api/src/files/files.module.ts` (no `exports`),
   `apps/api/src/files/storage/*.ts`, `apps/api/src/files/file-type.service.ts`,
-  `.claude/modules/module-api-files.md` (Gotchas: `STORAGE_ROOT` resolution is duplicated on
+  `docs/modules/module-api-files.md` (Gotchas: `STORAGE_ROOT` resolution is duplicated on
   purpose).
 
 ### D-5. Where does the avatar's metadata live, and what does the API return?
@@ -216,7 +216,7 @@ What the repo already covers, so no plan task needs new code for it:
   web appends (D-8) and reveals nothing beyond "the avatar changed at this time" to its own owner.
 - **Fits in at**: `apps/api/prisma/schema.prisma`;
   `apps/api/src/profile/dto/profile-response.dto.ts`.
-- **Sources**: `apps/api/prisma/schema.prisma`, `.claude/modules/module-api-files.md` (DTOs).
+- **Sources**: `apps/api/prisma/schema.prisma`, `docs/modules/module-api-files.md` (DTOs).
 
 ### D-6. How does the avatar's upload arrive, and where is each limit enforced?
 
@@ -276,7 +276,7 @@ What the repo already covers, so no plan task needs new code for it:
   it (round 2).
 - **Fits in at**: `apps/api/src/profile/profile.service.ts`, over `FileStorage` from D-4.
 - **Sources**: `apps/api/src/files/files.service.ts` (create/save/unlink ordering),
-  `.claude/modules/module-api-files.md`.
+  `docs/modules/module-api-files.md`.
 
 ### D-8. How are the bytes served, and how does a replaced image stop showing?
 
@@ -303,7 +303,7 @@ What the repo already covers, so no plan task needs new code for it:
   per rendered page that shows an avatar; on a local Postgres/disk that is sub-millisecond.
 - **Fits in at**: `apps/api/src/profile/profile.controller.ts`;
   `apps/web/src/app/api/profile/avatar/route.ts` (D-12).
-- **Sources**: `apps/api/src/files/files.controller.ts`, `.claude/modules/module-api-files.md`
+- **Sources**: `apps/api/src/files/files.controller.ts`, `docs/modules/module-api-files.md`
   (Access control: `Cache-Control` and the `dotfiles`/`root` split),
   `apps/web/src/lib/api-proxy.ts` (`cache-control` is in the forwarded response allow-list).
 
@@ -361,7 +361,7 @@ What the repo already covers, so no plan task needs new code for it:
   up in a token — and `ver` cannot be omitted by accident on one path.
 - **Fits in at**: `apps/api/src/auth/commands/issue-access-token.{command,handler}.ts`, registered
   in `auth.module.ts`.
-- **Sources**: `apps/api/src/auth/auth.service.ts`, `.claude/modules/module-api-auth.md`.
+- **Sources**: `apps/api/src/auth/auth.service.ts`, `docs/modules/module-api-auth.md`.
 
 ### D-11. What does the password route look like, and what does a wrong current password answer?
 
@@ -387,8 +387,8 @@ What the repo already covers, so no plan task needs new code for it:
 - **Fits in at**: `apps/api/src/profile/dto/change-password.dto.ts`,
   `apps/api/src/profile/profile.controller.ts`; on the web, `apps/web/src/lib/profile-api.ts`
   distinguishes 403 (form error) from 401 (signed out).
-- **Sources**: `apps/api/src/auth/dto/register.dto.ts`, `.claude/modules/module-api-credentials.md`,
-  `.claude/modules/module-web-auth.md` (a 401 from `listMeetings` redirects to `/login`).
+- **Sources**: `apps/api/src/auth/dto/register.dto.ts`, `docs/modules/module-api-credentials.md`,
+  `docs/modules/module-web-auth.md` (a 401 from `listMeetings` redirects to `/login`).
 
 ### D-12. How does the browser send an avatar, and how does it send the name and password?
 
@@ -496,13 +496,13 @@ Values implementation copies verbatim.
 
 - `apps/api/src/storage` — `StorageModule` exporting `FileStorage` (bound to `LocalDiskFileStorage`)
   and `FileTypeService`. Owns every path to disk and every content-type judgement in the app
-  (D-4). New doc: `.claude/modules/module-api-storage.md`.
+  (D-4). New doc: `docs/modules/module-api-storage.md`.
 - `apps/api/src/profile` — `ProfileModule`/`ProfileController`/`ProfileService` plus DTOs, the
   avatar guard and multer config (D-1, D-6). New doc:
-  `.claude/modules/module-api-profile.md`.
+  `docs/modules/module-api-profile.md`.
 - `apps/web/src/app/profile` + `app/api/profile/avatar` + `components/profile/` +
   `lib/profile-api.ts` + `app/actions/profile.ts` (D-12, D-13). New doc:
-  `.claude/modules/module-web-profile.md`.
+  `docs/modules/module-web-profile.md`.
 
 **Existing modules touched**
 
@@ -516,7 +516,7 @@ Values implementation copies verbatim.
 - `apps/web` — `app/page.tsx` gains the name and avatar; `lib/session.ts` is unchanged (the cookie
   is rewritten by the password action through the existing `setSessionCookie`).
 
-**Docs to update in the same change**: `.claude/modules/INDEX.md` (three new rows),
+**Docs to update in the same change**: `docs/modules/INDEX.md` (three new rows),
 `module-api-files.md`, `module-api-users.md`, `module-api-auth.md`, `module-web-auth.md`,
 `apps/api/CLAUDE.md` and `apps/web/CLAUDE.md` (Structure + Status), both app `HISTORY.md` files and
 the root one. `README.md` and `.env.example` need **no** change — no new script, service or env var.
