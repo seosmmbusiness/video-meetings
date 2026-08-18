@@ -1,13 +1,29 @@
-import { Controller } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProfileService } from './profile.service';
 
 /**
- * Exposes the signed-in caller's own profile. Every route resolves its
- * subject from the verified token alone (AC-15).
+ * Exposes the signed-in caller's own profile. Both routes resolve their
+ * subject from `@CurrentUser()` alone — there is no path segment and no body
+ * field naming an account, so there is nothing to point at another one
+ * (AC-15).
  */
+@ApiTags('profile')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('profile')
 export class ProfileController {
   /**
@@ -20,10 +36,15 @@ export class ProfileController {
    * @param user - The authenticated user, extracted from the JWT.
    * @returns The caller's profile.
    */
-  getProfile(user: AuthenticatedUser): Promise<ProfileResponseDto> {
-    void user;
-    void this.profileService;
-    return Promise.reject(new Error('Not implemented'));
+  @Get()
+  @ApiOperation({ summary: "Read the authenticated caller's own profile" })
+  @ApiOkResponse({ description: 'The profile', type: ProfileResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  getProfile(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ProfileResponseDto> {
+    return this.profileService.getProfile(user.userId);
   }
 
   /**
@@ -32,12 +53,19 @@ export class ProfileController {
    * @param dto - The validated payload; it carries no subject of its own.
    * @returns The caller's profile after the update.
    */
+  @Patch()
+  @ApiOperation({ summary: "Update the authenticated caller's own profile" })
+  @ApiOkResponse({
+    description: 'The updated profile',
+    type: ProfileResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid profile payload' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
   updateProfile(
-    user: AuthenticatedUser,
-    dto: UpdateProfileDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponseDto> {
-    void user;
-    void dto;
-    return Promise.reject(new Error('Not implemented'));
+    return this.profileService.updateProfile(user.userId, dto);
   }
 }

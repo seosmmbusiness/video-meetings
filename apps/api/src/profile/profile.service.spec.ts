@@ -118,8 +118,9 @@ describe('ProfileService', () => {
       const profile = await service.updateProfile('user-1', { name: 'Alice' });
 
       expect(commandBus.execute).toHaveBeenCalledTimes(1);
-      const [[command]] = commandBus.execute.mock
-        .calls as [UpdateUserNameCommand][];
+      const [[command]] = commandBus.execute.mock.calls as [
+        UpdateUserNameCommand,
+      ][];
       expect(command).toBeInstanceOf(UpdateUserNameCommand);
       expect(command.userId).toBe('user-1');
       expect(command.name).toBe('Alice');
@@ -132,8 +133,9 @@ describe('ProfileService', () => {
 
       const profile = await service.updateProfile('user-1', { name: '' });
 
-      const [[command]] = commandBus.execute.mock
-        .calls as [UpdateUserNameCommand][];
+      const [[command]] = commandBus.execute.mock.calls as [
+        UpdateUserNameCommand,
+      ][];
       expect(command.name).toBe('');
       expect(profile.name).toBeNull();
     });

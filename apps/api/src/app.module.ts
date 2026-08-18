@@ -12,6 +12,7 @@ import { CredentialsModule } from './credentials/credentials.module';
 import { FilesModule } from './files/files.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { ProfileModule } from './profile/profile.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -50,6 +51,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     MeetingsModule,
     FilesModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
