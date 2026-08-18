@@ -2,7 +2,7 @@
 
 How this app reached its current shape, newest first. `CLAUDE.md`'s Status section says only where things stand **now**; this file says how they got there and why.
 
-Repo-wide changes (tooling, conventions, cross-app features) live in the root [`HISTORY.md`](../../HISTORY.md); per-module architecture and function references live in `.claude/modules/`. This file records the decisions behind this app's shape — keep it to what a future reader would ask "why is it like this?" about.
+Repo-wide changes (tooling, conventions, cross-app features) live in the root [`HISTORY.md`](../../HISTORY.md); per-module architecture and function references live in `docs/modules/`. This file records the decisions behind this app's shape — keep it to what a future reader would ask "why is it like this?" about.
 
 **How to keep it:** one `### YYYY-MM-DD — <short title>` entry per change, newest first, grouped under its `## YYYY-MM` heading; say what changed and why; date by when it landed on the base branch; never rewrite older entries. See the root `HISTORY.md` for the full convention.
 

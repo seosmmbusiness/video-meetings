@@ -10,7 +10,7 @@ Six phases: `apps/api` goes fully green — store and serve, limits, delete life
 Every `apps/api` phase follows the Red/Green/Refactor workflow in `apps/api/CLAUDE.md`, with
 its mandatory security cases written before the implementation; every `apps/web` phase is
 proven by a Playwright spec carrying its own mandatory security cases. Docs move with the
-code: the phase that changes a module updates that module's doc under `.claude/modules/`, the
+code: the phase that changes a module updates that module's doc under `docs/modules/`, the
 JSDoc on the functions it touched, and — in `apps/api` — the Swagger annotations on the routes
 and DTOs it touched. There is no trailing documentation phase.
 
