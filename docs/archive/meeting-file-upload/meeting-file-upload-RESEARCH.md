@@ -277,7 +277,7 @@ defParamCharset: 'utf8' })`, in front of a small `UploadSizeGuard` that rejects 
   `Restrict` delete rule mirrors `Meeting → User`, so a meeting cannot be deleted out from under its
   files. `mimeType` is the **detected** type, never the client's claim.
 - **Fits in at**: `apps/api/prisma/schema.prisma` plus one migration under
-  `prisma/migrations/`; `.claude/modules/module-api-prisma.md` and `module-api-meetings.md` gain the
+  `prisma/migrations/`; `docs/modules/module-api-prisma.md` and `module-api-meetings.md` gain the
   new model and the new index.
 - **Sources**: `apps/api/prisma/migrations/20260730162011_add_meetings/migration.sql` (no index on
   `ownerId`); Node 24 globals checked locally; Prisma 7 aggregate typing —
@@ -691,12 +691,12 @@ Progress and cancellation need no library at all — `XMLHttpRequest` is the pla
   `FileTypeService`, `FilesPurgeService`, `storage/file-storage.ts` (abstract) +
   `storage/local-disk-file-storage.ts`, `multer.config.ts`, `dto/`. It imports `AuthModule` for the
   guard and `MeetingsModule` to reuse `findOneForOwner` — the meetings module exports the service
-  for that, which is the only change it needs. New doc `.claude/modules/module-api-files.md`, a line
-  in `.claude/modules/INDEX.md`, and a one-line pointer in `apps/api/CLAUDE.md`.
+  for that, which is the only change it needs. New doc `docs/modules/module-api-files.md`, a line
+  in `docs/modules/INDEX.md`, and a one-line pointer in `apps/api/CLAUDE.md`.
 - **`apps/api` touched**: `prisma/schema.prisma` + one migration (D-4), `app.module.ts`
   (`ScheduleModule.forRoot()`, `getTracker`), `package.json` (two scripts, one dev dependency).
 - **New surface in `apps/web`**: `app/meetings/[id]/page.tsx`, two Route Handlers under `app/api/`,
-  `lib/files-api.ts`, `app/actions/files.ts`, `components/files/`. `.claude/modules/module-web-auth.md`
+  `lib/files-api.ts`, `app/actions/files.ts`, `components/files/`. `docs/modules/module-web-auth.md`
   is not the right home for it — a new `module-web-meeting-files.md` is, with its own INDEX line and
   a pointer in `apps/web/CLAUDE.md`. `apps/web` gains its **first** Route Handlers, which is worth a
   line in that CLAUDE.md's Conventions: they exist because a Server Action is capped at 1 MB and

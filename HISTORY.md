@@ -34,8 +34,10 @@ writable by an unattended session. Everything else about the convention is uncha
 `module-<app>-<name>.md` names, same `INDEX.md`, same one-line pointers from each CLAUDE.md.
 
 `.claude/` keeps only what is genuinely harness configuration: hooks, the Ralph chain and its
-contract, settings. Older HISTORY entries still name the old path — they describe what was true
-then, and this entry supersedes them.
+contract, settings. The pointers in the older entries and in `docs/archive/` were rewritten to the
+new path as well — an exception to "don't rewrite older entries", made deliberately: those lines are
+navigation, not history, and left alone they would send a reader to a directory that no longer
+exists.
 
 ### 2026-08-18 — An operator's reference for Ralph's ceilings
 
@@ -191,7 +193,7 @@ The meetings module (create/list/get, guarded and scoped to the caller) became t
 
 ### 2026-07-29 — Auth on Prisma-backed Postgres, and per-module docs moved into the repo
 
-Email/password register/login issuing JWTs, hardened the same day against timing-based user enumeration, registration races, oversized-payload DoS and brute force. Detailed per-module architecture references moved out of `CLAUDE.md` — first into assistant memory, then into `.claude/modules/`, where they're committed like any other file so a teammate or CI can read them.
+Email/password register/login issuing JWTs, hardened the same day against timing-based user enumeration, registration races, oversized-payload DoS and brute force. Detailed per-module architecture references moved out of `CLAUDE.md` — first into assistant memory, then into `docs/modules/`, where they're committed like any other file so a teammate or CI can read them.
 
 ### 2026-07-28 — Scaffolded
 

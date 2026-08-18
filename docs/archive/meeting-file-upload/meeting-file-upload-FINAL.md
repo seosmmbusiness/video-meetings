@@ -74,7 +74,7 @@ path, before any limit, lifecycle or screen exists.
       `deletedAt DateTime?`. Indexes `@@index([meetingId, deletedAt])` and `@@index([deletedAt])`;
       `Meeting` gains `files MeetingFile[]` and the missing `@@index([ownerId])` the quota query
       needs. `size` is `Int` because 500 MB fits and `BigInt` breaks `JSON.stringify`. Migration
-      checked in; `.claude/modules/module-api-prisma.md` updated. (D-4)
+      checked in; `docs/modules/module-api-prisma.md` updated. (D-4)
 - [x] **1.2** Keep file bytes behind one storage boundary — abstract class `FileStorage`
       (`apps/api/src/files/storage/file-storage.ts`) with `save(key, tempPath)`,
       `createReadStream(key, range?)`, `delete(key)`, `stat(key)` and `localPathFor(key)`, bound as

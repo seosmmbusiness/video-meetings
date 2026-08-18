@@ -25,7 +25,7 @@ Read, before drafting a line:
 
 1. The project's root docs — `CLAUDE.md` and `README.md`: what already exists, so the PRD asks for the delta instead of for what is already built; scripts, setup, available infrastructure.
 2. The docs of each part the feature touches, as the root docs point at them (e.g. a per-app `CLAUDE.md` in a monorepo).
-3. The project's module docs, where it keeps them (e.g. an index like `.claude/modules/INDEX.md`) — then only those modules the feature extends.
+3. The project's module docs, where it keeps them (e.g. an index like `docs/modules/INDEX.md`) — then only those modules the feature extends.
 
 Done when every statement you are about to make about current behaviour traces to a file you just read, and you can name the existing modules this feature builds on.
 
