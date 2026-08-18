@@ -74,7 +74,7 @@ each at the tier that proves it. E2e cases go in `apps/api/test/profile.e2e-spec
 beside their source under `src/profile/`, integration under `src/profile/profile.int-spec.ts`.
 Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the last two need
 `npm run db:up`).
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/174
+**Status**: complete — 2026-08-18, branch feature/user-profile-phase-1, PR https://github.com/seosmmbusiness/video-meetings/pull/174
 **Tasks**:
 
 - [x] **1.1** Cover reading and updating the caller's own name — tests: `apps/api/test/profile.e2e-spec.ts`
