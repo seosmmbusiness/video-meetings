@@ -6,6 +6,7 @@ Per-module architecture and function references, split out of the CLAUDE.md file
 - [apps/api users module](module-api-users.md) — `src/users`: user persistence (Prisma `User` model), exposed via CQRS commands/queries only.
 - [apps/api credentials module](module-api-credentials.md) — `src/credentials`: password hashing/verification (bcrypt), incl. timing-safe dummy-hash comparison, exposed via CQRS commands/queries only.
 - [apps/api prisma module](module-api-prisma.md) — `src/prisma`: PrismaService/Module, generator/driver-adapter/build gotchas.
+- [apps/api profile module](module-api-profile.md) — `src/profile`: the signed-in caller's own `GET /profile` / `PATCH /profile`, subject taken from the token alone, answering an explicit five-key DTO.
 - [apps/api meetings module](module-api-meetings.md) — `src/meetings`: create/list/get meetings scoped to owner, plus the JWT auth guard/strategy added in `src/auth` to protect them.
 - [apps/api files module](module-api-files.md) — `src/files`: store/list/serve a meeting's files behind an abstract `FileStorage` boundary, owner-scoped, enforcing every upload limit (size/type/count/quota) and soft-delete/restore/purge.
 - [apps/web auth pages](module-web-auth.md) — `app/register`, `app/login`, `app/actions/auth.ts`, `lib/auth-api.ts`, `lib/session.ts`: registration/login UI against `apps/api`'s `src/auth`, cookie-based session, and the home page's signed-in state.
