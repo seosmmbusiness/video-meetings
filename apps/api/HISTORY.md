@@ -10,6 +10,16 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-18 — A profile module for the caller's own account name (`user-profile` phase 1)
+
+`GET /profile` and `PATCH /profile` live in a new `src/profile` module rather than in `src/users` or `src/auth` (D-1). `users` states it has no HTTP surface of its own and exposes persistence only over CQRS, so a controller there would break its own contract; and a display name is not authentication, so folding it into `auth` would give the module every route's guard depends on a third unrelated concern. The new module has the same shape `auth` already has: a controller and a service over the CQRS buses, no Prisma of its own — reaching `User` through two new users-module handlers, `FindUserByIdQuery` and `UpdateUserNameCommand` (D-3).
+
+Both routes resolve their subject from `@CurrentUser()` alone. There is deliberately no path segment and no body field naming an account, so there is no identifier to point at another row — the authorization decision happens before the bus, and no handler is reachable with someone else's id.
+
+Two things are less obvious and worth keeping. First, `FindUserByIdQuery` returns the **whole** Prisma row, because `JwtStrategy` will read `tokenVersion` off the same query later — which makes `ProfileResponseDto` the only thing between the row and the wire, and is why the service builds it field by field and the specs assert an exact key set instead of the absence of `passwordHash`. Second, the name is **normalised, not rejected**: a `@Transform` strips C0 controls, `U+007F` and the bidi overrides (keeping the plain `U+200E`/`U+200F` marks that legitimate Hebrew and Arabic names need) and trims, all before `@MaxLength(80)` runs. Postgres cannot store a NUL in a text column, so without that the route would answer `500` with a driver-shaped message instead of the stated refusal; running it before the length check also means stripped bytes don't count against the limit. It is the same rule `FilesService` already applies to an uploaded file's name.
+
+One migration, `add_user_profile`, adds every column the whole feature needs at once — `name`, the four avatar columns phase 3 fills, and `tokenVersion` for phase 5 — so the schema moves once rather than in five steps. For the same reason the response carries `hasAvatar` and `avatarUpdatedAt` from day one: they answer "no avatar" for every row until phase 3, and `apps/web` gets to render against the final shape.
+
 ### 2026-08-16 — Integration tier added between the unit and e2e suites
 
 `test/jest-int.json` + `npm run test:int` run `src/**/*.int-spec.ts`: real Nest modules composed against the dev Postgres, with no HTTP layer. It exists because the two existing tiers left a gap that e2e kept absorbing — anything only a real database proves (Prisma filters, unique and foreign-key constraints, transactions, `@Cron` jobs driven directly, module wiring) had to be reached through supertest or not at all, which is why `files.e2e-spec.ts` reaches into `FilesPurgeService` and `FileStorage` directly.
