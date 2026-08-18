@@ -82,6 +82,75 @@ describe('Users module (integration)', () => {
     expect(found).toBeNull();
   });
 
+  describe('the profile columns on the users table', () => {
+    it('leaves every profile column empty and tokenVersion at 0 on a fresh row', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      // The migration adds these to a table that already holds registered
+      // rows, so each one has to be satisfiable without a value.
+      expect(created.name).toBeNull();
+      expect(created.avatarKey).toBeNull();
+      expect(created.avatarMimeType).toBeNull();
+      expect(created.avatarSize).toBeNull();
+      expect(created.avatarUpdatedAt).toBeNull();
+      expect(created.tokenVersion).toBe(0);
+    });
+
+    it('stores an 80-character name and refuses an 81-character one at the column', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      const updated = await prisma.user.update({
+        where: { id: created.id },
+        data: { name: 'a'.repeat(80) },
+      });
+      expect(updated.name).toBe('a'.repeat(80));
+
+      // VarChar(80) is the last line that enforces the limit — the DTO is the
+      // first, but the column has to refuse what ever gets past it (D-2).
+      await expect(
+        prisma.user.update({
+          where: { id: created.id },
+          data: { name: 'a'.repeat(81) },
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it('keeps avatarKey unique while letting every row leave it NULL', async () => {
+      const emailA = uniqueEmail();
+      const emailB = uniqueEmail();
+      createdEmails.push(emailA, emailB);
+
+      const userA = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailA, PASSWORD_HASH, true),
+      );
+      const userB = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailB, PASSWORD_HASH, true),
+      );
+
+      // Both rows already share a NULL avatarKey, which a unique index has to
+      // allow; the same non-null key twice is what it must refuse (D-5).
+      const avatarKey = `avatars/${randomUUID()}`;
+      await prisma.user.update({
+        where: { id: userA.id },
+        data: { avatarKey },
+      });
+
+      await expect(
+        prisma.user.update({ where: { id: userB.id }, data: { avatarKey } }),
+      ).rejects.toBeDefined();
+    });
+  });
+
   it("translates the database's unique-email constraint into a 409", async () => {
     // The handler's P2002 branch is only reachable against a real database:
     // it's the unique index on User.email, not the handler's own logic, that
