@@ -46,8 +46,11 @@ node .claude/ralph-start.js --dry-run    # decide and print every link, spawn no
 node .claude/ralph-start.js --status     # where the run got to; changes nothing
 node .claude/ralph-start.js --resume     # continue after a halt, clearing the stop file
 node .claude/ralph-start.js --phase 3    # start or resume at a specific phase number
+node .claude/ralph-start.js --watch      # start it, then watch it in this terminal
+node .claude/ralph-start.js --ui         # start it, and open the dashboard as well
+node .claude/ralph-watch.js              # attach a view to a run that is already going
 touch .claude/ralph.stop                 # halt the chain; the current session finishes, no next one
-tail -f .claude/ralph-logs/<runId>/*.log # watch
+tail -f .claude/ralph-logs/<runId>/*     # the raw logs, if you would rather read them yourself
 ```
 
 `--dry-run` is the one to reach for first. It runs the whole preflight and prints the exact `claude`
@@ -83,22 +86,109 @@ what has actually shipped.
 
 ## Watching a run
 
+A run is a chain of detached processes, so watching one is separate from starting it: a view can be
+opened, closed and reopened from any terminal while the build carries on, and closing a view never
+touches the run.
+
+```bash
+node .claude/ralph-start.js --watch          # start, then watch here
+node .claude/ralph-start.js --ui             # start, watch here, and serve the dashboard
+node .claude/ralph-watch.js                  # attach to a run already going
+node .claude/ralph-watch.js --ui --port 4600 # …with the dashboard on a port of your choosing
+node .claude/ralph-watch.js --ui --no-tui    # dashboard only, for a terminal you need back
+```
+
+Both views draw the same snapshot and drive the same controls — pick whichever suits the screen:
+
+| The view shows                          | Where it comes from                                                               |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| phase _N_ of _M_, task _i_ of _j_       | the MS file and the state file                                                    |
+| stage, issue, branch, elapsed           | the state file                                                                    |
+| **what the session is doing right now** | the last few tool calls and lines of prose from the live link's `stream-json` log |
+| turns, thinking tokens, cost            | the same stream; run cost is every finished session's own `result` line, summed   |
+| model, effort, ceilings                 | the config, with any override on top; a pending change shows as `opus → sonnet`   |
+| workers `1/1`                           | how many links are in flight. The chain is serial by design — see below           |
+| the merge gate's last verdict           | `phase-<N>-*-checks.json`                                                         |
+
+### The controls
+
+| Key                     | Button          | What it does                                                                                                                                                                                                      |
+| ----------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p`                     | Pause/Resume    | Holds the chain at the next link boundary. The link in flight finishes; no successor is spawned. Pressing it again clears the hold — and any halt — and asks the chain for its next link.                         |
+| `s`                     | Stop            | Halts the run. `f` lets the link in flight finish first; `k` kills it and its whole process group now. Either way `.claude/ralph.stop` goes down first, so the dying session's own hook cannot spawn a successor. |
+| `r`                     | Rollback…       | Three ways back, described below. Every one asks first and names what it will do.                                                                                                                                 |
+| `m` `f` `e` `t` `b` `n` | settings fields | model, fallback, effort, turns per task, budget per session, retries.                                                                                                                                             |
+| `l`                     | —               | More activity lines.                                                                                                                                                                                              |
+| `q`                     | —               | Leaves the view. The run keeps going.                                                                                                                                                                             |
+
+**Settings apply to the next link, never to the session already running** — nothing can change a
+running session's model or ceilings. A change is written to `.claude/ralph.overrides.json`
+(gitignored) rather than to the committed config, because the config is the run's record of what it
+was asked to do, and a model turned down at two in the morning is not that record. Clear an override
+by saving an empty value.
+
+**Workers is `1` and is not editable.** The chain runs one link at a time on one working tree, and
+that is what makes its guarantees hold: one branch, one commit order, one `red → green` sequence per
+task. The field is there to say so honestly, not as a knob.
+
+### Rolling back
+
+| Mode                        | What it does                                                                                                                                                                                                                                                             |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Restart the current link    | Kills the session, resets the phase branch to the checkpoint taken the instant that link started, and runs the same stage again. A task that got as far as `ralph:done` loses the label along with the commits.                                                          |
+| Undo the last finished task | Resets to before that task, takes its `ralph:done` label off, and lets the chain pick it up again. A task that was retried goes back to before its first attempt, and only the phase in flight is ever reachable — checkpoints from a phase that already merged are not. |
+| Revert a merged phase PR    | Cuts `revert/<slug>-phase-<N>`, reverts the merge commit there, pushes it and opens a PR. **Nothing is pushed to the base branch**, and the run halts — what follows is yours.                                                                                           |
+
+Two things make this safe enough to be a button. Every rollback is _planned_ first — the exact argv
+of each step is built as data, which is what
+`node --test .claude/ralph/monitor.test.js` asserts — and anything a reset would discard is kept on a
+`ralph-backup/<runId>-<timestamp>` branch first. Untracked files are left alone unless you tick the
+box; there is no backup for those.
+
+The chain records a checkpoint (`sha`, branch, stage, issue) immediately before each link, which is
+what the first two modes rewind to. A run started before checkpoints existed has none, and the
+rollback says so rather than guessing.
+
+A rollback that cannot be done changes nothing: the plan is built before the session is killed, so
+"undo the last finished task" on a phase whose first task is still running refuses and leaves the
+run exactly as it was. A pause you set yourself is still there afterwards, too — a rollback only
+clears the pause it took out itself.
+
+### The files underneath
+
 Everything a run produces lives under `.claude/ralph-logs/<runId>/` (gitignored):
 
-| File                         | What it holds                                                            |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `NNN-<stage>.log`            | one session's or step's whole output, in order                           |
-| `events.jsonl`               | one line per decision: spawn, retry, checks, merge, phase-complete, halt |
-| `phase-<N>-full-checks.json` | every check the merge gate ran, with exit codes and output tails         |
-| `phase-<N>-docs-checks.json` | the same for a settle PR                                                 |
-| `spawned-<sessionId>`        | the marker that stops one session being advanced past twice              |
+| File                         | What it holds                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| `NNN-<stage>.jsonl`          | one session's `stream-json`: every tool call, turn, cost and the closing report               |
+| `NNN-<stage>.log`            | a `node` step's plain output — the merge gate's check run                                     |
+| `events.jsonl`               | one line per decision: spawn, retry, checks, merge, phase-complete, halt, and what a view did |
+| `phase-<N>-full-checks.json` | every check the merge gate ran, with exit codes and output tails                              |
+| `phase-<N>-docs-checks.json` | the same for a settle PR                                                                      |
+| `spawned-<sessionId>`        | the marker that stops one session being advanced past twice                                   |
 
-`events.jsonl` is the fastest way to read a finished run back:
+Sessions write `stream-json` rather than plain text precisely so a run can be watched: text arrives
+in one block after the session has already ended. To read a session log by hand:
+
+```bash
+jq -r 'select(.type=="assistant") | .message.content[]
+       | select(.type=="tool_use") | "\(.name) \(.input.command // .input.file_path // "")"' \
+  .claude/ralph-logs/<runId>/007-task-1-3-i136.jsonl
+```
+
+`events.jsonl` is still the fastest way to read a finished run back:
 
 ```bash
 jq -r '"\(.at) p\(.phase) \(.stage) \(.type) \(.issue // .why // "")"' \
   .claude/ralph-logs/<runId>/events.jsonl
 ```
+
+### Who may press the buttons
+
+The dashboard binds `127.0.0.1` only, and every request carries a token generated when it starts —
+the address printed at startup contains it, so treat that URL as a credential. Cross-origin requests
+are refused, and so is a `Host` header that is not the loopback, which is the shape a DNS-rebinding
+attack arrives in. `node --test .claude/ralph/web.test.js` covers those three refusals.
 
 ## What merges, and what guards it
 
@@ -125,22 +215,26 @@ quotes one of those commands has to arrive by file — `git commit -F <path>`,
 ## Configuration
 
 `.claude/ralph.config.json` is committed and read-only during a run. Runtime state lives beside it in
-`.claude/ralph.state.json` and is gitignored, along with the logs, the lock and the stop file.
+`.claude/ralph.state.json` and is gitignored, along with the logs, the lock, the stop and pause
+files, `.claude/ralph.advance.lock` (held for the second or two a decision takes, so two views
+cannot each start one), and `.claude/ralph.overrides.json` — the settings a view changed while the
+run was in flight, which are merged over the config every time a link is spawned.
 
-| Key                        | Means                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `feature`, `ms`            | which feature to build, and the MS file that is its work queue               |
-| `baseBranch`               | what phases branch from and merge into                                       |
-| `model`, `fallbackModel`   | the model each session runs on, and what to fall back to when it is loaded   |
-| `maxTurnsPerTask`          | turn ceiling for a task session (200)                                        |
-| `maxTurnsPerBookend`       | turn ceiling for an open, close, settle or close-out session (120)           |
-| `maxBudgetUsdPerSession`   | dollar ceiling per session (15)                                              |
-| `taskRetries`              | attempts at one task before it is labelled `ralph:blocked` and the run halts |
-| `maxSessionsPerRun`        | sessions before the run stops on its own (60)                                |
-| `maxRunHours`              | wall-clock hours before the run stops on its own (8)                         |
-| `mergeStrategy`            | `merge`, `squash` or `rebase` — see above for why it is `merge`              |
-| `checks.api`, `checks.web` | the root npm scripts the merge gate runs for that layer                      |
-| `phases[]`                 | per phase: its number, its `layer`, and whether it `needsDb`                 |
+| Key                        | Means                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------- |
+| `feature`, `ms`            | which feature to build, and the MS file that is its work queue                          |
+| `baseBranch`               | what phases branch from and merge into                                                  |
+| `model`, `fallbackModel`   | the model each session runs on, and what to fall back to when it is loaded              |
+| `effort`                   | optional reasoning effort per session (`low`…`max`); absent means the CLI's own default |
+| `maxTurnsPerTask`          | turn ceiling for a task session (200)                                                   |
+| `maxTurnsPerBookend`       | turn ceiling for an open, close, settle or close-out session (120)                      |
+| `maxBudgetUsdPerSession`   | dollar ceiling per session (15)                                                         |
+| `taskRetries`              | attempts at one task before it is labelled `ralph:blocked` and the run halts            |
+| `maxSessionsPerRun`        | sessions before the run stops on its own (60)                                           |
+| `maxRunHours`              | wall-clock hours before the run stops on its own (8)                                    |
+| `mergeStrategy`            | `merge`, `squash` or `rebase` — see above for why it is `merge`                         |
+| `checks.api`, `checks.web` | the root npm scripts the merge gate runs for that layer                                 |
+| `phases[]`                 | per phase: its number, its `layer`, and whether it `needsDb`                            |
 
 **To point the loop at another feature**, change `feature`, `ms` and the `phases` array; the
 milestone titles, issue numbers and task order all come from the MS file itself.
@@ -163,6 +257,7 @@ A run ends by finishing, by hitting a ceiling, or by halting. `--status` says wh
 | `PR <url> has conflicts`                                 | Resolve them on the branch, then `--resume`.                                                                                                          |
 | `session ceiling reached` / `wall-clock ceiling reached` | Working as intended. `--resume` to grant another budget.                                                                                              |
 | `this session is not a link of the run`                  | Normal. Your own interactive session ended and the loop correctly ignored it.                                                                         |
+| `paused: …`                                              | Somebody held it from a view. Press `p` again there, or delete `.claude/ralph.pause` and `--resume`.                                                  |
 | Nothing at all, chain just stopped                       | A session died without either hook firing. `--status`, then `--resume`.                                                                               |
 
 `--resume` always re-derives the stage from the MS file and GitHub, so it cannot repeat a task that

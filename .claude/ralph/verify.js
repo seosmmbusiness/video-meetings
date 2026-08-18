@@ -18,6 +18,36 @@ const path = require('node:path');
 const lib = require('./lib');
 
 /**
+ * The apps/api server this step started, when it started one. Kept at module scope so a signal can
+ * reach it: the monitor's Stop and Rollback kill this step's process group, and `npm run dev:api` is
+ * spawned detached into a group of its own, so nothing but this handler would take it down with us.
+ */
+let apiServer = null;
+
+/**
+ * Stops the apps/api server this step started, its whole process group with it.
+ *
+ * @returns {void}
+ */
+function stopApiServer() {
+  if (!apiServer) return;
+  const { pid } = apiServer;
+  apiServer = null;
+  try {
+    process.kill(-pid, 'SIGTERM');
+  } catch {
+    /* already gone */
+  }
+}
+
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) {
+  process.on(signal, () => {
+    stopApiServer();
+    process.exit(signal === 'SIGINT' ? 130 : 143);
+  });
+}
+
+/**
  * Parses this step's own arguments.
  *
  * @param {string[]} argv Arguments after the script path.
@@ -115,8 +145,6 @@ async function runChecks(config, phaseIndex, scope) {
   const scripts = config.checks[layer] || config.checks.api;
   const phase = config.phases[phaseIndex] || {};
   const results = [];
-  let api = null;
-
   if (phase.needsDb) {
     const up = npmRun('db:up');
     results.push(up);
@@ -126,14 +154,14 @@ async function runChecks(config, phaseIndex, scope) {
   if (scripts.includes('test:e2e:web')) {
     // Playwright's own webServer starts apps/web on 3000; apps/api on 3001 is ours to start.
     process.stdout.write('\n=== starting apps/api for the browser suite ===\n');
-    api = require('node:child_process').spawn('npm', ['run', 'dev:api'], {
+    apiServer = require('node:child_process').spawn('npm', ['run', 'dev:api'], {
       cwd: lib.ROOT,
       detached: true,
       stdio: 'ignore',
       env: process.env,
     });
     if (!(await waitForPort(3001, 120_000))) {
-      if (api) process.kill(-api.pid, 'SIGTERM');
+      stopApiServer();
       return [
         ...results,
         { script: 'apps/api start', code: 1, tail: 'port 3001 never answered' },
@@ -149,13 +177,7 @@ async function runChecks(config, phaseIndex, scope) {
     }
     if (results.every((r) => r.code === 0)) results.push(docsLint());
   } finally {
-    if (api) {
-      try {
-        process.kill(-api.pid, 'SIGTERM');
-      } catch {
-        /* already gone */
-      }
-    }
+    stopApiServer();
   }
   return results;
 }
