@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserCommand } from './commands/create-user.command';
 import { FindUserByEmailQuery } from './queries/find-user-by-email.query';
+import { FindUserByIdQuery } from './queries/find-user-by-id.query';
 import { UsersModule } from './users.module';
 
 const PASSWORD_HASH =
@@ -148,6 +149,79 @@ describe('Users module (integration)', () => {
       await expect(
         prisma.user.update({ where: { id: userB.id }, data: { avatarKey } }),
       ).rejects.toBeDefined();
+    });
+  });
+
+  describe('FindUserByIdQuery', () => {
+    it('reads a user back by id through the query bus', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      const found = await queryBus.execute<FindUserByIdQuery, User | null>(
+        new FindUserByIdQuery(created.id),
+      );
+
+      expect(found?.id).toBe(created.id);
+      expect(found?.email).toBe(email);
+    });
+
+    it('returns the whole row, hash and tokenVersion included', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await prisma.user.update({
+        where: { id: created.id },
+        data: { name: 'Ada Lovelace' },
+      });
+
+      const found = await queryBus.execute<FindUserByIdQuery, User | null>(
+        new FindUserByIdQuery(created.id),
+      );
+
+      // The full row is deliberate (D-3): JwtStrategy reads tokenVersion off
+      // this same query, so the response mapping — not this query — is what
+      // keeps the hash off the wire (S-1).
+      expect(found?.name).toBe('Ada Lovelace');
+      expect(found?.passwordHash).toBe(PASSWORD_HASH);
+      expect(found?.tokenVersion).toBe(0);
+    });
+
+    it('resolves an unknown id to null rather than throwing', async () => {
+      const found = await queryBus.execute<FindUserByIdQuery, User | null>(
+        new FindUserByIdQuery(randomUUID()),
+      );
+
+      expect(found).toBeNull();
+    });
+
+    it('never answers with another account when asked for one id', async () => {
+      const emailA = uniqueEmail();
+      const emailB = uniqueEmail();
+      createdEmails.push(emailA, emailB);
+
+      const userA = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailA, PASSWORD_HASH, true),
+      );
+      const userB = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailB, PASSWORD_HASH, true),
+      );
+
+      const found = await queryBus.execute<FindUserByIdQuery, User | null>(
+        new FindUserByIdQuery(userB.id),
+      );
+
+      // The id the caller's token carries is the only key this query reads —
+      // A's row stays unreachable through B's id and the other way round.
+      expect(found?.id).toBe(userB.id);
+      expect(found?.email).toBe(emailB);
+      expect(found?.id).not.toBe(userA.id);
     });
   });
 
