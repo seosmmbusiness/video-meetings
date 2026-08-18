@@ -16,6 +16,27 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-18 — Module docs moved out of `.claude/` into `docs/modules/`
+
+The per-module architecture references lived in `.claude/modules/` so they would be committed
+alongside the CLAUDE.md files that point at them. That worked for hand-driven sessions and broke
+every unattended one: Claude Code treats anything under `.claude/` as a **sensitive path**, refuses
+to write it without an interactive confirmation, and that check sits above `permissions.allow` — so
+`Write(.claude/modules/**)` in `.claude/settings.local.json` did not help. A Ralph session runs
+`claude -p ... --permission-mode acceptEdits`, where there is nobody to confirm, so it simply could
+not write a module doc. `user-profile` phase 1 lost three sessions and the whole close stage to
+exactly that: task 1.6 retried to exhaustion, was labelled `ralph:blocked`, and the phase never
+reached in-review even though the code was green.
+
+The fix is to stop keeping working documentation inside the harness's own directory. `docs/modules/`
+is where the rest of the project's documentation already lives, it is nobody's config, and it is
+writable by an unattended session. Everything else about the convention is unchanged — same
+`module-<app>-<name>.md` names, same `INDEX.md`, same one-line pointers from each CLAUDE.md.
+
+`.claude/` keeps only what is genuinely harness configuration: hooks, the Ralph chain and its
+contract, settings. Older HISTORY entries still name the old path — they describe what was true
+then, and this entry supersedes them.
+
 ### 2026-08-18 — An operator's reference for Ralph's ceilings
 
 `docs/ralph-loop.md` lists the config keys but not what they cost. Two questions kept coming back

@@ -114,9 +114,9 @@ Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the 
       fills them, so phase 2 can render against the final shape and the AC-18 assertions in 1.1 and
       3.1 agree. Swagger-annotated per `apps/api/CLAUDE.md`.
 - [x] **1.6** Document the profile and users modules — a new
-      `.claude/modules/module-api-profile.md` (D-1: the module's shape, the subject-from-token rule,
+      `docs/modules/module-api-profile.md` (D-1: the module's shape, the subject-from-token rule,
       the DTO boundary), `module-api-users.md` extended with the new commands/queries, both rowed in
-      `.claude/modules/INDEX.md` with a pointer in `apps/api/CLAUDE.md`; JSDoc on every function
+      `docs/modules/INDEX.md` with a pointer in `apps/api/CLAUDE.md`; JSDoc on every function
       added; the entry in `apps/api/HISTORY.md`.
 
 **Done when**: `npm run test:api`, `npm run test:int:api` and `npm run test:e2e:api` are green, and
@@ -172,8 +172,8 @@ MCP tools against a running dev server, saving shots under `screenshots/`. Suite
 - [ ] **2.5** Greet the user by name on the dashboard — `src/app/page.tsx` shows the name when one is
       set and the email when not, in the server-rendered HTML, with no client-side read after mount
       (AC-5). Both are rendered as text; React's escaping is what keeps AC-16.
-- [ ] **2.6** Document the web profile module — a new `.claude/modules/module-web-profile.md` per the
-      root `CLAUDE.md`'s Module documentation section, its row in `.claude/modules/INDEX.md`, the
+- [ ] **2.6** Document the web profile module — a new `docs/modules/module-web-profile.md` per the
+      root `CLAUDE.md`'s Module documentation section, its row in `docs/modules/INDEX.md`, the
       one-line pointer plus Status line in `apps/web/CLAUDE.md`, JSDoc on every function added, and
       the entry in `apps/web/HISTORY.md`.
 
@@ -242,10 +242,10 @@ its existing specs, relocated with it. Suites: `npm run test:api`, `npm run test
       same DTO (AC-9, AC-15, S-1). Throttles: `{ limit: 240, ttl: 60_000 }` on the read,
       `{ limit: 30, ttl: 60_000 }` on write and delete.
 - [ ] **3.6** Document the storage and profile modules — a new
-      `.claude/modules/module-api-storage.md` for the extracted module (the boundary, the modes, the
+      `docs/modules/module-api-storage.md` for the extracted module (the boundary, the modes, the
       lazy `resolveStorageRoot()` gotcha, the parameterised type detection),
       `module-api-files.md` pointing at it instead of describing it, `module-api-profile.md` gaining
-      the avatar routes and the commit order, rows in `.claude/modules/INDEX.md` and
+      the avatar routes and the commit order, rows in `docs/modules/INDEX.md` and
       `apps/api/CLAUDE.md`, Swagger for the new routes (`@ApiConsumes`, one `@Api*Response` per
       refusal status), JSDoc, and the entry in `apps/api/HISTORY.md`.
 
@@ -298,7 +298,7 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
       shifts. `src` is `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>`; `next/image` is not used —
       `/_next/image` fetches its source server-side without the session cookie and would `401`
       (D-13). Per T-2, the fallback showing while the image loads is an image load, not a state flip.
-- [ ] **4.6** Document the avatar UI and the proxy — `.claude/modules/module-web-profile.md` gains
+- [ ] **4.6** Document the avatar UI and the proxy — `docs/modules/module-web-profile.md` gains
       the uploader, the proxy route and the `?v=` cache-busting rule, `apps/web/CLAUDE.md`'s
       Structure and Status lines follow, JSDoc on every function added, entry in
       `apps/web/HISTORY.md`.
@@ -362,7 +362,7 @@ tokenVersion)` in the auth module owns the claim set `{ sub, email, ver }`, and
       the increment and answers `{ accessToken }` alone — the row it was built from never reaches
       the wire (S-1, AC-18) — so the caller continues without signing in again while every other
       token for that account is refused on its next request (AC-13).
-- [ ] **5.6** Document the revocation and the password route — `.claude/modules/module-api-auth.md`
+- [ ] **5.6** Document the revocation and the password route — `docs/modules/module-api-auth.md`
       (the `ver` claim, what the guard now reads, the one-place token minting),
       `module-api-users.md` (the password command and its `tokenVersion` increment),
       `module-api-profile.md` (the route, its `403`, its throttle), Swagger for the new route and
@@ -411,12 +411,12 @@ session. UI reviewed with `web-design-guidelines` then `ui-ux-pro-max`. Suites: 
       where `httpOnly` protects nothing (S-6, AC-17).
 - [ ] **6.4** Land a revoked session on `/login` — a `401` from `apps/api` is treated as signed-out
       on every page that can now meet one: `/` (already does, via `listMeetings`), `/profile` and
-      `/meetings/[id]`, each redirecting before render the way `.claude/modules/module-web-auth.md`
+      `/meetings/[id]`, each redirecting before render the way `docs/modules/module-web-auth.md`
       describes; the stale cookie is left to be overwritten at the next real login, since a Server
       Component cannot delete a cookie. `profile-api.ts` keeps `401` (signed out) and `403` (refused,
       stay put) apart (D-11, AC-13, AC-14).
 - [ ] **6.5** Document the password flow and close the feature's docs —
-      `.claude/modules/module-web-profile.md` (the form, the cookie rewrite, the 401/403 split),
+      `docs/modules/module-web-profile.md` (the form, the cookie rewrite, the 401/403 split),
       `apps/web/CLAUDE.md`'s Status, JSDoc on every function added, and the entries in
       `apps/web/HISTORY.md` and the root `HISTORY.md` for the feature as a whole.
 

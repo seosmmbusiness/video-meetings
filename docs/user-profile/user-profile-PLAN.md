@@ -52,9 +52,9 @@ each at the tier that proves it. Suites: `npm run test:api`, `npm run test:int:a
       another account (AC-15); Swagger-annotated per `apps/api/CLAUDE.md`. Both answer through an
       explicit `ProfileResponseDto` built field by field — never the Prisma row and never a spread,
       because that row carries `passwordHash`, `tokenVersion` and `avatarKey` (S-1, AC-18).
-- [ ] **1.6** Update the users module doc — `.claude/modules/module-api-users.md` gains the new
-      commands/queries, a new `.claude/modules/module-api-profile.md` covers the module from D-1,
-      both get their rows in `.claude/modules/INDEX.md` and a pointer in `apps/api/CLAUDE.md`; JSDoc
+- [ ] **1.6** Update the users module doc — `docs/modules/module-api-users.md` gains the new
+      commands/queries, a new `docs/modules/module-api-profile.md` covers the module from D-1,
+      both get their rows in `docs/modules/INDEX.md` and a pointer in `apps/api/CLAUDE.md`; JSDoc
       on every function added, and the change recorded in `apps/api/HISTORY.md`.
 
 **Done when**: `npm run test:api`, `npm run test:int:api` and `npm run test:e2e:api` are green, and
@@ -88,7 +88,7 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
       happened (S-3); red before 2.2 starts.
 - [ ] **2.2** Read the caller's profile server-side — a server-only client for phase 1's routes,
       sitting beside `lib/meetings-api.ts` and throwing `ApiError` on a non-2xx exactly as it does
-      (`.claude/modules/module-web-auth.md`).
+      (`docs/modules/module-web-auth.md`).
 - [ ] **2.3** Ship the profile page — a Server Component route at `/profile` rendering email, name
       and the placeholder half of HeroUI's `Avatar` (`Avatar.Fallback`, D-13) in the server's first
       response, redirecting to `/login` before any JSX when there is no session or the API refuses
@@ -103,8 +103,8 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
       (S-3, AC-19), exactly as `actions/files.ts` already guards.
 - [ ] **2.5** Greet the user by name on the dashboard — `/` shows the name when one is set and the
       email when not, in the server-rendered HTML, with no client-side read after mount (AC-5).
-- [ ] **2.6** Document the profile module — a new `.claude/modules/module-web-profile.md` per the
-      root `CLAUDE.md`'s Module documentation section, its row in `.claude/modules/INDEX.md`, the
+- [ ] **2.6** Document the profile module — a new `docs/modules/module-web-profile.md` per the
+      root `CLAUDE.md`'s Module documentation section, its row in `docs/modules/INDEX.md`, the
       one-line pointer plus Status line in `apps/web/CLAUDE.md`, and the entry in
       `apps/web/HISTORY.md`.
 
@@ -160,8 +160,8 @@ green on the current code", then re-run after each step. Suites: `npm run test:a
       JSON answers go through the same explicit DTO as 1.5 — no storage key, no hash, no revocation
       counter (S-1, AC-18).
 - [ ] **3.6** Update the storage, files and profile module docs — a new
-      `.claude/modules/module-api-storage.md` for the extracted module, `module-api-files.md`
-      pointing at it, `module-api-profile.md` gaining the avatar routes, `.claude/modules/INDEX.md`
+      `docs/modules/module-api-storage.md` for the extracted module, `module-api-files.md`
+      pointing at it, `module-api-profile.md` gaining the avatar routes, `docs/modules/INDEX.md`
       and `apps/api/CLAUDE.md` rows, Swagger annotations for the new routes and DTOs, JSDoc on every
       function added, entry in `apps/api/HISTORY.md`.
 
@@ -191,7 +191,7 @@ verified visually with the Playwright MCP tools. Suites: `npm run test:web`, `np
 - [ ] **4.2** Proxy the avatar bytes same-origin — a Route Handler at `/api/profile/avatar`
       (`GET`/`POST`/`DELETE`) forwards to phase 3's routes with the session token attached
       server-side, on the shape `lib/api-proxy.ts` already implements for meeting files
-      (`.claude/modules/module-web-meeting-files.md`), so no token and no cross-origin call appears
+      (`docs/modules/module-web-meeting-files.md`), so no token and no cross-origin call appears
       in the browser (AC-17). A Server Action cannot carry these bytes: Next caps an action's
       request body at 1 MB by default, against a 5 MB avatar (D-12).
 - [ ] **4.3** Upload and replace the avatar in the browser — a control on the profile page that
@@ -205,7 +205,7 @@ verified visually with the Playwright MCP tools. Suites: `npm run test:web`, `np
       server response rather than after mount (AC-1, AC-5). The `src` is the proxy URL with
       `?v=<avatarUpdatedAt>`; `next/image` is not used — `/_next/image` fetches its source without
       the session cookie and would 401 (D-13).
-- [ ] **4.6** Update the profile module doc — `.claude/modules/module-web-profile.md` gains the
+- [ ] **4.6** Update the profile module doc — `docs/modules/module-web-profile.md` gains the
       avatar UI and the proxy route, `apps/web/CLAUDE.md`'s Structure/Status lines follow, JSDoc on
       every function added, entry in `apps/web/HISTORY.md`.
 
@@ -236,7 +236,7 @@ HTTP with two tokens; the guard's own decision is a unit spec. Suites: `npm run 
       `accessToken` and nothing else (S-1); red before 5.2 starts.
 - [ ] **5.2** Change the password behind the current one — `PATCH /profile/password` verifies the
       current password through the credentials module's existing timing-safe verification
-      (`.claude/modules/module-api-credentials.md`) and stores the new hash; a wrong current password
+      (`docs/modules/module-api-credentials.md`) and stores the new hash; a wrong current password
       is refused with **403**, not 401 — `apps/web` reads 401 as "signed out" and would sign the user
       out on a typo, and D-9 makes 401 the revoked-token answer (D-11) — changing nothing and ending
       no session (AC-10, AC-11). The route carries
@@ -257,7 +257,7 @@ HTTP with two tokens; the guard's own decision is a unit spec. Suites: `npm run 
       built from never reaches the wire (S-1, AC-18). The token is signed **after** the increment,
       so the caller continues without signing in again while every other token for that account is
       refused on its next request (AC-13).
-- [ ] **5.6** Update the auth and credentials module docs — `.claude/modules/module-api-auth.md`
+- [ ] **5.6** Update the auth and credentials module docs — `docs/modules/module-api-auth.md`
       (the revocation check and what the guard now reads), `module-api-users.md` and
       `module-api-credentials.md` where they change, Swagger for the new route and DTO, JSDoc, and
       the entry in `apps/api/HISTORY.md`.
@@ -302,10 +302,10 @@ protected page against a revoked session. UI reviewed with `web-design-guideline
       token or the API's response object — an action's return value is serialised into the page
       payload, where `httpOnly` protects nothing (S-6).
 - [ ] **6.4** Land a revoked session on `/login` — a `401` caused by a revoked token is treated as
-      signed-out on every page that can meet it, the way `.claude/modules/module-web-auth.md`
+      signed-out on every page that can meet it, the way `docs/modules/module-web-auth.md`
       already treats a `401` from `listMeetings`; the profile client keeps `401` (signed out) and
       `403` (refused, stay put) apart (D-11, AC-13, AC-14).
-- [ ] **6.5** Update the profile module doc and Status — `.claude/modules/module-web-profile.md`,
+- [ ] **6.5** Update the profile module doc and Status — `docs/modules/module-web-profile.md`,
       `apps/web/CLAUDE.md`'s Status, JSDoc on every function added, and the entries in
       `apps/web/HISTORY.md` and the root `HISTORY.md` for the feature as a whole.
 

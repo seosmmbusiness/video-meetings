@@ -28,7 +28,7 @@ you're here":
 3. **Only the `D-<n>` it cites** in `-RESEARCH.md`, and **only the `S-<n>` it cites** in
    `-THREATS.md`. Limits, versions, env var names and error codes are copied verbatim.
 4. **`CLAUDE.md`, the app's `CLAUDE.md`, and the module docs for what you touch** —
-   `.claude/modules/INDEX.md` first, then only those modules' docs.
+   `docs/modules/INDEX.md` first, then only those modules' docs.
 
 `-PLAN.md` is history; FINAL superseded it. Nothing reads it.
 
@@ -57,7 +57,7 @@ rule already hardened by the pipeline, so follow it as written rather than re-de
 - **Security cases are mandatory at the tier that proves them**, not bolted onto e2e: authorization
   boundaries, auth bypass on a protected route, and mass-assignment rejection.
 - **Docs land with the code**, in the same task: JSDoc on every function, Swagger annotations on new
-  routes and DTOs, the module doc under `.claude/modules/` plus its `INDEX.md` row, and the app's
+  routes and DTOs, the module doc under `docs/modules/` plus its `INDEX.md` row, and the app's
   `HISTORY.md` entry.
 - **Tests keep their teeth.** Weakening or rewriting a spec to reach green is **blocked**, never done.
 - **`--no-verify` is off the table.** `pre-commit` runs `npm run lint`, `pre-push` runs `npm test`;
