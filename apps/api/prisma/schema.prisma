@@ -11,13 +11,19 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  passwordHash   String
-  consentToTerms Boolean
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  meetings       Meeting[]
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  consentToTerms  Boolean
+  name            String?   @db.VarChar(80)
+  avatarKey       String?   @unique
+  avatarMimeType  String?   @db.VarChar(64)
+  avatarSize      Int?
+  avatarUpdatedAt DateTime?
+  tokenVersion    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  meetings        Meeting[]
 
   @@map("users")
 }
