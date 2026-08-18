@@ -17,8 +17,13 @@
       "phase": 1,
       "title": "Account name in the API",
       "covers": ["AC-2", "AC-3", "AC-4", "AC-15", "AC-18"],
-      "status": "in-progress",
+      "status": "in-review",
       "branch": "feature/user-profile-phase-1",
+      "pr": {
+        "number": 174,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/174",
+        "state": "open"
+      },
       "milestone": {
         "number": 24,
         "title": "UP 1 · Account name in the API",

@@ -74,9 +74,10 @@ each at the tier that proves it. E2e cases go in `apps/api/test/profile.e2e-spec
 beside their source under `src/profile/`, integration under `src/profile/profile.int-spec.ts`.
 Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the last two need
 `npm run db:up`).
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/174
 **Tasks**:
 
-- [ ] **1.1** Cover reading and updating the caller's own name — tests: `apps/api/test/profile.e2e-spec.ts`
+- [x] **1.1** Cover reading and updating the caller's own name — tests: `apps/api/test/profile.e2e-spec.ts`
       for AC-2, AC-3, AC-4 and AC-15 (B's token reaches nothing of A's; no path segment or body field
       is accepted as the subject), and `src/profile/dto/update-profile.dto.spec.ts` for trim, the
       80-character bound, mass-assignment rejection, and the **Name normalisation** transform — one
@@ -84,18 +85,18 @@ Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the 
       **survive** (S-2). AC-18's case asserts `Object.keys(body).sort()` equals
       `['avatarUpdatedAt','email','hasAvatar','id','name']` exactly, not merely that `passwordHash`
       is absent (S-1). Red, committed on its own, before 1.2 starts.
-- [ ] **1.2** Give an account a name it can store — one Prisma migration named `add_user_profile`
+- [x] **1.2** Give an account a name it can store — one Prisma migration named `add_user_profile`
       adds every column this feature needs, so the schema moves once: `name String? @db.VarChar(80)`
       (D-2), the four avatar columns phase 3 fills — `avatarKey String? @unique`,
       `avatarMimeType String? @db.VarChar(64)`, `avatarSize Int?`, `avatarUpdatedAt DateTime?` (D-5)
       — and `tokenVersion Int @default(0)` for phase 5 (D-9). Every already-registered row keeps
       `NULL` in each nullable column and `0` in `tokenVersion`. `npm run prisma:migrate:dev`.
-- [ ] **1.3** Read the caller's own profile — `FindUserByIdQuery(userId)` returns the full Prisma
+- [x] **1.3** Read the caller's own profile — `FindUserByIdQuery(userId)` returns the full Prisma
       `User` row through the users module's CQRS surface, exactly as `FindUserByEmailQuery` does
       (D-3); `UsersModule` still exports no providers. The full row is deliberate: `JwtStrategy`
       reads `tokenVersion` off this same query in 5.4, which is why the response mapping in 1.5 —
       not this query — is the boundary that keeps the hash off the wire (S-1).
-- [ ] **1.4** Update the caller's own name — `UpdateUserNameCommand(userId, name)` stores the value
+- [x] **1.4** Update the caller's own name — `UpdateUserNameCommand(userId, name)` stores the value
       the DTO produced; `UpdateProfileDto.name` is `@IsOptional()` and runs its `@Transform` in this
       order, from the research's **Name normalisation** row: strip `U+0000`–`U+001F` and `U+007F`,
       then `U+202A`–`U+202E` and `U+2066`–`U+2069`, **keeping** `U+200E`/`U+200F`; then trim; then
@@ -103,7 +104,7 @@ Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the 
       stored as `NULL`, which is how a name is cleared (AC-4). Normalise, never reject — the rule
       `FilesService` already applies to an uploaded file's name — so a NUL cannot reach Postgres and
       answer `500` (S-2).
-- [ ] **1.5** Expose both behind the JWT guard — a new `src/profile` module (D-1):
+- [x] **1.5** Expose both behind the JWT guard — a new `src/profile` module (D-1):
       `ProfileController` under `@UseGuards(JwtAuthGuard)`, exposing `GET /profile` and
       `PATCH /profile`, resolving the subject from `@CurrentUser()` alone — never a path segment or a
       body field, so there is nothing to point at another account (AC-15). Both answer
@@ -112,7 +113,7 @@ Suites: `npm run test:api`, `npm run test:int:api`, `npm run test:e2e:api` (the 
       ships in this phase**: `hasAvatar` is `false` and `avatarUpdatedAt` is `null` until phase 3
       fills them, so phase 2 can render against the final shape and the AC-18 assertions in 1.1 and
       3.1 agree. Swagger-annotated per `apps/api/CLAUDE.md`.
-- [ ] **1.6** Document the profile and users modules — a new
+- [x] **1.6** Document the profile and users modules — a new
       `.claude/modules/module-api-profile.md` (D-1: the module's shape, the subject-from-token rule,
       the DTO boundary), `module-api-users.md` extended with the new commands/queries, both rowed in
       `.claude/modules/INDEX.md` with a pointer in `apps/api/CLAUDE.md`; JSDoc on every function
