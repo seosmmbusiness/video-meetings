@@ -207,7 +207,9 @@ function halt(reason, state = null) {
  */
 function runDir(state) {
   const dir = path.join(LOG_ROOT, String(state.runId));
-  fs.mkdirSync(dir, { recursive: true });
+  // A dry run wants the path for the line it prints, not the directory: creating one would leave an
+  // empty run behind every time somebody looked at what the loop would do next.
+  if (!isDry()) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }
 
