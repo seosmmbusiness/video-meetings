@@ -16,7 +16,7 @@ function resolvedThrottler(moduleRef: TestingModule): {
 } {
   const options = moduleRef.get<ThrottlerModuleOptions>(THROTTLER_OPTIONS);
   const throttlers = Array.isArray(options) ? options : options.throttlers;
-  return throttlers[0] as { ttl: unknown; limit: unknown };
+  return throttlers[0];
 }
 
 // The wiring, not the parsing: ConfigModule.forRoot() is what puts the root
