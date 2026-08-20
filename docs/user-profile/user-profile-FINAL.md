@@ -143,36 +143,38 @@ source and client bundle. Cases go in `apps/web/e2e/profile.spec.ts`,
 review it with `web-design-guidelines` then `ui-ux-pro-max`, and verify visually with the Playwright
 MCP tools against a running dev server, saving shots under `screenshots/`. Suites:
 `npm run test:web`, `npm run test:e2e:web` (needs `apps/api` + Postgres up).
+**Status**: in-review — [PR #178](https://github.com/seosmmbusiness/video-meetings/pull/178), milestone UP 2.
+
 **Tasks**:
 
-- [ ] **2.1** Cover the profile page and the dashboard's name — tests: `apps/web/e2e/profile.spec.ts`
+- [x] **2.1** Cover the profile page and the dashboard's name — tests: `apps/web/e2e/profile.spec.ts`
       for AC-1 (email, name and the avatar mark present in the first server response), AC-14 (no
       cookie and a tampered cookie both land on `/login` with no profile data in the body), AC-16 (a
       name of markup renders as text) and AC-17 (no JWT in the HTML or the client bundle);
       `apps/web/e2e/home.spec.ts` extended for AC-5; `src/app/actions/profile.int-spec.ts` for
       AC-19 — the action invoked with `next/headers` mocked to no cookie makes no upstream `fetch`
       (S-3); `src/lib/profile-api.spec.ts` for the client's `ApiError` shaping. Red before 2.2.
-- [ ] **2.2** Read the caller's profile server-side — `src/lib/profile-api.ts`, `import 'server-only'`,
+- [x] **2.2** Read the caller's profile server-side — `src/lib/profile-api.ts`, `import 'server-only'`,
       calling phase 1's `GET`/`PATCH /profile` against `API_BASE_URL` with the bearer token and
       `cache: 'no-store'`, throwing `ApiError` on a non-2xx exactly as `meetings-api.ts` does. It
       keeps `401` (session gone) and `403` (refused, stay put) distinguishable for 6.4 (D-11).
-- [ ] **2.3** Ship the profile page — `src/app/profile/page.tsx`, an async Server Component:
+- [x] **2.3** Ship the profile page — `src/app/profile/page.tsx`, an async Server Component:
       `getSession()` first, `redirect('/login')` before any JSX when there is no session or the API
       answers `401` (AC-14), then email, name and the avatar mark rendered in the first response
       (AC-1). Until phase 4 there is no image to fetch, so it renders HeroUI's `Avatar.Fallback`
       from the name's initials, else the email's first letter (D-13). Reachable from the dashboard
       by a link beside the existing sign-out control.
-- [ ] **2.4** Change the name from the page — `src/app/actions/profile.ts`'s `updateNameAction`,
+- [x] **2.4** Change the name from the page — `src/app/actions/profile.ts`'s `updateNameAction`,
       bound through `useActionState`, submitting the name (D-12: fields go through actions, only
       bytes need a route), re-rendering with the stored value on success via `revalidatePath` and
       showing the API's refusal verbatim on failure (AC-2, AC-3, AC-4); any client-side hint mirrors
       the API's rules rather than replacing them. `getSession()` is its **first statement** and it
       returns the signed-out outcome without calling `apps/api` — a Server Action is reachable by
       direct POST, not only through the form (S-3, AC-19) — exactly as `actions/files.ts` guards.
-- [ ] **2.5** Greet the user by name on the dashboard — `src/app/page.tsx` shows the name when one is
+- [x] **2.5** Greet the user by name on the dashboard — `src/app/page.tsx` shows the name when one is
       set and the email when not, in the server-rendered HTML, with no client-side read after mount
       (AC-5). Both are rendered as text; React's escaping is what keeps AC-16.
-- [ ] **2.6** Document the web profile module — a new `docs/modules/module-web-profile.md` per the
+- [x] **2.6** Document the web profile module — a new `docs/modules/module-web-profile.md` per the
       root `CLAUDE.md`'s Module documentation section, its row in `docs/modules/INDEX.md`, the
       one-line pointer plus Status line in `apps/web/CLAUDE.md`, JSDoc on every function added, and
       the entry in `apps/web/HISTORY.md`.
