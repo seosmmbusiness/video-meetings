@@ -12,6 +12,7 @@ Shipped features, newest first. Phase rows collect under **In progress** while a
 
 ### user-profile
 
-| Date       | Phase                      | What landed                                                                                                                                                        | PR                                                                |
-| ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| 2026-08-18 | 1. Account name in the API | An account can hold a display name, and the signed-in caller reads and changes their own — and only their own — over `GET`/`PATCH /profile`, behind the JWT guard. | [#174](https://github.com/seosmmbusiness/video-meetings/pull/174) |
+| Date       | Phase                                         | What landed                                                                                                                                                         | PR                                                                |
+| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 2026-08-18 | 1. Account name in the API                    | An account can hold a display name, and the signed-in caller reads and changes their own — and only their own — over `GET`/`PATCH /profile`, behind the JWT guard.  | [#174](https://github.com/seosmmbusiness/video-meetings/pull/174) |
+| 2026-08-20 | 2. Profile page and the name on the dashboard | A signed-in user has a `/profile` page showing their email and name, changes the name there, and the dashboard greets them by it instead of by their email address. | [#178](https://github.com/seosmmbusiness/video-meetings/pull/178) |
