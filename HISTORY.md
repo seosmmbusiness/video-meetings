@@ -16,6 +16,12 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-20 — The browser suite gets its own API command, and the merge gate uses it
+
+`npm run dev:api:e2e` starts `apps/api` with `THROTTLE_LIMIT` raised, and `.claude/ralph/verify.js` starts it that way too rather than with plain `dev:api`. Both exist for one reason: every Playwright fixture registers through the unauthenticated `POST /auth/register`, so the throttler tracks it by IP, the whole suite shares a single bucket, and the suite runs inside one 60-second window — against the production baseline of 20 req/60 s there is no headroom for a new spec, and whichever cases tip over answer `429` regardless of which file added them. Details of the API-side change are in [`apps/api/HISTORY.md`](apps/api/HISTORY.md).
+
+The gate matters as much as the command. `verify.js` is what re-runs a phase's checks before the loop merges it, so a gate starting the API differently from the documented way would fail the browser suite on a machine where a person's run passes — the least debuggable kind of disagreement. Two hooks also went wrong the same week and are worth naming together: `.claude/settings.json` registered `stop.js` and `guard-bash.js` by **relative** path, so any session whose cwd had moved into `apps/api` failed to load them — silently stalling the chain (the Stop hook is what advances it) and, worse, letting the bash guard fail open. They take `$CLAUDE_PROJECT_DIR` now.
+
 ### 2026-08-18 — Module docs moved out of `.claude/` into `docs/modules/`
 
 The per-module architecture references lived in `.claude/modules/` so they would be committed

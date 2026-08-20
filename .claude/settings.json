@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard-bash.js",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.js",
             "timeout": 10
           }
         ]
@@ -65,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/stop.js",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop.js",
             "timeout": 60
           }
         ]
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/stop.js",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop.js",
             "timeout": 60
           }
         ]
