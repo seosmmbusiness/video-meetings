@@ -17,6 +17,19 @@ export interface Profile {
 }
 
 /**
+ * Picks what to greet the caller by: their stored name when they have one,
+ * their email address when they don't (AC-5). A cleared name arrives as `null`
+ * from apps/api, but an all-whitespace one would still be a blank greeting, so
+ * it counts as no name here too.
+ * @param name - The stored name, or `null` when none is set.
+ * @param email - The caller's email address, used as the fallback.
+ * @returns The name to render.
+ */
+export function displayName(name: string | null, email: string): string {
+  return name?.trim() ? name : email;
+}
+
+/**
  * Calls a `/profile` endpoint on apps/api with the caller's bearer token and
  * parses the JSON response, keeping the upstream status on the thrown error so
  * a `401` (session gone) stays distinguishable from a `403` (refused) (D-11).

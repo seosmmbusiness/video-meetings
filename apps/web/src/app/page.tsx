@@ -11,6 +11,7 @@ import {
   splitMeetingsByTime,
   type Meeting,
 } from '@/lib/meetings-api';
+import { displayName, getProfile } from '@/lib/profile-api';
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
@@ -102,9 +103,11 @@ function MeetingsSection({
  * Home route — the signed-in user's dashboard. Requires an active session:
  * unauthenticated visitors (no session cookie, or one apps/api rejects as
  * expired/tampered when fetching meetings) are redirected to `/login`
- * server-side, before anything renders. Shows the signed-in email, a
- * sign-out button, and the user's meetings split into upcoming and the
- * three most recent past ones.
+ * server-side, before anything renders. Greets the user by their stored name,
+ * or by their email when they have none (AC-5) — both in the server-rendered
+ * HTML, so neither is ever replaced by the other after mount — and shows a
+ * sign-out button plus the user's meetings split into upcoming and the three
+ * most recent past ones.
  * @returns The rendered home page.
  */
 export default async function Home() {
@@ -117,22 +120,43 @@ export default async function Home() {
   let recentPast: Meeting[] = [];
   let loadError: string | null = null;
 
-  try {
-    const meetings = await listMeetings(session.token);
-    ({ upcoming, recentPast } = splitMeetingsByTime(meetings));
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) {
-      // The cookie is present but apps/api rejects the token itself (expired
-      // or tampered) — treat that as signed-out rather than showing a stale
-      // dashboard with an error banner. The cookie itself can't be cleared
-      // from here (Server Components can't set cookies, only Server Actions
-      // and Route Handlers can); it's overwritten on the next successful
-      // login/register instead.
-      redirect('/login');
-    }
+  // Both calls only need the session token, so they go out together rather
+  // than one waiting on the other.
+  const [profileResult, meetingsResult] = await Promise.allSettled([
+    getProfile(session.token),
+    listMeetings(session.token),
+  ]);
+
+  // The cookie is present but apps/api rejects the token itself (expired or
+  // tampered) — treat that as signed-out rather than showing a stale dashboard
+  // with an error banner. The cookie itself can't be cleared from here (Server
+  // Components can't set cookies, only Server Actions and Route Handlers can);
+  // it's overwritten on the next successful login/register instead.
+  if (
+    [profileResult, meetingsResult].some(
+      (result) =>
+        result.status === 'rejected' &&
+        result.reason instanceof ApiError &&
+        result.reason.status === 401,
+    )
+  ) {
+    redirect('/login');
+  }
+
+  // A profile that didn't load is not worth an error banner on the dashboard —
+  // the greeting simply stays on the email, which is what it falls back to
+  // anyway. The profile page is where a broken `/profile` is reported.
+  const greeting =
+    profileResult.status === 'fulfilled'
+      ? displayName(profileResult.value.name, session.email)
+      : session.email;
+
+  if (meetingsResult.status === 'fulfilled') {
+    ({ upcoming, recentPast } = splitMeetingsByTime(meetingsResult.value));
+  } else {
     loadError =
-      error instanceof ApiError
-        ? error.message
+      meetingsResult.reason instanceof ApiError
+        ? meetingsResult.reason.message
         : 'Could not load your meetings. Please try again later.';
   }
 
@@ -152,7 +176,8 @@ export default async function Home() {
           <Alert status="success">
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Title>Signed in as {session.email}</Alert.Title>
+              {/* Rendered as text — a name of markup stays a name (AC-16). */}
+              <Alert.Title>Signed in as {greeting}</Alert.Title>
             </Alert.Content>
           </Alert>
         </Card.Content>
