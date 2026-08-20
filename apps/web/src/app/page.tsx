@@ -145,11 +145,14 @@ export default async function Home() {
 
   // A profile that didn't load is not worth an error banner on the dashboard —
   // the greeting simply stays on the email, which is what it falls back to
-  // anyway. The profile page is where a broken `/profile` is reported.
+  // anyway. The profile page is where a broken `/profile` is reported. The
+  // fallback email comes from the profile when it loaded, since `apps/api`
+  // owns it; the session's own `email` is a decoded claim and is `null` when
+  // the token can't be parsed, which renders as no greeting at all.
   const greeting =
     profileResult.status === 'fulfilled'
-      ? displayName(profileResult.value.name, session.email)
-      : session.email;
+      ? displayName(profileResult.value.name, profileResult.value.email)
+      : (session.email ?? '');
 
   if (meetingsResult.status === 'fulfilled') {
     ({ upcoming, recentPast } = splitMeetingsByTime(meetingsResult.value));
