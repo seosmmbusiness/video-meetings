@@ -87,9 +87,13 @@ export function NameForm({ name }: { name: string | null }) {
           Up to 80 characters. Leave it empty to go back to your email address.
         </Description>
         {/* The refusal belongs to the field, not to the page: rendering it
-            here is what ties it to the input through `aria-describedby`, so a
-            screen reader announces why the save was refused (AC-3). */}
-        <FieldError>{refusal}</FieldError>
+            here is what ties it to the input through `aria-describedby` (AC-3).
+            `role="alert"` is what makes it *heard* — the refusal lands while
+            focus is still on Save, and `aria-describedby` is only read once
+            the field itself is reached. */}
+        <div role="alert">
+          <FieldError>{refusal}</FieldError>
+        </div>
       </TextField>
 
       <div className="flex items-center gap-3">
