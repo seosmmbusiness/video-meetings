@@ -2,6 +2,7 @@ import NextLink from 'next/link';
 import { redirect } from 'next/navigation';
 import { Alert, Card } from '@heroui/react';
 import { linkVariants } from '@heroui/styles';
+import { NameForm } from '@/components/profile/name-form';
 import { UserAvatar } from '@/components/profile/user-avatar';
 import { ApiError, getProfile, type Profile } from '@/lib/profile-api';
 import { getSession } from '@/lib/session';
@@ -52,16 +53,15 @@ export default async function ProfilePage() {
         </Card.Header>
         <Card.Content>
           {profile ? (
-            <div className="flex items-center gap-4">
-              <UserAvatar name={profile.name} email={profile.email} />
-              <dl className="min-w-0">
-                <dt className="text-sm text-muted">Name</dt>
-                <dd className="truncate font-medium">
-                  {profile.name ?? 'Not set yet'}
-                </dd>
-                <dt className="mt-2 text-sm text-muted">Email</dt>
-                <dd className="truncate font-medium">{profile.email}</dd>
-              </dl>
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-4">
+                <UserAvatar name={profile.name} email={profile.email} />
+                <dl className="min-w-0">
+                  <dt className="text-sm text-muted">Email</dt>
+                  <dd className="truncate font-medium">{profile.email}</dd>
+                </dl>
+              </div>
+              <NameForm name={profile.name} />
             </div>
           ) : (
             <Alert status="danger">
