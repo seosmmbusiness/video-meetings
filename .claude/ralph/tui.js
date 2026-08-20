@@ -191,6 +191,7 @@ class Tui {
     if (this.mode === 'input') return this.onInputKey(key);
     if (this.mode === 'confirm') return this.onConfirmKey(key);
     if (this.mode === 'stop') return this.onStopKey(key);
+    if (this.mode === 'hold') return this.onHoldKey(key);
     if (this.mode === 'rollback') return this.onRollbackKey(key);
     return this.onNormalKey(key);
   }
@@ -273,6 +274,32 @@ class Tui {
   }
 
   /**
+   * Keys while the hold menu is open. A hold changes nothing about the run now, so unlike stop and
+   * rollback it needs no confirmation — pressing the same entry again clears it.
+   *
+   * @param {string} key The key.
+   * @returns {void}
+   */
+  onHoldKey(key) {
+    const holds = {
+      1: { action: 'pause', at: 'phase' },
+      2: { action: 'stop', at: 'phase' },
+      3: { action: 'stop', at: 'task' },
+      0: { action: null },
+    };
+    const chosen = holds[key];
+    this.mode = 'normal';
+    if (!chosen) return this.draw();
+    const armed = this.snapshot && this.snapshot.hold;
+    const same =
+      armed &&
+      chosen.action &&
+      armed.action === chosen.action &&
+      armed.at === chosen.at;
+    return this.say(monitor.hold(same ? { action: null } : chosen));
+  }
+
+  /**
    * Keys while the rollback menu is open.
    *
    * @param {string} key The key.
@@ -319,6 +346,10 @@ class Tui {
       case 's':
       case 'S':
         this.mode = 'stop';
+        return this.draw();
+      case 'h':
+      case 'H':
+        this.mode = 'hold';
         return this.draw();
       case 'r':
       case 'R':
@@ -445,6 +476,13 @@ class Tui {
     row(
       `model ${link && link.model ? link.model : settings.model}${pendingModel} · effort ${(link && link.effort) || settings.effort || 'inherit'}${pendingEffort} · workers ${snapshot.workers.active}/${snapshot.workers.limit} · turns ${settings.maxTurnsPerTask}/task · budget ${money(settings.maxBudgetUsdPerSession)}`,
     );
+    if (snapshot.hold)
+      row(
+        colour.wrap(
+          '33',
+          `hold: ${snapshot.hold.label} — armed, not yet reached`,
+        ),
+      );
     if (snapshot.halt) row(colour.wrap('31', `halt: ${snapshot.halt}`));
     if (snapshot.msError)
       row(colour.wrap('31', `MS file: ${snapshot.msError}`));
@@ -479,6 +517,16 @@ class Tui {
           'Stop: [f] after the current link · [k] kill it now · [esc] cancel',
         ),
       );
+    } else if (this.mode === 'hold') {
+      row(colour.wrap('33', 'Hold — armed now, acts at a boundary later:'));
+      row(
+        '[1] pause when this phase ends — merged, settled, on the base branch',
+      );
+      row('[2] stop when this phase ends — --resume opens the next phase');
+      row('[3] stop when this task ends — --resume takes the next task');
+      row(
+        `[0] clear · [esc] cancel · ${snapshot.hold ? `armed: ${snapshot.hold.label}` : 'nothing armed'}`,
+      );
     } else if (this.mode === 'rollback') {
       row(colour.wrap('33', 'Roll back:'));
       monitor.ROLLBACK_MODES.forEach((mode, i) => {
@@ -505,7 +553,7 @@ class Tui {
       );
     } else {
       row(
-        `[p] ${snapshot.paused || snapshot.stopped ? 'resume' : 'pause'}  [s] stop  [r] rollback  [m] model  [f] fallback  [e] effort`,
+        `[p] ${snapshot.paused || snapshot.stopped ? 'resume' : 'pause'}  [s] stop  [h] hold${snapshot.hold ? '*' : ''}  [r] rollback  [m] model  [f] fallback  [e] effort`,
       );
       row(
         '[t] turns  [b] budget  [n] retries  [l] more lines  [q] quit watching',

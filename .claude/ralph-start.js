@@ -11,7 +11,8 @@
  * Usage:
  *   node .claude/ralph-start.js                    start a fresh run from the first pending phase
  *   node .claude/ralph-start.js --dry-run          decide and print the first link, spawn nothing
- *   node .claude/ralph-start.js --resume           continue the existing state, clearing the halt
+ *   node .claude/ralph-start.js --resume           continue the run, clearing the halt and
+ *                                                  granting its ceilings again
  *   node .claude/ralph-start.js --phase 2          start (or resume) at a specific phase number
  *   node .claude/ralph-start.js --status           print where the run got to, change nothing
  *   node .claude/ralph-start.js --watch            start it, then watch it in this terminal
@@ -166,6 +167,12 @@ function printStatus(config) {
       `\nPAUSED: ${fs.readFileSync(lib.PAUSE_PATH, 'utf8').trim()}\n`,
     );
   }
+  const hold = lib.readHold();
+  if (hold) {
+    process.stdout.write(
+      `hold: ${lib.describeHold(hold)} — armed ${hold.armedAt}, not yet reached\n`,
+    );
+  }
   const overrides = lib.readOverrides();
   if (Object.keys(overrides).length) {
     process.stdout.write(
@@ -216,6 +223,9 @@ if (phaseIndex < 0 || phaseIndex >= ms.phases.length) {
   process.exit(1);
 }
 
+const startedAt = resuming ? existing.startedAt : new Date().toISOString();
+const sessions = resuming ? existing.sessions || 0 : 0;
+
 const state = {
   runId: resuming ? existing.runId : Math.floor(Date.now() / 1000),
   active: true,
@@ -223,14 +233,30 @@ const state = {
   stage: resuming && !phaseArg ? existing.stage : 'start',
   currentIssue: null,
   attempts: resuming ? existing.attempts || {} : {},
-  sessions: resuming ? existing.sessions || 0 : 0,
-  startedAt: resuming ? existing.startedAt : new Date().toISOString(),
+  sessions,
+  startedAt,
+  // A resume keeps the checkpoints the chain took, or rolling back after one would have nothing to
+  // rewind to — and stopping at a boundary and picking the run up later is now a button.
+  checkpoints: resuming ? existing.checkpoints || [] : [],
+  // Asking for a resume is asking for the ceilings again: a run held at a boundary overnight spent
+  // those hours waiting for a person, and counting them would refuse the resume that was asked for.
+  // `startedAt` still says how long the whole run has been going; only the ceilings move on.
+  budget: resuming
+    ? { since: new Date().toISOString(), sessions }
+    : { since: startedAt, sessions: 0 },
 };
 
 if (option('stage')) state.stage = option('stage');
-// Starting a run clears the halt it is starting from — but a dry run must not, or looking at what
-// would happen next would quietly un-halt a loop somebody stopped on purpose.
-if (!flag('dry-run') && lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
+// Starting a run clears the halt and the hold it is starting from — but a dry run must not, or
+// looking at what would happen next would quietly un-halt a loop somebody stopped on purpose. The
+// pause goes too: a hold that fired leaves one behind, and `--resume` would otherwise be refused by
+// the guard on the very next breath.
+if (!flag('dry-run')) {
+  if (lib.stopRequested()) fs.unlinkSync(lib.STOP_PATH);
+  if (lib.pauseRequested()) fs.unlinkSync(lib.PAUSE_PATH);
+  // A hold belongs to the run that armed it; a resume keeps it, a fresh run does not inherit it.
+  if (!resuming) lib.writeHold(null);
+}
 
 lib.writeState(state);
 lib.writeLock(state);

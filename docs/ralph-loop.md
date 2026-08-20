@@ -119,6 +119,7 @@ Both views draw the same snapshot and drive the same controls — pick whichever
 | ----------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `p`                     | Pause/Resume    | Holds the chain at the next link boundary. The link in flight finishes; no successor is spawned. Pressing it again clears the hold — and any halt — and asks the chain for its next link.                         |
 | `s`                     | Stop            | Halts the run. `f` lets the link in flight finish first; `k` kills it and its whole process group now. Either way `.claude/ralph.stop` goes down first, so the dying session's own hook cannot spawn a successor. |
+| `h`                     | Hold            | Arms a pause or a halt for a boundary further off than the next link — the end of this task, or the end of this phase. Changes nothing now; described below.                                                      |
 | `r`                     | Rollback…       | Three ways back, described below. Every one asks first and names what it will do.                                                                                                                                 |
 | `m` `f` `e` `t` `b` `n` | settings fields | model, fallback, effort, turns per task, budget per session, retries.                                                                                                                                             |
 | `l`                     | —               | More activity lines.                                                                                                                                                                                              |
@@ -133,6 +134,38 @@ by saving an empty value.
 **Workers is `1` and is not editable.** The chain runs one link at a time on one working tree, and
 that is what makes its guarantees hold: one branch, one commit order, one `red → green` sequence per
 task. The field is there to say so honestly, not as a knob.
+
+### Holding at a boundary
+
+Pause and Stop act at the **next link boundary**, whatever the chain happens to be doing — which is
+what you want when something is wrong, and the wrong place to stop when nothing is. A run halted
+between `merge` and `settle` leaves a phase merged but not settled; a run halted in the middle of a
+phase's five tasks leaves you reading the MS file to work out where it got to.
+
+A **hold** is the same two actions armed for a boundary the chain reaches later:
+
+| Control                    | Fires when                                                                           | Leaves you                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| **Pause after this phase** | the phase has merged **and** settled, and the next link would open the next phase    | held, with everything the phase produced on the base branch. Resume carries on |
+| **Stop after this phase**  | the same boundary                                                                    | halted there. `node .claude/ralph-start.js --resume` picks up the next phase   |
+| **Stop after this task**   | the task in flight finishes — its commits pushed and its issue labelled `ralph:done` | halted between tasks. `--resume` takes the next task in the queue              |
+
+The dashboard has the button and the two checkboxes; the terminal view has them on `h`. Nothing
+happens when you arm one — the run keeps going, and the view says what is armed until it fires. Arm
+it and walk away; the chain stops itself somewhere a person can read.
+
+Three things worth knowing:
+
+- **One hold stands at a time.** Arming another replaces it. Two holds would only ever mean the
+  earlier boundary, which is the one that fires anyway.
+- **A hold armed for a task also fires at the end of the phase.** Arm one while a `close`, `merge` or
+  `settle` link is in flight and there is no task boundary left in this phase — without this it would
+  sit through the phase boundary and stop in the middle of the next one.
+- **A hold that fires is spent.** It clears itself before it acts, so a resume carries on rather than
+  stopping again at the boundary it was just released from.
+
+`--status` names an armed hold; it lives in `.claude/ralph.hold.json` (gitignored), and a fresh
+start clears it while `--resume` keeps it.
 
 ### Rolling back
 
@@ -218,8 +251,8 @@ quotes one of those commands has to arrive by file — `git commit -F <path>`,
 ## Configuration
 
 `.claude/ralph.config.json` is committed and read-only during a run. Runtime state lives beside it in
-`.claude/ralph.state.json` and is gitignored, along with the logs, the lock, the stop and pause
-files, `.claude/ralph.advance.lock` (held for the second or two a decision takes, so two views
+`.claude/ralph.state.json` and is gitignored, along with the logs, the lock, the stop, pause and
+hold files, `.claude/ralph.advance.lock` (held for the second or two a decision takes, so two views
 cannot each start one), and `.claude/ralph.overrides.json` — the settings a view changed while the
 run was in flight, which are merged over the config every time a link is spawned.
 
@@ -262,13 +295,19 @@ A run ends by finishing, by hitting a ceiling, or by halting. `--status` says wh
 | `phase is in-review with no PR recorded`                 | The close session died between pushing and recording. `gh pr list --head feature/<slug>-phase-<N>`, then put the `pr` block into the MS file by hand. |
 | `PR <url> is CLOSED`                                     | Somebody closed it unmerged. Deliberately a stop: reopening or rebuilding is your decision.                                                           |
 | `PR <url> has conflicts`                                 | Resolve them on the branch, then `--resume`.                                                                                                          |
-| `session ceiling reached` / `wall-clock ceiling reached` | Working as intended. `--resume` to grant another budget.                                                                                              |
+| `session ceiling reached` / `wall-clock ceiling reached` | Working as intended. `--resume` grants both ceilings again, counted from the resume rather than from the start of the run.                            |
 | `this session is not a link of the run`                  | Normal. Your own interactive session ended and the loop correctly ignored it.                                                                         |
 | `paused: …`                                              | Somebody held it from a view. Press `p` again there, or delete `.claude/ralph.pause` and `--resume`.                                                  |
+| `stop after this phase — phase N settled`                | A hold you armed fired at its boundary. Nothing is wrong: `--resume` opens the next phase.                                                            |
+| `stop after this task — task #N finished`                | The same, one boundary in. `--resume` takes the next task in the queue.                                                                               |
 | Nothing at all, chain just stopped                       | A session died without either hook firing. `--status`, then `--resume`.                                                                               |
 
 `--resume` always re-derives the stage from the MS file and GitHub, so it cannot repeat a task that
-already landed.
+already landed. It also opens a fresh ceiling window — `maxRunHours` and `maxSessionsPerRun` are
+counted from the resume, not from the start of the run, since a run held at a boundary overnight
+spent those hours waiting for a person rather than working. `startedAt` still says how long the whole
+run has been going, and a view shows the session ceiling as the number the chain will actually stop
+at.
 
 ## The first run
 

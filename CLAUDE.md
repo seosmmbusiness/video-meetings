@@ -61,7 +61,7 @@ Per-app specifics — how each tier is written, which tools it uses, and what ge
 
 The loop merges its own PRs, so the gate is mechanical rather than human: `.claude/ralph/verify.js` re-runs the phase's whole check set and the docs linter, and merges only on exit code zero. `.claude/hooks/guard-bash.js` refuses the commands no unattended run may reach for (`--no-verify`, force pushes, pushes to `main`, `reset --hard`, `git clean`, `gh pr merge`, `migrate reset`). Halt any run with `touch .claude/ralph.stop`; see where it got to with `node .claude/ralph-start.js --status`. Why it is built this way is in [`HISTORY.md`](HISTORY.md).
 
-**Watching one:** `--watch` (terminal) or `--ui` (dashboard on `127.0.0.1`) attach a live view to the chain — phase and task progress, what the running session is doing right now, the model, effort and ceilings the next link will use, and buttons for pause, stop and three kinds of rollback. `node .claude/ralph-watch.js` attaches to a run already going; closing a view never touches the run. The view's own suites are `node --test .claude/ralph/*.test.js` (also `npm run test:tools`).
+**Watching one:** `--watch` (terminal) or `--ui` (dashboard on `127.0.0.1`) attach a live view to the chain — phase and task progress, what the running session is doing right now, the model, effort and ceilings the next link will use, and buttons for pause, stop, three kinds of rollback, and a standing hold that pauses or stops the run at the end of the task or phase it is on. `node .claude/ralph-watch.js` attaches to a run already going; closing a view never touches the run. The view's own suites are `node --test .claude/ralph/*.test.js` (also `npm run test:tools`).
 
 ## Module documentation
 

@@ -780,6 +780,8 @@ function snapshot() {
   const paused = lib.pauseRequested();
   const stopped = lib.stopRequested();
   const halt = stopped ? lib.stopReason() : null;
+  const armed = lib.readHold();
+  const held = armed ? { ...armed, label: lib.describeHold(armed) } : null;
 
   if (!state) {
     return {
@@ -788,6 +790,7 @@ function snapshot() {
       paused,
       stopped,
       halt,
+      hold: held,
       settings,
       overrides,
       feature: config.feature,
@@ -803,6 +806,7 @@ function snapshot() {
   }
 
   const dir = lib.runDir(state);
+  const window = lib.budgetWindow(state);
   const link = state.link || null;
   const alive = link ? !link.endedAt && isAlive(link.pid) : false;
   const stream = link && link.log ? parseStream(readTail(link.log)) : null;
@@ -825,6 +829,7 @@ function snapshot() {
     paused,
     stopped,
     halt,
+    hold: held,
     msError,
     startedAt: state.startedAt,
     elapsedMs: Date.now() - Date.parse(state.startedAt),
@@ -872,8 +877,13 @@ function snapshot() {
       : null,
     workers: { active: alive ? 1 : 0, limit: 1 },
     cost: { run: cost.total, sessions: cost.sessions },
+    // The ceilings are counted over the window the run is in, so what a view shows is the number
+    // the chain will actually stop at rather than the one the config names.
+    budget: window,
     ceilings: {
-      sessions: config.maxSessionsPerRun,
+      sessions: config.maxSessionsPerRun
+        ? window.sessions + config.maxSessionsPerRun
+        : null,
       hours: config.maxRunHours,
       retries: settings.taskRetries,
     },
@@ -914,11 +924,78 @@ function record(entry) {
  * @returns {{ ok: boolean, why: string }} The outcome.
  */
 function pause(reason = 'paused from the monitor') {
-  fs.writeFileSync(lib.PAUSE_PATH, `${new Date().toISOString()} ${reason}\n`);
+  lib.pauseChain(reason);
   record({ type: 'pause', reason });
   return {
     ok: true,
     why: 'paused — the chain stops when the link in flight ends',
+  };
+}
+
+/**
+ * Checks a hold a view asked for before anything is armed.
+ *
+ * @param {object} request `{ action, at, reason }`; an empty `action` clears the hold instead.
+ * @returns {{ ok: boolean, hold: object|null, why: string }} The verdict, and the hold to arm.
+ */
+function validateHold(request = {}) {
+  const action =
+    request.action === null ||
+    request.action === undefined ||
+    request.action === ''
+      ? null
+      : String(request.action);
+  if (!action) return { ok: true, hold: null, why: '' };
+  const at =
+    request.at === undefined || request.at === null ? '' : String(request.at);
+  if (!lib.HOLD_ACTIONS.includes(action)) {
+    return {
+      ok: false,
+      hold: null,
+      why: `no such hold "${action}" — one of ${lib.HOLD_ACTIONS.join(', ')}`,
+    };
+  }
+  if (!lib.HOLD_BOUNDARIES.includes(at)) {
+    return {
+      ok: false,
+      hold: null,
+      why: `no such boundary "${at}" — one of ${lib.HOLD_BOUNDARIES.join(', ')}`,
+    };
+  }
+  return {
+    ok: true,
+    why: '',
+    hold: {
+      action,
+      at,
+      reason: `${action} after this ${at}, armed from the monitor`,
+    },
+  };
+}
+
+/**
+ * Arms a standing hold, or clears the one that is armed.
+ *
+ * One hold stands at a time, so arming another replaces it: two holds would only ever mean the
+ * earlier boundary, which is the one that fires anyway.
+ *
+ * @param {object} [request] `{ action, at }`; an empty `action` clears the hold.
+ * @returns {{ ok: boolean, why: string }} The outcome.
+ */
+function hold(request = {}) {
+  const check = validateHold(request);
+  if (!check.ok) return { ok: false, why: check.why };
+  if (!check.hold) {
+    lib.writeHold(null);
+    record({ type: 'hold', hold: null });
+    return { ok: true, why: 'hold cleared — the chain runs on' };
+  }
+  const armed = lib.writeHold(check.hold);
+  // `boundary`, not `at`: the event log stamps its own `at`, and this would overwrite it.
+  record({ type: 'hold', action: armed.action, boundary: armed.at });
+  return {
+    ok: true,
+    why: `armed — ${lib.describeHold(armed)}; the run carries on until then`,
   };
 }
 
@@ -1257,6 +1334,7 @@ module.exports = {
   applySettings,
   describeToolUse,
   formatDuration,
+  hold,
   isAlive,
   killLink,
   lastMerge,
@@ -1277,6 +1355,7 @@ module.exports = {
   spawnAdvance,
   stop,
   truncate,
+  validateHold,
   validateSetting,
   waitForLink,
 };
