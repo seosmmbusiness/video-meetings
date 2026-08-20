@@ -125,18 +125,19 @@
         "AC-17",
         "AC-19"
       ],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/user-profile-phase-2",
       "pr": {
         "number": 178,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/178",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 25,
         "title": "UP 2 · Profile page and the name on the dashboard",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/25",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-20"
       },
       "issues": [
         {
@@ -149,7 +150,8 @@
             "security",
             "test"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         },
         {
           "task": "2.2",
@@ -159,7 +161,8 @@
           "labels": [
             "frontend"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         },
         {
           "task": "2.3",
@@ -170,7 +173,8 @@
             "frontend",
             "security"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         },
         {
           "task": "2.4",
@@ -181,7 +185,8 @@
             "frontend",
             "security"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         },
         {
           "task": "2.5",
@@ -191,7 +196,8 @@
           "labels": [
             "frontend"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         },
         {
           "task": "2.6",
@@ -202,7 +208,8 @@
             "frontend",
             "documentation"
           ],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-20"
         }
       ]
     },
@@ -551,15 +558,10 @@
   "progress": {
     "updatedAt": "2026-08-20",
     "completedPhases": [
-      1
+      1,
+      2
     ],
-    "currentPhase": {
-      "phase": 2,
-      "milestone": 25,
-      "title": "UP 2 · Profile page and the name on the dashboard",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/25",
-      "branch": "feature/user-profile-phase-2"
-    },
+    "currentPhase": null,
     "nextPhase": {
       "phase": 3,
       "milestone": 26,

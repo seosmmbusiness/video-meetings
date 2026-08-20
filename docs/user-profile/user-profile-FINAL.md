@@ -143,7 +143,7 @@ source and client bundle. Cases go in `apps/web/e2e/profile.spec.ts`,
 review it with `web-design-guidelines` then `ui-ux-pro-max`, and verify visually with the Playwright
 MCP tools against a running dev server, saving shots under `screenshots/`. Suites:
 `npm run test:web`, `npm run test:e2e:web` (needs `apps/api` + Postgres up).
-**Status**: in-review — [PR #178](https://github.com/seosmmbusiness/video-meetings/pull/178), milestone UP 2.
+**Status**: complete — 2026-08-20, branch feature/user-profile-phase-2, PR https://github.com/seosmmbusiness/video-meetings/pull/178
 
 **Tasks**:
 
