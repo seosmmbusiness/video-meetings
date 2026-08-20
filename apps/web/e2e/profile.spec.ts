@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import {
   test,
   expect,
+  request as playwrightRequest,
   type APIRequestContext,
   type BrowserContext,
   type Page,
@@ -17,6 +18,23 @@ const STRONG_PASSWORD = 'Str0ngPass!';
 // would rename the document if the markup were ever parsed as HTML, and the
 // `<img>` would exist in the DOM — neither may happen.
 const MARKUP_NAME = `<img src=x onerror="document.title='xss'">`;
+
+// Registration is throttled per-IP and every spec file in this suite shares one
+// loopback IP when run together, so this file registers two accounts in serial
+// mode rather than one per test — the same reasoning
+// meeting-file-upload.spec.ts and meeting-file-preview.spec.ts already
+// document. Two rather than one because the *authenticated* routes are
+// throttled per-credential: one account carries the cases that only read the
+// profile, the other the cases that rewrite the name, so neither credential's
+// own budget is anywhere near the limit either.
+test.describe.configure({ mode: 'serial' });
+
+/** The account the read-only cases use, and its address; its name is never set. */
+let readerToken: string;
+let readerEmail: string;
+/** The account the name-changing cases rewrite, and its address. */
+let writerToken: string;
+let writerEmail: string;
 
 /**
  * Builds a fresh, never-before-registered email so tests don't collide with
@@ -125,17 +143,26 @@ async function htmlOf(page: Page, path: string): Promise<string> {
   return response.text();
 }
 
+test.beforeAll(async () => {
+  const api = await playwrightRequest.newContext();
+  try {
+    ({ email: readerEmail, token: readerToken } = await registerViaApi(api));
+    ({ email: writerEmail, token: writerToken } = await registerViaApi(api));
+  } finally {
+    await api.dispose();
+  }
+});
+
 test('redirects a visitor with no session to the login page, carrying no profile data', async ({
   page,
   request,
 }) => {
-  const { email, token } = await registerViaApi(request);
-  await setNameViaApi(request, token, 'Ada Lovelace');
+  await setNameViaApi(request, writerToken, 'Ada Lovelace');
 
   const html = await htmlOf(page, '/profile');
 
   await expect(page).toHaveURL('/login');
-  expect(html).not.toContain(email);
+  expect(html).not.toContain(writerEmail);
   expect(html).not.toContain('Ada Lovelace');
 });
 
@@ -155,39 +182,35 @@ test('rejects a well-formed but unsigned session cookie by redirecting to login'
   context,
   request,
 }) => {
-  const { email, token } = await registerViaApi(request);
-  await setNameViaApi(request, token, 'Ada Lovelace');
+  await setNameViaApi(request, writerToken, 'Ada Lovelace');
   await signInAs(context, unsignedJwt());
 
   const html = await htmlOf(page, '/profile');
 
   await expect(page).toHaveURL('/login');
-  expect(html).not.toContain(email);
+  expect(html).not.toContain(writerEmail);
   expect(html).not.toContain('Ada Lovelace');
 });
 
 test('shows the email, the current name and the avatar mark in the first server response', async ({
   page,
   context,
-  request,
 }) => {
-  const { email, token } = await registerViaApi(request);
-  await signInAs(context, token);
+  await signInAs(context, readerToken);
 
   const html = await htmlOf(page, '/profile');
 
   // AC-1: all of it is in the server's own response, not filled in after
   // hydration — nothing here may flip once JS runs.
-  expect(html).toContain(email);
+  expect(html).toContain(readerEmail);
   expect(html).toContain('Your avatar');
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText(readerEmail)).toBeVisible();
   await expect(page.getByLabel('Your avatar')).toBeVisible();
   await expect(page.getByLabel('Display name')).toHaveValue('');
 });
 
-test('is reachable from the dashboard', async ({ page, context, request }) => {
-  const { token } = await registerViaApi(request);
-  await signInAs(context, token);
+test('is reachable from the dashboard', async ({ page, context }) => {
+  await signInAs(context, readerToken);
 
   await page.goto('/');
   await page.getByRole('link', { name: 'Profile' }).click();
@@ -200,8 +223,8 @@ test('stores a name with surrounding whitespace removed', async ({
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await signInAs(context, token);
+  await setNameViaApi(request, writerToken, '');
+  await signInAs(context, writerToken);
 
   await page.goto('/profile');
   await page.getByLabel('Display name').fill('  Ada Lovelace  ');
@@ -218,9 +241,8 @@ test('refuses a name longer than 80 characters and leaves the stored one unchang
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await setNameViaApi(request, token, 'Ada Lovelace');
-  await signInAs(context, token);
+  await setNameViaApi(request, writerToken, 'Ada Lovelace');
+  await signInAs(context, writerToken);
 
   await page.goto('/profile');
   await page.getByLabel('Display name').fill('x'.repeat(81));
@@ -237,9 +259,8 @@ test('clears the name when an empty value is submitted', async ({
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await setNameViaApi(request, token, 'Ada Lovelace');
-  await signInAs(context, token);
+  await setNameViaApi(request, writerToken, 'Ada Lovelace');
+  await signInAs(context, writerToken);
 
   await page.goto('/profile');
   await page.getByLabel('Display name').fill('');
@@ -254,9 +275,8 @@ test('renders a name of markup as text on the profile page', async ({
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await setNameViaApi(request, token, MARKUP_NAME);
-  await signInAs(context, token);
+  await setNameViaApi(request, writerToken, MARKUP_NAME);
+  await signInAs(context, writerToken);
 
   await page.goto('/profile');
 
@@ -270,9 +290,8 @@ test('renders a name of markup as text on the dashboard', async ({
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await setNameViaApi(request, token, MARKUP_NAME);
-  await signInAs(context, token);
+  await setNameViaApi(request, writerToken, MARKUP_NAME);
+  await signInAs(context, writerToken);
 
   await page.goto('/');
 
@@ -284,15 +303,13 @@ test('renders a name of markup as text on the dashboard', async ({
 test('does not leak the session token into the profile page HTML', async ({
   page,
   context,
-  request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await signInAs(context, token);
+  await signInAs(context, readerToken);
 
   const html = await htmlOf(page, '/profile');
 
-  expect(html).not.toContain(token);
-  expect(await page.content()).not.toContain(token);
+  expect(html).not.toContain(readerToken);
+  expect(await page.content()).not.toContain(readerToken);
 });
 
 test('does not leak the session token into the client bundle', async ({
@@ -300,8 +317,7 @@ test('does not leak the session token into the client bundle', async ({
   context,
   request,
 }) => {
-  const { token } = await registerViaApi(request);
-  await signInAs(context, token);
+  await signInAs(context, readerToken);
   await page.goto('/profile');
 
   const sources = await page
@@ -313,6 +329,6 @@ test('does not leak the session token into the client bundle', async ({
 
   for (const source of sources) {
     const response = await request.get(source);
-    expect(await response.text()).not.toContain(token);
+    expect(await response.text()).not.toContain(readerToken);
   }
 });
