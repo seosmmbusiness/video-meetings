@@ -104,6 +104,36 @@ describe('NameForm', () => {
     expect(field).toHaveValue('Grace Hopper');
   });
 
+  it('lets a refused name be corrected and saved again (AC-3)', async () => {
+    action.mockResolvedValueOnce({
+      ok: false,
+      error: 'Name must be 80 characters or fewer.',
+    });
+    action.mockResolvedValueOnce({ ok: true, name: 'Ada Lovelace' });
+    render(<NameForm name={null} />);
+
+    const field = screen.getByLabelText('Display name');
+    await userEvent.type(field, 'x'.repeat(81));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(
+      await screen.findByText('Name must be 80 characters or fewer.'),
+    ).toBeInTheDocument();
+
+    // Editing the refused value withdraws the refusal: it was about what was
+    // submitted, and leaving the field marked invalid would have the browser's
+    // own validation block every further submission.
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Ada Lovelace');
+    expect(
+      screen.queryByText('Name must be 80 characters or fewer.'),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(action).toHaveBeenCalledTimes(2);
+    expect(submittedName()).toBe('Ada Lovelace');
+  });
+
   it('confirms a successful save, since the field alone changing is easy to miss', async () => {
     action.mockResolvedValue({ ok: true, name: 'Ada Lovelace' });
     render(<NameForm name={null} />);
