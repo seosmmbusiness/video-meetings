@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, getProfile, updateProfileName } from './profile-api';
+import {
+  ApiError,
+  displayName,
+  getProfile,
+  updateProfileName,
+} from './profile-api';
 
 const API_BASE_URL = 'http://api.test';
 const SESSION_TOKEN = 'session.jwt.token';
@@ -146,6 +151,24 @@ describe('profile-api', () => {
       expect((error as ApiError).message).toContain(
         'Name must be 80 characters or fewer.',
       );
+    });
+  });
+
+  describe('displayName', () => {
+    it('greets by the stored name when one is set (AC-5)', () => {
+      expect(displayName(PROFILE.name, PROFILE.email)).toBe('Ada Lovelace');
+    });
+
+    it('falls back to the email when no name is stored', () => {
+      expect(displayName(null, PROFILE.email)).toBe(PROFILE.email);
+    });
+
+    it("falls back to the email when the name was cleared, since '' is what clears it (AC-4)", () => {
+      expect(displayName('', PROFILE.email)).toBe(PROFILE.email);
+    });
+
+    it('falls back to the email rather than greeting a blank space', () => {
+      expect(displayName('   ', PROFILE.email)).toBe(PROFILE.email);
     });
   });
 });
