@@ -134,6 +134,24 @@ describe('NameForm', () => {
     expect(submittedName()).toBe('Ada Lovelace');
   });
 
+  it('announces the refusal instead of only painting the field (AC-3)', async () => {
+    action.mockResolvedValue({
+      ok: false,
+      error: 'Name must be 80 characters or fewer.',
+    });
+    render(<NameForm name="Ada Lovelace" />);
+
+    await userEvent.type(screen.getByLabelText('Display name'), 'x');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // The refusal arrives while focus is on Save, and `aria-describedby` alone
+    // is only read when the field itself is reached — so a screen reader user
+    // would otherwise be told nothing at all happened.
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Name must be 80 characters or fewer.',
+    );
+  });
+
   it('confirms a successful save, since the field alone changing is easy to miss', async () => {
     action.mockResolvedValue({ ok: true, name: 'Ada Lovelace' });
     render(<NameForm name={null} />);
