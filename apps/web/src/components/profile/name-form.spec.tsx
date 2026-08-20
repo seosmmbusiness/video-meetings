@@ -86,6 +86,34 @@ describe('NameForm', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps what was typed when apps/api refuses it, so a refusal costs no retyping (AC-3)', async () => {
+    action.mockResolvedValue({
+      ok: false,
+      error: 'Name must be 80 characters or fewer.',
+    });
+    render(<NameForm name="Ada Lovelace" />);
+
+    const field = screen.getByLabelText('Display name');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Grace Hopper');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('Name must be 80 characters or fewer.'),
+    ).toBeInTheDocument();
+    expect(field).toHaveValue('Grace Hopper');
+  });
+
+  it('confirms a successful save, since the field alone changing is easy to miss', async () => {
+    action.mockResolvedValue({ ok: true, name: 'Ada Lovelace' });
+    render(<NameForm name={null} />);
+
+    await userEvent.type(screen.getByLabelText('Display name'), 'Ada Lovelace');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Name saved.');
+  });
+
   it("hints at the API's 80-character rule without enforcing it in place of the API (AC-3)", async () => {
     action.mockResolvedValue({
       ok: false,
