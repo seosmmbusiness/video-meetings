@@ -162,13 +162,20 @@ async function runChecks(config, phaseIndex, scope) {
 
   if (scripts.includes('test:e2e:web')) {
     // Playwright's own webServer starts apps/web on 3000; apps/api on 3001 is ours to start.
+    // dev:api:e2e rather than dev:api: every fixture registers unauthenticated, so the whole suite
+    // shares one throttler bucket by IP and spends it inside a single window — the baseline needs
+    // the headroom, exactly as README tells a person running the suite by hand.
     process.stdout.write('\n=== starting apps/api for the browser suite ===\n');
-    apiServer = require('node:child_process').spawn('npm', ['run', 'dev:api'], {
-      cwd: lib.ROOT,
-      detached: true,
-      stdio: 'ignore',
-      env: process.env,
-    });
+    apiServer = require('node:child_process').spawn(
+      'npm',
+      ['run', 'dev:api:e2e'],
+      {
+        cwd: lib.ROOT,
+        detached: true,
+        stdio: 'ignore',
+        env: process.env,
+      },
+    );
     if (!(await waitForPort(3001, 120_000))) {
       stopApiServer();
       return [

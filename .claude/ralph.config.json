@@ -9,7 +9,7 @@
   "maxBudgetUsdPerSession": 15,
   "taskRetries": 2,
   "maxSessionsPerRun": 60,
-  "maxRunHours": 8,
+  "maxRunHours": 24,
   "mergeStrategy": "merge",
   "checks": {
     "api": ["lint", "format:check", "test", "test:int:api", "test:e2e:api"],

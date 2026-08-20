@@ -16,7 +16,13 @@
     {
       "phase": 1,
       "title": "Account name in the API",
-      "covers": ["AC-2", "AC-3", "AC-4", "AC-15", "AC-18"],
+      "covers": [
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-15",
+        "AC-18"
+      ],
       "status": "completed",
       "branch": "feature/user-profile-phase-1",
       "pr": {
@@ -37,7 +43,11 @@
           "number": 134,
           "title": "UP 1.1 — Cover reading and updating the caller's own name",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/134",
-          "labels": ["backend", "security", "test"],
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         },
@@ -46,7 +56,9 @@
           "number": 135,
           "title": "UP 1.2 — Give an account a name it can store",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/135",
-          "labels": ["backend"],
+          "labels": [
+            "backend"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         },
@@ -55,7 +67,9 @@
           "number": 136,
           "title": "UP 1.3 — Read the caller's own profile",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/136",
-          "labels": ["backend"],
+          "labels": [
+            "backend"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         },
@@ -64,7 +78,10 @@
           "number": 137,
           "title": "UP 1.4 — Update the caller's own name",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/137",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         },
@@ -73,7 +90,10 @@
           "number": 138,
           "title": "UP 1.5 — Expose both behind the JWT guard",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/138",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         },
@@ -82,7 +102,10 @@
           "number": 139,
           "title": "UP 1.6 — Document the profile and users modules",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/139",
-          "labels": ["backend", "documentation"],
+          "labels": [
+            "backend",
+            "documentation"
+          ],
           "state": "CLOSED",
           "closedAt": "2026-08-18"
         }
@@ -102,7 +125,13 @@
         "AC-17",
         "AC-19"
       ],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/user-profile-phase-2",
+      "pr": {
+        "number": 178,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/178",
+        "state": "open"
+      },
       "milestone": {
         "number": 25,
         "title": "UP 2 · Profile page and the name on the dashboard",
@@ -115,7 +144,11 @@
           "number": 140,
           "title": "UP 2.1 — Cover the profile page and the dashboard's name",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/140",
-          "labels": ["frontend", "security", "test"],
+          "labels": [
+            "frontend",
+            "security",
+            "test"
+          ],
           "state": "OPEN"
         },
         {
@@ -123,7 +156,9 @@
           "number": 141,
           "title": "UP 2.2 — Read the caller's profile server-side",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/141",
-          "labels": ["frontend"],
+          "labels": [
+            "frontend"
+          ],
           "state": "OPEN"
         },
         {
@@ -131,7 +166,10 @@
           "number": 142,
           "title": "UP 2.3 — Ship the profile page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/142",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -139,7 +177,10 @@
           "number": 143,
           "title": "UP 2.4 — Change the name from the page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/143",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -147,7 +188,9 @@
           "number": 144,
           "title": "UP 2.5 — Greet the user by name on the dashboard",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/144",
-          "labels": ["frontend"],
+          "labels": [
+            "frontend"
+          ],
           "state": "OPEN"
         },
         {
@@ -155,7 +198,10 @@
           "number": 145,
           "title": "UP 2.6 — Document the web profile module",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/145",
-          "labels": ["frontend", "documentation"],
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
           "state": "OPEN"
         }
       ]
@@ -163,7 +209,14 @@
     {
       "phase": 3,
       "title": "Avatar upload and serving in the API",
-      "covers": ["AC-6", "AC-7", "AC-8", "AC-9", "AC-15", "AC-18"],
+      "covers": [
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-15",
+        "AC-18"
+      ],
       "status": "pending",
       "milestone": {
         "number": 26,
@@ -177,7 +230,11 @@
           "number": 146,
           "title": "UP 3.1 — Cover avatar upload, serving and removal",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/146",
-          "labels": ["backend", "security", "test"],
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
           "state": "OPEN"
         },
         {
@@ -185,7 +242,10 @@
           "number": 147,
           "title": "UP 3.2 — Fill the avatar's columns and DTO",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/147",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -193,7 +253,10 @@
           "number": 148,
           "title": "UP 3.3 — Store and replace one avatar per account",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/148",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -201,7 +264,10 @@
           "number": 149,
           "title": "UP 3.4 — Refuse anything but a 5 MB PNG, JPEG or WebP",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/149",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -209,7 +275,10 @@
           "number": 150,
           "title": "UP 3.5 — Serve and remove the owner's avatar",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/150",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -217,7 +286,10 @@
           "number": 151,
           "title": "UP 3.6 — Document the storage and profile modules",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/151",
-          "labels": ["backend", "documentation"],
+          "labels": [
+            "backend",
+            "documentation"
+          ],
           "state": "OPEN"
         }
       ]
@@ -225,7 +297,15 @@
     {
       "phase": 4,
       "title": "Avatar in the profile and on the dashboard",
-      "covers": ["AC-1", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9", "AC-17"],
+      "covers": [
+        "AC-1",
+        "AC-5",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-9",
+        "AC-17"
+      ],
       "status": "pending",
       "milestone": {
         "number": 27,
@@ -239,7 +319,11 @@
           "number": 152,
           "title": "UP 4.1 — Cover the avatar UI and its byte proxy",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/152",
-          "labels": ["frontend", "security", "test"],
+          "labels": [
+            "frontend",
+            "security",
+            "test"
+          ],
           "state": "OPEN"
         },
         {
@@ -247,7 +331,10 @@
           "number": 153,
           "title": "UP 4.2 — Proxy the avatar bytes same-origin",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/153",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -255,7 +342,9 @@
           "number": 154,
           "title": "UP 4.3 — Upload and replace the avatar in the browser",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/154",
-          "labels": ["frontend"],
+          "labels": [
+            "frontend"
+          ],
           "state": "OPEN"
         },
         {
@@ -263,7 +352,9 @@
           "number": 155,
           "title": "UP 4.4 — Remove the avatar from the profile page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/155",
-          "labels": ["frontend"],
+          "labels": [
+            "frontend"
+          ],
           "state": "OPEN"
         },
         {
@@ -271,7 +362,9 @@
           "number": 156,
           "title": "UP 4.5 — Show the avatar next to the user on both pages",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/156",
-          "labels": ["frontend"],
+          "labels": [
+            "frontend"
+          ],
           "state": "OPEN"
         },
         {
@@ -279,7 +372,10 @@
           "number": 157,
           "title": "UP 4.6 — Document the avatar UI and the proxy",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/157",
-          "labels": ["frontend", "documentation"],
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
           "state": "OPEN"
         }
       ]
@@ -287,7 +383,15 @@
     {
       "phase": 5,
       "title": "Password change and session revocation",
-      "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-15", "AC-18", "AC-20"],
+      "covers": [
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-15",
+        "AC-18",
+        "AC-20"
+      ],
       "status": "pending",
       "milestone": {
         "number": 28,
@@ -301,7 +405,11 @@
           "number": 158,
           "title": "UP 5.1 — Cover the password change and session revocation",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/158",
-          "labels": ["backend", "security", "test"],
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
           "state": "OPEN"
         },
         {
@@ -309,7 +417,10 @@
           "number": 159,
           "title": "UP 5.2 — Change the password behind the current one",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/159",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -317,7 +428,10 @@
           "number": 160,
           "title": "UP 5.3 — Hold the new password to the registration rules",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/160",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -325,7 +439,10 @@
           "number": 161,
           "title": "UP 5.4 — Make a session revocable per account",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/161",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -333,7 +450,10 @@
           "number": 162,
           "title": "UP 5.5 — Issue every token through one handler",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/162",
-          "labels": ["backend", "security"],
+          "labels": [
+            "backend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -341,7 +461,10 @@
           "number": 163,
           "title": "UP 5.6 — Document the revocation and the password route",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/163",
-          "labels": ["backend", "documentation"],
+          "labels": [
+            "backend",
+            "documentation"
+          ],
           "state": "OPEN"
         }
       ]
@@ -349,7 +472,15 @@
     {
       "phase": 6,
       "title": "Password change on the profile page",
-      "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-14", "AC-17", "AC-19"],
+      "covers": [
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-17",
+        "AC-19"
+      ],
       "status": "pending",
       "milestone": {
         "number": 29,
@@ -363,7 +494,11 @@
           "number": 164,
           "title": "UP 6.1 — Cover the password form and the revoked session",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/164",
-          "labels": ["frontend", "security", "test"],
+          "labels": [
+            "frontend",
+            "security",
+            "test"
+          ],
           "state": "OPEN"
         },
         {
@@ -371,7 +506,10 @@
           "number": 165,
           "title": "UP 6.2 — Change the password from the profile page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/165",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -379,7 +517,10 @@
           "number": 166,
           "title": "UP 6.3 — Keep the caller signed in after the change",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/166",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -387,7 +528,10 @@
           "number": 167,
           "title": "UP 6.4 — Land a revoked session on `/login`",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/167",
-          "labels": ["frontend", "security"],
+          "labels": [
+            "frontend",
+            "security"
+          ],
           "state": "OPEN"
         },
         {
@@ -395,27 +539,32 @@
           "number": 168,
           "title": "UP 6.5 — Document the password flow and close the feature's docs",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/168",
-          "labels": ["frontend", "documentation"],
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
           "state": "OPEN"
         }
       ]
     }
   ],
   "progress": {
-    "updatedAt": "2026-08-18",
-    "completedPhases": [],
+    "updatedAt": "2026-08-20",
+    "completedPhases": [
+      1
+    ],
     "currentPhase": {
-      "phase": 1,
-      "milestone": 24,
-      "title": "UP 1 · Account name in the API",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/24",
-      "branch": "feature/user-profile-phase-1"
-    },
-    "nextPhase": {
       "phase": 2,
       "milestone": 25,
       "title": "UP 2 · Profile page and the name on the dashboard",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/25"
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/25",
+      "branch": "feature/user-profile-phase-2"
+    },
+    "nextPhase": {
+      "phase": 3,
+      "milestone": 26,
+      "title": "UP 3 · Avatar upload and serving in the API",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/26"
     }
   }
 }

@@ -74,3 +74,11 @@ pnpm-debug.log*
 
 # playwright mcp cache
 .playwright-mcp
+
+# playwright run output
+/test-results/
+/apps/web/test-results/
+/apps/web/playwright-report/
+
+# python bytecode from bundled skill scripts
+__pycache__/

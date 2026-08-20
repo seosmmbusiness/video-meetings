@@ -40,14 +40,16 @@ Both apps are developed test-first, and **e2e coverage alone is not enough**: ev
 
 Commands, all from the repo root:
 
-| Command                | Runs                                                      |
-| ---------------------- | --------------------------------------------------------- |
-| `npm test`             | Both apps' unit suites (what `pre-push` gates on)         |
-| `npm run test:api`     | apps/api unit                                             |
-| `npm run test:web`     | apps/web unit **and** integration (both are hermetic)     |
-| `npm run test:int:api` | apps/api integration — needs `npm run db:up`              |
-| `npm run test:e2e:api` | apps/api e2e — needs `npm run db:up`                      |
-| `npm run test:e2e:web` | apps/web e2e — needs `npm run db:up` and apps/api running |
+| Command                | Runs                                                                          |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `npm test`             | Both apps' unit suites (what `pre-push` gates on)                             |
+| `npm run test:api`     | apps/api unit                                                                 |
+| `npm run test:web`     | apps/web unit **and** integration (both are hermetic)                         |
+| `npm run test:int:api` | apps/api integration — needs `npm run db:up`                                  |
+| `npm run test:e2e:api` | apps/api e2e — needs `npm run db:up`                                          |
+| `npm run test:e2e:web` | apps/web e2e — needs `npm run db:up` and the API up via `npm run dev:api:e2e` |
+
+**Why the browser suite needs its own API command.** Every Playwright fixture registers its account through `POST /auth/register`, which is unauthenticated — so the throttler tracks it by IP and the entire suite shares one bucket, while the suite itself finishes inside a single 60-second window. Against the production baseline of 20 requests per 60 s there is no headroom left for a new spec, and the cases that tip over answer `429` no matter which file added them. `npm run dev:api:e2e` starts the API with `THROTTLE_LIMIT` raised; the per-route overrides that model the real controls are unaffected, so nothing a spec asserts is weakened. Don't work around a `429` by trimming assertions — raise the baseline for the run.
 
 The git hooks gate only what runs anywhere with no infrastructure: `pre-commit` runs `npm run lint`, `pre-push` runs `npm test` (both unit suites). Integration and e2e need Postgres and, for the browser suite, both apps up, so they stay manual — run them yourself before opening a PR.
 

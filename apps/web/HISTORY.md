@@ -10,6 +10,18 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-20 — Profile page, and the dashboard greets by name (`user-profile` phase 2)
+
+`/profile` is auth-gated exactly as `/` is — `getSession()` first, `redirect('/login')` before any JSX, including when `apps/api` answers `401` for a cookie that is present — so there is no signed-out state to leak. The dashboard now greets by the stored name, falling back to the email; both are server-rendered, so neither is ever swapped for the other after mount, and both are rendered as text, which is what keeps a name of markup a name.
+
+The name goes through a **Server Action**, not a Route Handler: fields are small, benefit from progressive enhancement, and `revalidatePath` is what refreshes the two pages showing them. Bytes will be the opposite case in phase 4 — Next caps a Server Action's request body at 1 MB by default, well under the 5 MB avatar limit, so those go through a proxy route instead. The action checks `getSession()` as its first statement and returns the signed-out outcome without touching `apps/api`: a Server Action is reachable by direct POST, so the form not being rendered is not a boundary. It also returns `{ ok, name }` only — an action's return value is serialised into the page payload, so upstream bodies stay out of it.
+
+Two things about the form are non-obvious enough to be worth the note. Its field is **controlled**, because React 19 resets an uncontrolled field once a form action settles and that would discard what was typed every time the API refused it. And the refusal is withdrawn as soon as the field is edited: left in place, the field stays `isInvalid`, the browser's own constraint check blocks every further submission, and a corrected name can never be saved.
+
+The avatar mark is HeroUI's `Avatar.Fallback` over initials, at the size the real image will use, so phase 4 costs no layout shift. `next/image` was ruled out for it up front — it fetches through `/_next/image` server-side without the browser's cookies, so a cookie-authenticated avatar would never render, and the optimizer would cache derivatives of a private image.
+
+Architecture and the full function reference: `docs/modules/module-web-profile.md`.
+
 ### 2026-08-16 — First non-browser test runner: Vitest + React Testing Library
 
 Until now Playwright was the only way to execute any of this app's code, so pure logic and the proxy routes were tested through a browser or not at all. Vitest 4 + RTL + jsdom (`vitest.config.mts`, `vitest.setup.ts`, `npm test`) now cover `src/lib`, Client Components, and Route Handlers called directly; pages and async Server Components stay with Playwright, since React cannot render async Server Components in a test environment at all.
