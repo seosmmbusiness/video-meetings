@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Alert, Button, Card, Chip, EmptyState } from '@heroui/react';
+import { buttonVariants } from '@heroui/styles';
 import { logoutAction } from '@/app/actions/auth';
 import { getSession } from '@/lib/session';
 import { VideoCameraIcon } from '@/components/icons/video-camera-icon';
@@ -155,12 +156,20 @@ export default async function Home() {
             </Alert.Content>
           </Alert>
         </Card.Content>
-        <Card.Footer>
+        <Card.Footer className="flex items-center gap-4">
           <form action={logoutAction}>
             <Button variant="secondary" type="submit">
               Sign out
             </Button>
           </form>
+          {/* Button-shaped so it matches Sign out beside it and clears the
+              44×44 touch-target minimum, while staying a real link. */}
+          <Link
+            className={buttonVariants({ variant: 'secondary' })}
+            href="/profile"
+          >
+            Profile
+          </Link>
         </Card.Footer>
       </Card>
 
