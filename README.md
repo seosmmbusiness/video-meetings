@@ -100,8 +100,9 @@ touch .claude/ralph.stop                 # halt it
 ```
 
 A view shows which phase and task the run is on, what the running session is doing right now, the
-model, effort and ceilings the next session will get, and offers pause, stop and rollback. Closing a
-view leaves the run going.
+model, effort and ceilings the next session will get, and offers pause, stop, rollback and a
+**standing hold** — pause or stop the run when the task, or the whole phase, it is on finishes.
+Closing a view leaves the run going.
 
 Full guide — configuration, watching a run, and what to do when it stops: [`docs/ralph-loop.md`](docs/ralph-loop.md).
 

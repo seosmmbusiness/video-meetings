@@ -844,3 +844,41 @@ test('progressBar fills in proportion and never overflows its width', () => {
   assert.equal(monitor.progressBar(99, 6, 6).length, 6);
   assert.equal(monitor.progressBar(3, 6, 6).length, 6);
 });
+
+test('validateHold accepts each hold the views offer', () => {
+  assert.deepEqual(
+    monitor.validateHold({ action: 'pause', at: 'phase' }).hold.action,
+    'pause',
+  );
+  assert.equal(
+    monitor.validateHold({ action: 'stop', at: 'phase' }).hold.at,
+    'phase',
+  );
+  assert.equal(
+    monitor.validateHold({ action: 'stop', at: 'task' }).hold.at,
+    'task',
+  );
+});
+
+test('validateHold clears the hold when it is given no action', () => {
+  const cleared = monitor.validateHold({ action: null, at: 'phase' });
+  assert.equal(cleared.ok, true);
+  assert.equal(cleared.hold, null);
+});
+
+test('validateHold refuses an action or a boundary the chain has no name for', () => {
+  assert.equal(
+    monitor.validateHold({ action: 'reboot', at: 'phase' }).ok,
+    false,
+  );
+  assert.equal(
+    monitor.validateHold({ action: 'stop', at: 'commit' }).ok,
+    false,
+  );
+  assert.equal(monitor.validateHold({ action: 'stop' }).ok, false);
+});
+
+test('a validated hold carries a reason a person reads back in the event log', () => {
+  const { hold } = monitor.validateHold({ action: 'stop', at: 'task' });
+  assert.match(hold.reason, /stop after this task/);
+});

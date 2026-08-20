@@ -159,6 +159,8 @@ function renderPage(port) {
   ul { margin: 0; padding-left: 18px; }
   li { color: var(--muted); }
   #flash { min-height: 18px; font-size: 13px; }
+  .hold { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .hold label { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -187,6 +189,18 @@ function renderPage(port) {
       <label style="display:flex; gap:6px; align-items:center; color:var(--muted)">
         <input type="checkbox" id="kill" style="width:auto"> kill the session on stop
       </label>
+    </div>
+    <div class="row hold">
+      <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center">
+        <button id="hold-pause-phase">Pause after this phase</button>
+        <label style="display:flex; gap:6px; align-items:center">
+          <input type="checkbox" id="hold-stop-phase" style="width:auto"> stop after this phase
+        </label>
+        <label style="display:flex; gap:6px; align-items:center">
+          <input type="checkbox" id="hold-stop-task" style="width:auto"> stop after this task
+        </label>
+      </div>
+      <span id="hold-state" class="muted"></span>
     </div>
     <div id="flash" class="muted"></div>
   </div>
@@ -285,6 +299,7 @@ function renderPage(port) {
       ['cost (run)', fmt.money(s.cost.run)],
       ['link', link.label ? link.label + (link.alive ? ' · live' : ' · ended') : '—'],
       ['checks', s.checks ? (s.checks.green ? 'green · phase ' + s.checks.phase : 'red · ' + s.checks.failing) : '—'],
+      ['hold', s.hold ? s.hold.label : '—'],
     ];
     const meta = $('meta');
     meta.textContent = '';
@@ -347,6 +362,17 @@ function renderPage(port) {
       activity.append(div);
     }
 
+    const hold = s.hold || null;
+    const armed = (action, at) => Boolean(hold && hold.action === action && hold.at === at);
+    $('hold-pause-phase').textContent = armed('pause', 'phase')
+      ? 'Cancel: pause after this phase'
+      : 'Pause after this phase';
+    $('hold-stop-phase').checked = armed('stop', 'phase');
+    $('hold-stop-task').checked = armed('stop', 'task');
+    setText('hold-state', hold
+      ? 'armed · ' + hold.label
+      : 'no hold — one stands at a time, the last one set wins');
+
     renderMeta(s);
     renderSettings(s);
 
@@ -364,6 +390,14 @@ function renderPage(port) {
     if (!confirm('Halt the run' + ($('kill').checked ? ' and kill the session in flight' : '') + '?')) return;
     command({ command: 'stop', kill: $('kill').checked });
   };
+  const armHold = (action, at) => {
+    const hold = snap && snap.hold;
+    const same = hold && hold.action === action && hold.at === at;
+    command({ command: 'hold', action: same ? null : action, at });
+  };
+  $('hold-pause-phase').onclick = () => armHold('pause', 'phase');
+  $('hold-stop-phase').onchange = () => armHold('stop', 'phase');
+  $('hold-stop-task').onchange = () => armHold('stop', 'task');
   $('rollback').onclick = () => {
     const dialog = $('rollback-dialog');
     const holder = $('rollback-modes');
@@ -456,6 +490,8 @@ function runCommand(body) {
       return monitor.resume();
     case 'stop':
       return monitor.stop({ kill: Boolean(body.kill) });
+    case 'hold':
+      return monitor.hold({ action: body.action, at: body.at });
     case 'rollback':
       return monitor.rollback(String(body.mode || ''), {
         clean: Boolean(body.clean),

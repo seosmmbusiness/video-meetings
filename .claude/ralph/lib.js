@@ -23,6 +23,7 @@ const CONFIG_PATH = path.join(CLAUDE_DIR, 'ralph.config.json');
 const STATE_PATH = path.join(CLAUDE_DIR, 'ralph.state.json');
 const STOP_PATH = path.join(CLAUDE_DIR, 'ralph.stop');
 const PAUSE_PATH = path.join(CLAUDE_DIR, 'ralph.pause');
+const HOLD_PATH = path.join(CLAUDE_DIR, 'ralph.hold.json');
 const OVERRIDES_PATH = path.join(CLAUDE_DIR, 'ralph.overrides.json');
 const LOCK_PATH = path.join(CLAUDE_DIR, 'ralph.lock');
 const ADVANCE_LOCK_PATH = path.join(CLAUDE_DIR, 'ralph.advance.lock');
@@ -31,6 +32,12 @@ const CONTRACT = path.join('.claude', 'ralph.md');
 
 /** Stages that need no session — `advance()` performs them and moves straight on. */
 const SILENT_STAGES = new Set(['merge', 'settle-merge', 'next']);
+
+/** What an armed hold does to the chain when the boundary it waits for arrives. */
+const HOLD_ACTIONS = ['pause', 'stop'];
+
+/** The boundaries a hold can wait for, in the order the chain reaches them. */
+const HOLD_BOUNDARIES = ['task', 'phase'];
 
 /**
  * The state a dry run composed, held in memory because a dry run writes nothing. Only ever read
@@ -182,6 +189,172 @@ function stopReason() {
  */
 function pauseRequested() {
   return fs.existsSync(PAUSE_PATH);
+}
+
+/**
+ * Holds the chain at the next link boundary, by hand or because a standing hold fired.
+ *
+ * @param {string} reason Why, for the pause file a view reads back.
+ * @returns {void}
+ */
+function pauseChain(reason) {
+  if (isDry()) return;
+  fs.writeFileSync(PAUSE_PATH, `${new Date().toISOString()} ${reason}\n`);
+}
+
+/**
+ * Reads the standing hold a view armed, if there is one.
+ *
+ * A hold is not a pause: a pause takes the chain at the next link boundary, wherever that falls,
+ * while a hold waits for a boundary a run can actually be picked up from — a task whose commits and
+ * `ralph:done` label have landed, or a phase that has merged and settled. Anything the chain cannot
+ * act on reads as no hold at all, since a hold that cannot fire would only ever be a run that never
+ * stopped where it was told to.
+ *
+ * @param {string} [holdPath] Where the hold is kept; a suite passes a path of its own.
+ * @returns {{ action: string, at: string, reason: string, armedAt: string }|null} The hold.
+ */
+function readHold(holdPath = HOLD_PATH) {
+  if (!fs.existsSync(holdPath)) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(holdPath, 'utf8'));
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  if (!HOLD_ACTIONS.includes(parsed.action)) return null;
+  if (!HOLD_BOUNDARIES.includes(parsed.at)) return null;
+  return parsed;
+}
+
+/**
+ * Arms a standing hold, or clears the one that is armed.
+ *
+ * @param {{ action: string, at: string, reason?: string }|null} hold The hold, or `null` to clear.
+ * @param {string} [holdPath] Where to keep it; a suite passes a path of its own.
+ * @returns {object|null} The hold as it was written, or `null` when one was cleared.
+ */
+function writeHold(hold, holdPath = HOLD_PATH) {
+  if (!hold) {
+    try {
+      fs.unlinkSync(holdPath);
+    } catch {
+      /* nothing was armed */
+    }
+    return null;
+  }
+  const armed = {
+    action: hold.action,
+    at: hold.at,
+    reason: hold.reason || '',
+    armedAt: new Date().toISOString(),
+  };
+  const tmp = `${holdPath}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, `${JSON.stringify(armed, null, 2)}\n`);
+  fs.renameSync(tmp, holdPath);
+  return armed;
+}
+
+/**
+ * Whether an armed hold fires at a boundary the chain has just reached.
+ *
+ * A phase boundary fires every hold, including one armed for a task: a hold set while a close, merge
+ * or settle link was in flight has no task boundary ahead of it in this phase, and sitting through
+ * the phase boundary would stop the run somewhere in the middle of the next phase instead.
+ *
+ * @param {object|null} hold The armed hold, when there is one.
+ * @param {string} boundary The boundary reached — `'task'` or `'phase'`.
+ * @returns {boolean} True when the chain should hold here.
+ */
+function holdFiresAt(hold, boundary) {
+  if (!hold || !HOLD_ACTIONS.includes(hold.action)) return false;
+  if (!HOLD_BOUNDARIES.includes(hold.at)) return false;
+  if (!HOLD_BOUNDARIES.includes(boundary)) return false;
+  return boundary === 'phase' || hold.at === 'task';
+}
+
+/**
+ * What a hold reads as, in the words of the control that armed it.
+ *
+ * @param {object|null} hold The hold.
+ * @returns {string|null} A phrase like `stop after this phase`, or `null` when none is armed.
+ */
+function describeHold(hold) {
+  if (!hold) return null;
+  return `${hold.action} after this ${hold.at}`;
+}
+
+/**
+ * Fires a hold: clears it, then holds or halts the chain where it stands.
+ *
+ * The hold is cleared before it acts, so a resume carries on rather than stopping again at the very
+ * boundary it was just released from.
+ *
+ * @param {object} hold The hold that fired.
+ * @param {object} state The current state.
+ * @param {string} where The boundary reached, in words, for the reason a person reads back.
+ * @returns {void}
+ */
+function fireHold(hold, state, where) {
+  const label = describeHold(hold);
+  if (isDry()) {
+    process.stdout.write(`⏸ would hold here: ${label} — ${where}\n`);
+    return;
+  }
+  writeHold(null);
+  if (hold.action === 'stop') {
+    halt(`${label} — ${where}`, state);
+    return;
+  }
+  pauseChain(`${label} — ${where}`);
+  event(state, { type: 'pause', reason: `${label} — ${where}`, by: 'hold' });
+  process.stdout.write(`⏸ Ralph paused: ${label} — ${where}\n`);
+}
+
+/**
+ * The window the run's ceilings are counted over: the whole run, or — once it has been resumed —
+ * the stretch since that resume.
+ *
+ * A run that stopped at a boundary last night and is picked up this morning spent those hours
+ * waiting for a person, not working, and counting them would refuse the very resume that was asked
+ * for. An explicit `--resume` is therefore a fresh grant of both ceilings.
+ *
+ * @param {object} state The current state.
+ * @returns {{ since: string, sessions: number }} When the window opened, and the session count then.
+ */
+function budgetWindow(state) {
+  const budget = (state && state.budget) || {};
+  return {
+    since:
+      budget.since || (state && state.startedAt) || new Date().toISOString(),
+    sessions: Number.isFinite(budget.sessions) ? budget.sessions : 0,
+  };
+}
+
+/**
+ * Whether the run has spent one of the ceilings its current window grants it.
+ *
+ * @param {object} config The effective config.
+ * @param {object} state The current state.
+ * @param {number} [now] The instant to measure against, for a suite that fixes the clock.
+ * @returns {string|null} Which ceiling was reached, or `null` while there is budget left.
+ */
+function ceilingSpent(config, state, now = Date.now()) {
+  const window = budgetWindow(state);
+  if (
+    config.maxSessionsPerRun &&
+    (state.sessions || 0) - window.sessions >= config.maxSessionsPerRun
+  ) {
+    return `session ceiling reached (${config.maxSessionsPerRun})`;
+  }
+  if (config.maxRunHours) {
+    const hours = (now - Date.parse(window.since)) / 3_600_000;
+    if (hours >= config.maxRunHours) {
+      return `wall-clock ceiling reached (${config.maxRunHours}h)`;
+    }
+  }
+  return null;
 }
 
 /**
@@ -646,21 +819,8 @@ function guards(config, state, hookInput = {}) {
       why: `lock belongs to run ${lock.runId}, this state is ${state.runId}`,
     };
   }
-  if (config.maxSessionsPerRun && state.sessions >= config.maxSessionsPerRun) {
-    return {
-      ok: false,
-      why: `session ceiling reached (${config.maxSessionsPerRun})`,
-    };
-  }
-  if (config.maxRunHours) {
-    const hours = (Date.now() - Date.parse(state.startedAt)) / 3_600_000;
-    if (hours >= config.maxRunHours) {
-      return {
-        ok: false,
-        why: `wall-clock ceiling reached (${config.maxRunHours}h)`,
-      };
-    }
-  }
+  const spent = ceilingSpent(config, state);
+  if (spent) return { ok: false, why: spent };
   if (hookInput.session_id) {
     const marker = path.join(runDir(state), `spawned-${hookInput.session_id}`);
     if (fs.existsSync(marker)) {
@@ -956,6 +1116,22 @@ function decide(hookInput) {
     }
   }
 
+  // A hold armed from a view fires at a boundary rather than at the next link. A finished task is
+  // the first one the chain reaches: its commits and its `ralph:done` label have landed, so a run
+  // held here is one `--resume` picks up without repeating anything. A task that is going round
+  // again is not a boundary, which is why this asks the verdict rather than the stage alone.
+  const armed = readHold();
+  if (check.ok && state.stage === 'task' && holdFiresAt(armed, 'task')) {
+    fireHold(
+      armed,
+      state,
+      state.currentIssue
+        ? `task #${state.currentIssue} finished`
+        : 'task finished',
+    );
+    return;
+  }
+
   let guard = 0;
   for (;;) {
     if (guard++ > 8) {
@@ -973,9 +1149,22 @@ function decide(hookInput) {
 
     if (stage === 'next') {
       event(state, { type: 'phase-complete', why });
+      const settled = phaseOf(ms, state.phaseIndex);
       state.phaseIndex += 1;
       state.attempts = {};
+      state.currentIssue = null;
       writeState(state);
+      // The cleanest boundary there is: the phase has merged and settled, the base branch holds
+      // everything it produced, and the next link would be the first of a new phase. Every hold
+      // fires here, including one armed for a task — see `holdFiresAt`.
+      if (holdFiresAt(armed, 'phase')) {
+        fireHold(
+          armed,
+          state,
+          `phase ${settled ? settled.phase : '?'} settled`,
+        );
+        return;
+      }
       continue;
     }
 
@@ -1156,16 +1345,22 @@ module.exports = {
   STATE_PATH,
   STOP_PATH,
   PAUSE_PATH,
+  HOLD_PATH,
   OVERRIDES_PATH,
   LOCK_PATH,
   ADVANCE_LOCK_PATH,
   LOG_ROOT,
+  HOLD_ACTIONS,
+  HOLD_BOUNDARIES,
   isDry,
   advance,
   beginLink,
+  budgetWindow,
+  ceilingSpent,
   checkpoint,
   claimAdvance,
   clearLock,
+  describeHold,
   effectiveConfig,
   event,
   gh,
@@ -1173,7 +1368,10 @@ module.exports = {
   halt,
   issueQueue,
   layerOf,
+  fireHold,
+  holdFiresAt,
   openPrForBranch,
+  pauseChain,
   pauseRequested,
   phaseBranch,
   phaseOf,
@@ -1182,6 +1380,7 @@ module.exports = {
   readConfig,
   readLock,
   readMs,
+  readHold,
   readOverrides,
   readState,
   reconcile,
@@ -1190,6 +1389,7 @@ module.exports = {
   settleBranch,
   stopReason,
   stopRequested,
+  writeHold,
   writeLock,
   writeOverrides,
   writeState,

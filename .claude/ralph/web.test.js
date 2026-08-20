@@ -11,9 +11,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
 
+const lib = require('./lib');
 const monitor = require('./monitor');
 const web = require('./web');
 
@@ -187,4 +189,31 @@ test('a snapshot that throws becomes an answer, not a dead dashboard', async () 
     monitor.snapshot = real;
     server.shutdown();
   }
+});
+
+test('the page offers a hold at each boundary the chain can stop on', () => {
+  const page = web.renderPage(4599);
+  for (const id of ['hold-pause-phase', 'hold-stop-phase', 'hold-stop-task']) {
+    assert.ok(page.includes(id), `the page has no ${id} control`);
+  }
+  assert.ok(
+    page.includes("command: 'hold'"),
+    'the hold controls send no hold command',
+  );
+});
+
+test('a hold naming a boundary that does not exist is refused, and arms nothing', () => {
+  const before = fs.existsSync(lib.HOLD_PATH);
+  const out = web.runCommand({ command: 'hold', action: 'stop', at: 'commit' });
+  assert.equal(out.ok, false);
+  assert.match(
+    out.why,
+    /commit/,
+    'the refusal does not say what was wrong with it',
+  );
+  assert.equal(
+    fs.existsSync(lib.HOLD_PATH),
+    before,
+    'a refused hold still touched the hold file',
+  );
 });

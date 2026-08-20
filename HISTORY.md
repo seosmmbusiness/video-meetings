@@ -16,6 +16,34 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-20 — The loop can be stopped at a boundary, and a resume grants its ceilings again
+
+Pause and Stop have always acted at the **next link boundary** — the right behaviour when something
+is wrong, and the wrong place to stop when nothing is. Halting between `merge` and `settle` leaves a
+phase merged but not settled; halting between two of a phase's tasks leaves a person reading the MS
+file to work out where the chain got to. Both are recoverable, and both cost the time it takes to
+work out what state the run is in — which is exactly the time an unattended build was meant to save.
+
+A **standing hold** arms the same two actions for a boundary further off: the end of the task in
+flight (its commits pushed, its issue labelled `ralph:done`) or the end of the phase (merged **and**
+settled, everything it produced on the base branch). It is a file, `.claude/ralph.hold.json`, that
+`decide()` consults at exactly those two points; a hold armed for a task also fires at the phase
+boundary, since one set while a `close`, `merge` or `settle` link is in flight has no task boundary
+left ahead of it and would otherwise stop somewhere in the middle of the next phase. Holds are one at
+a time — two would only ever mean the earlier boundary — and one that fires clears itself first, so
+a resume carries on instead of stopping again where it was just released.
+
+Making "stop tonight, carry on tomorrow" a button exposed the other half of the problem: the ceilings
+were counted from `startedAt`, so a run resumed the next morning was refused on
+`wall-clock ceiling reached` before it spawned anything, and `docs/ralph-loop.md` had been promising
+that `--resume` grants another budget. The hours a run spends waiting for a person are not hours it
+spent working. `--resume` now opens a ceiling **window** (`state.budget`) that `maxRunHours` and
+`maxSessionsPerRun` are measured over; `startedAt` still says how long the whole run has been going,
+and a view shows the session ceiling as the number the chain will actually stop at. It also clears
+`.claude/ralph.pause` on the way in, which a fired pause hold would otherwise leave behind for the
+guard to refuse the resume on, and it carries the run's `checkpoints` across rather than composing a
+state without them — a rollback after a resume had nothing to rewind to.
+
 ### 2026-08-20 — The browser suite gets its own API command, and the merge gate uses it
 
 `npm run dev:api:e2e` starts `apps/api` with `THROTTLE_LIMIT` raised, and `.claude/ralph/verify.js` starts it that way too rather than with plain `dev:api`. Both exist for one reason: every Playwright fixture registers through the unauthenticated `POST /auth/register`, so the throttler tracks it by IP, the whole suite shares a single bucket, and the suite runs inside one 60-second window — against the production baseline of 20 req/60 s there is no headroom for a new spec, and whichever cases tip over answer `429` regardless of which file added them. Details of the API-side change are in [`apps/api/HISTORY.md`](apps/api/HISTORY.md).

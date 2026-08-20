@@ -64,6 +64,7 @@ pnpm-debug.log*
 .claude/ralph.state.json
 .claude/ralph.stop
 .claude/ralph.pause
+.claude/ralph.hold.json
 .claude/ralph.lock
 .claude/ralph.advance.lock
 .claude/ralph.overrides.json

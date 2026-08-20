@@ -70,8 +70,9 @@ Every finished session writes a `result` line into its `stream-json` log carryin
 per-run cost.
 
 **There is no ceiling on a whole run.** Only `maxSessionsPerRun` and `maxRunHours` bound it, so the
-theoretical worst case is `maxSessionsPerRun × maxBudgetUsdPerSession`. Real runs land far below
-that, but if you want a run budget you have to watch the dashboard's running total yourself.
+theoretical worst case is `maxSessionsPerRun × maxBudgetUsdPerSession` — per window, since each
+`--resume` grants both ceilings again. Real runs land far below that, but if you want a run budget
+you have to watch the dashboard's running total yourself; it is the one number no ceiling resets.
 
 `effort` feeds the same two ceilings from the other end: more thinking tokens means both a faster
 burn of the dollar budget and, usually, fewer wasted turns.
@@ -142,9 +143,16 @@ the last steps):
 node .claude/ralph-start.js --resume
 ```
 
-`--resume` keeps `runId`, `phaseIndex`, `stage` **and `attempts`** (`ralph-start.js:225`), so spent
-retries stay spent, and it clears the halt by deleting `.claude/ralph.stop` (`ralph-start.js:233`).
-This is also the command for "I raised the ceilings in the overrides, give the task another go".
+`--resume` keeps `runId`, `phaseIndex`, `stage` **and `attempts`** (`ralph-start.js:228`), so spent
+retries stay spent, and it clears the halt and any pause by deleting `.claude/ralph.stop` and
+`.claude/ralph.pause` (`ralph-start.js:250`). This is also the command for "I raised the ceilings in
+the overrides, give the task another go".
+
+**It opens a fresh ceiling window too** (`ralph-start.js:240`): `maxRunHours` and
+`maxSessionsPerRun` are counted from the resume, not from `startedAt`. Without that, a run stopped
+at a phase boundary last night is refused this morning on the very ceiling you resumed it to clear —
+and stopping at a boundary is now a button, so that is the ordinary case rather than the odd one.
+`startedAt` still records how long the whole run has been going.
 
 To start the retry count over, either zero `attempts` in `.claude/ralph-state.json` by hand before
 resuming, or start without `--resume` (which also resets `sessions` and `startedAt` — a new run).
