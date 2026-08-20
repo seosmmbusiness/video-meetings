@@ -65,6 +65,29 @@ async function signInAs(context: BrowserContext, token: string): Promise<void> {
 }
 
 /**
+ * Stores (or clears) a display name directly through apps/api's
+ * `PATCH /profile`, so a case can arrive at the dashboard with a name already
+ * set without driving the profile form.
+ * @param request - Playwright's API request context.
+ * @param token - The owner's JWT access token.
+ * @param name - The name to store; `''` clears it.
+ * @throws {Error} When the fixture update call itself fails.
+ */
+async function setNameViaApi(
+  request: APIRequestContext,
+  token: string,
+  name: string,
+): Promise<void> {
+  const response = await request.patch(`${API_BASE_URL}/profile`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { name },
+  });
+  if (!response.ok()) {
+    throw new Error(`Fixture name update failed: ${response.status()}`);
+  }
+}
+
+/**
  * Creates a meeting via apps/api for the given account.
  * @param request - Playwright's API request context.
  * @param token - The owner's JWT access token.
@@ -120,6 +143,43 @@ test('shows the signed-in email and sign-out control', async ({
 
   await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+});
+
+test('greets the user by name when one is set', async ({
+  page,
+  context,
+  request,
+}) => {
+  const { email, token } = await registerViaApi(request);
+  await setNameViaApi(request, token, 'Ada Lovelace');
+  await signInAs(context, token);
+
+  const response = await page.goto('/');
+  const html = await response!.text();
+
+  // AC-5: the name is in the server's own HTML, so there is no moment where
+  // the email is shown and then replaced once JS runs.
+  expect(html).toContain('Ada Lovelace');
+  await expect(page.getByText('Ada Lovelace')).toBeVisible();
+  await expect(page.getByText(`Signed in as ${email}`)).toHaveCount(0);
+});
+
+test('falls back to the email when the name is cleared', async ({
+  page,
+  context,
+  request,
+}) => {
+  const { email, token } = await registerViaApi(request);
+  await setNameViaApi(request, token, 'Ada Lovelace');
+  await setNameViaApi(request, token, '');
+  await signInAs(context, token);
+
+  const response = await page.goto('/');
+  const html = await response!.text();
+
+  expect(html).toContain(email);
+  expect(html).not.toContain('Ada Lovelace');
+  await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
 });
 
 test('splits meetings into upcoming and the three most recent past meetings', async ({
