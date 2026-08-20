@@ -14,6 +14,7 @@
     "dev": "concurrently -n api,web -c blue,green --kill-others \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm run dev --workspace apps/web",
     "dev:api": "npm run start:dev --workspace apps/api",
+    "dev:api:e2e": "THROTTLE_LIMIT=200 npm run dev:api",
     "build": "npm run build --workspaces",
     "build:web": "npm run build --workspace apps/web",
     "build:api": "npm run build --workspace apps/api",

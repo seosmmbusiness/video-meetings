@@ -88,10 +88,23 @@ Every entry point through all ten classes; a class that was already closed names
 | 4. Injection and traversal  | **Held** — Prisma parameterises, no `$queryRaw` anywhere in the plan; the storage key is server-generated (`users/<userId>/avatar/<uuid>`, UUIDs only) so no user string ever becomes a path; the byte route keeps `send`'s `root` + basename split (D-8).                                                                                                                                                           |
 | 5. Spend                    | Upload size gated twice before the row exists (D-6); bcrypt input capped at 72 bytes. Password brute force → **S-4**; avatar disk → **S-5**. The per-request DB read (D-9) only fires on a **signature-valid** token, so an anonymous flood cannot reach it, and the global 20 req/60 s throttle bounds a valid one.                                                                                                 |
 | 6. Exposure                 | `hasAvatar` instead of a URL (D-5); the DTO is the only thing between the Prisma row and the wire → **S-1**. The re-issued token crossing into the browser → **S-6**.                                                                                                                                                                                                                                                |
-| 7. Secrets                  | **Held** — no new env var, nothing `NEXT_PUBLIC_`-prefixed; `JWT_SECRET` stays in `apps/api`; D-7 logs counts, never keys; the throttler already hashes the `Authorization` header rather than storing it.                                                                                                                                                                                                           |
+| 7. Secrets                  | **Held** — the only new env vars are `THROTTLE_LIMIT`/`THROTTLE_TTL_MS`, which carry no secret and default to the production 20 req/60 s baseline when unset or unusable (phase 2; see the note below the table); nothing `NEXT_PUBLIC_`-prefixed; `JWT_SECRET` stays in `apps/api`; D-7 logs counts, never keys; the throttler already hashes the `Authorization` header rather than storing it.                    |
 | 8. Session and browser      | **Held** — the cookie keeps `httpOnly` / `sameSite: 'lax'` / `secure` in production and is rewritten, not re-issued client-side (6.3). CSRF: `lax` withholds the cookie from cross-site `POST`, and a cross-origin `DELETE` is preflighted and refused; Next verifies Origin/Host for Server Actions. `CORS_ORIGIN` is unchanged — the browser never calls `apps/api` directly. No redirect target comes from input. |
 | 9. Storage and dependencies | **Held** — no new dependency, so nothing new to audit (research §6). Avatar bytes land under the existing `0o700`/`0o600` regime; D-4 moves that code, and phase 3's **Done when** holds the meeting-files suites green across the move, which is what proves the modes and the lazy `resolveStorageRoot()` survived. Redis is untouched and holds nothing.                                                          |
 | 10. Errors and timing       | **Held** — the current-password check always runs `bcrypt.compare` through `VerifyPasswordQuery`'s timing-safe path; a wrong current password answers 403 with a fixed message that reveals nothing about any other account; a missing avatar is a 404 on the caller's own row, so there is nothing to enumerate.                                                                                                    |
+
+**The configurable throttle baseline (phase 2).** Closing phase 2 found the browser e2e suite
+wedged against the app-wide 20 req/60 s ceiling: every Playwright fixture registers through the
+unauthenticated `POST /auth/register`, so the whole suite shares one bucket by IP and spends it
+inside a single window. The baseline therefore reads `THROTTLE_LIMIT`/`THROTTLE_TTL_MS`
+(`apps/api/src/config/throttler.config.ts`), which changes the control's surface in three bounded
+ways, each covered by a spec: unset keeps 20 req/60 s, so **production is unchanged**; anything
+unparseable, zero, negative or fractional falls back to that default rather than widening or
+disabling the guard, so a typo cannot silently remove the control; and **only the baseline moves** —
+the route-level overrides that the rows above lean on (S-4's `limit: 10` on login, the upload and
+download caps) stay in the code and are unreachable from the environment. The residual risk is an
+operator setting a high ceiling in a deployed environment on purpose; that is a deployment-config
+decision of the same kind as `JWT_SECRET`, and `.env.example` labels the widened values as local-only.
 
 Two classes worth recording as **examined and deliberately empty**: an uploaded image is never
 decoded server-side (no `sharp`, no thumbnailing — the PRD put resizing out of scope), so a

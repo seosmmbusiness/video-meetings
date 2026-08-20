@@ -10,6 +10,14 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-20 — The throttler's baseline reads the environment (`user-profile` phase 2)
+
+The app-wide ceiling of 20 requests per 60 s is no longer a literal in `AppModule`: it reads `THROTTLE_LIMIT`/`THROTTLE_TTL_MS` through `src/config/throttler.config.ts`, defaulting to exactly what it was.
+
+The constraint that forced it came from closing phase 2. Every Playwright fixture registers through `POST /auth/register`, which is unauthenticated — so `getTracker` falls back to the IP, the whole browser suite shares one bucket, and the suite finishes inside one 60-second window. On `main` that was already 20 registrations against a ceiling of 20; the four the phase added made 24, and three cases answered `429` regardless of which spec owned them. The alternative — rewriting the earlier phases' specs to share fixture accounts — was rejected: it buys headroom once, costs a rewrite of tests that are not what changed, and phases 4 and 6 would spend it again.
+
+Two things are deliberately not configurable. The **route-level** overrides (login's `limit: 10`, the upload and download caps) stay in the code, because those model the controls the threat analysis leans on, and only the shared baseline is what test ergonomics collide with. And every unusable value — blank, non-numeric, zero, negative, fractional, `20req` — lands on the default rather than on something permissive, so a typo in a deployed environment cannot silently widen or disable the guard. `ThrottlerModule` is registered with `forRootAsync` for a mundane reason worth writing down: `ConfigModule.forRoot()` is what loads the root `.env`, and it has not run while `AppModule`'s metadata is being built, so an eager registration reads the default and ignores the environment entirely — which is what the integration spec pins.
+
 ### 2026-08-18 — A profile module for the caller's own account name (`user-profile` phase 1)
 
 `GET /profile` and `PATCH /profile` live in a new `src/profile` module rather than in `src/users` or `src/auth` (D-1). `users` states it has no HTTP surface of its own and exposes persistence only over CQRS, so a controller there would break its own contract; and a display name is not authentication, so folding it into `auth` would give the module every route's guard depends on a third unrelated concern. The new module has the same shape `auth` already has: a controller and a service over the CQRS buses, no Prisma of its own — reaching `User` through two new users-module handlers, `FindUserByIdQuery` and `UpdateUserNameCommand` (D-3).
