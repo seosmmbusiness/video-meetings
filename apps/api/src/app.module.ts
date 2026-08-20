@@ -1,12 +1,13 @@
 import { createHash } from 'crypto';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { throttlerOptionsFromEnv } from './config/throttler.config';
 import { AuthModule } from './auth/auth.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { FilesModule } from './files/files.module';
@@ -22,23 +23,39 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     // Baseline rate limit applied to every route; auth endpoints layer a
     // stricter override on top (see AuthController) to blunt brute-forcing.
+    // The baseline is what an unauthenticated caller shares by IP, which is
+    // why it — and only it — is configurable (THROTTLE_LIMIT/THROTTLE_TTL_MS):
+    // the whole web e2e suite registers fixtures through one bucket. The
+    // route-level overrides that model the real controls stay hard-coded.
     // Tracked by credential rather than socket: apps/web calls this API
     // server-to-server, so every user's traffic would otherwise share one
     // IP bucket behind that proxy (APP_GUARD guards run before controller
     // guards, so `req.user` isn't set yet — hashing the raw header avoids
     // decoding it twice, and keeps the token itself out of throttler
     // storage/logs).
-    ThrottlerModule.forRoot({
-      throttlers: [{ ttl: 60_000, limit: 20 }],
-      getTracker: (req: {
-        headers: { authorization?: string };
-        ip?: string;
-      }) => {
-        const { authorization } = req.headers;
-        return authorization
-          ? createHash('sha256').update(authorization).digest('hex')
-          : String(req.ip);
-      },
+    // forRootAsync, not forRoot: ConfigModule.forRoot() above is what loads the
+    // root .env into process.env, and it has not run yet while this module's
+    // metadata is being built — reading the ceiling eagerly would always see
+    // the default.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          throttlerOptionsFromEnv({
+            THROTTLE_TTL_MS: config.get<string>('THROTTLE_TTL_MS'),
+            THROTTLE_LIMIT: config.get<string>('THROTTLE_LIMIT'),
+          }),
+        ],
+        getTracker: (req: {
+          headers: { authorization?: string };
+          ip?: string;
+        }) => {
+          const { authorization } = req.headers;
+          return authorization
+            ? createHash('sha256').update(authorization).digest('hex')
+            : String(req.ip);
+        },
+      }),
     }),
     // Registered once, app-wide (it's a global module): backs the
     // CommandBus/QueryBus that Auth uses to talk to Users and Credentials.
