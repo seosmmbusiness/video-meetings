@@ -23,13 +23,14 @@ export const MAX_TOTAL_BYTES_PER_OWNER = 21_474_836_480;
  */
 export const UPLOAD_IDLE_TIMEOUT_MS = 60_000;
 
-/** Bytes of a temp file `file-type` (and the text-content rule) samples to detect its type — matches `file-type`'s own default. */
-export const TYPE_SNIFF_SAMPLE_BYTES = 4100;
-
-/** File extensions accepted without a byte signature, judged instead by the text-content rule (D-2). */
-export const TEXT_FILE_EXTENSIONS = new Set(['txt', 'md']);
-
-/** MIME types `file-type` may detect that this feature accepts, keyed by extension for the 415 message and Swagger docs. */
+/**
+ * MIME types this feature accepts, keyed by extension for the 415 message
+ * and Swagger docs, and handed to `FileTypeService.detect` as its accepted
+ * set (D-4). `text/plain` and `text/markdown` carry no byte signature and
+ * are reached through the detector's text-content rule, but they belong in
+ * the set all the same: a type absent from it is a type this feature
+ * refuses.
+ */
 export const ACCEPTED_MIME_TYPES: ReadonlyMap<string, string> = new Map([
   ['mp4', 'video/mp4'],
   ['webm', 'video/webm'],
@@ -42,6 +43,8 @@ export const ACCEPTED_MIME_TYPES: ReadonlyMap<string, string> = new Map([
     'docx',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ],
+  ['txt', 'text/plain'],
+  ['md', 'text/markdown'],
   ['png', 'image/png'],
   ['jpg', 'image/jpeg'],
 ]);

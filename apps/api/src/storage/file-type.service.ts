@@ -1,4 +1,11 @@
+import { open } from 'fs/promises';
+import { extname } from 'path';
 import { Injectable } from '@nestjs/common';
+import { loadEsm } from 'load-esm';
+import {
+  TEXT_FILE_EXTENSIONS,
+  TYPE_SNIFF_SAMPLE_BYTES,
+} from './storage.constants';
 
 /** The result of a successful type detection. */
 export interface DetectedFileType {
@@ -6,11 +13,44 @@ export interface DetectedFileType {
   mime: string;
 }
 
+const MIME_BY_TEXT_EXTENSION: Readonly<Record<string, string>> = {
+  txt: 'text/plain',
+  md: 'text/markdown',
+};
+
 /**
- * Determines a file's real type from its content, for whichever caller asks:
- * the accepted set travels in as a parameter, so the meeting-files module's
- * twelve types and the profile module's three images share one detector
- * rather than two (D-4).
+ * Checks whether `sample` is safe to accept as plain text: valid UTF-8, no
+ * NUL byte, and no C0 control byte other than tab/LF/CR — the same rule D-2
+ * uses to tell a real `txt`/`md` file from an arbitrary binary that merely
+ * carries no signature `file-type` recognizes.
+ * @param sample - The first bytes of the temp file.
+ * @returns `true` when the sample reads as clean text.
+ */
+function looksLikeText(sample: Buffer): boolean {
+  for (const byte of sample) {
+    const isC0Control = byte < 0x20;
+    const isAllowedControl = byte === 0x09 || byte === 0x0a || byte === 0x0d;
+    if (isC0Control && !isAllowedControl) {
+      return false;
+    }
+  }
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(sample);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Determines a file's real type from its content, per D-2: `file-type`'s
+ * signature detection first, falling back to the text-content rule only for
+ * the two extensions (`txt`, `md`) that carry no signature at all.
+ *
+ * It lives beside the {@link FileStorage} boundary rather than inside a
+ * feature, and takes the accepted set as a parameter, so the meeting-files
+ * module's twelve types and the profile module's three images share one
+ * detector instead of keeping two in step (D-4).
  */
 @Injectable()
 export class FileTypeService {
@@ -18,22 +58,66 @@ export class FileTypeService {
    * Detects `tempPath`'s real type, never trusting the client's declared
    * `Content-Type` or the file's extension for anything but the text-only
    * fallback.
-   * @param _tempPath - Absolute path of the file multer wrote to disk.
-   * @param _declaredName - The client-supplied file name, used only to read
+   * @param tempPath - Absolute path of the file multer wrote to disk.
+   * @param declaredName - The client-supplied file name, used only to read
    * its extension for the text-content fallback.
-   * @param _acceptedMimeTypes - The caller's accepted types, keyed by
-   * extension.
+   * @param acceptedMimeTypes - The calling feature's accepted types, keyed
+   * by extension; anything detected outside its values is refused, the
+   * text fallback included.
    * @returns The detected type when it is one the caller accepts, or `null`
    * when it is not.
-   * @throws Error until the implementation lands.
    */
-  /* eslint-disable @typescript-eslint/no-unused-vars -- red skeleton; the implementing commit reads all three */
-  detect(
-    _tempPath: string,
-    _declaredName: string,
-    _acceptedMimeTypes: ReadonlyMap<string, string>,
+  async detect(
+    tempPath: string,
+    declaredName: string,
+    acceptedMimeTypes: ReadonlyMap<string, string>,
   ): Promise<DetectedFileType | null> {
-    throw new Error('Not implemented');
+    const accepted = new Set(acceptedMimeTypes.values());
+
+    // file-type is ESM-only; apps/api's CommonJS build reaches it through
+    // load-esm's dynamic import, which needs --experimental-vm-modules under
+    // Jest (apps/api/package.json's test/test:e2e scripts).
+    const { fileTypeFromFile } =
+      await loadEsm<typeof import('file-type')>('file-type');
+    const detected = await fileTypeFromFile(tempPath);
+
+    if (detected) {
+      return accepted.has(detected.mime) ? { mime: detected.mime } : null;
+    }
+
+    const extension = extname(declaredName).slice(1).toLowerCase();
+    if (!TEXT_FILE_EXTENSIONS.has(extension)) {
+      return null;
+    }
+    const textMime = MIME_BY_TEXT_EXTENSION[extension];
+    // A caller whose accepted set holds no text type — the profile's three
+    // images, say — refuses the fallback too, rather than accepting a type
+    // it never asked for (D-4).
+    if (!accepted.has(textMime)) {
+      return null;
+    }
+    const sample = await this.readSample(tempPath);
+    return looksLikeText(sample) ? { mime: textMime } : null;
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  /**
+   * Reads up to {@link TYPE_SNIFF_SAMPLE_BYTES} from the start of `tempPath`.
+   * @param tempPath - Absolute path of the file to sample.
+   * @returns The bytes read (fewer than the sample size for a short file).
+   */
+  private async readSample(tempPath: string): Promise<Buffer> {
+    const handle = await open(tempPath, 'r');
+    try {
+      const buffer = Buffer.alloc(TYPE_SNIFF_SAMPLE_BYTES);
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        TYPE_SNIFF_SAMPLE_BYTES,
+        0,
+      );
+      return buffer.subarray(0, bytesRead);
+    } finally {
+      await handle.close();
+    }
+  }
 }
