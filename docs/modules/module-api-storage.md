@@ -53,6 +53,11 @@ is a parameter its callers pass (`files` its twelve, `profile` its three).
 
 ## Gotchas (non-obvious, worth preserving)
 
+- **`<root>/tmp` is swept by a cron that lives in another module.** A request that dies between
+  multer staging its temp file and `save()` renaming it leaves that file behind, and the only thing
+  that reclaims it is `FilesPurgeService` — a provider of `FilesModule`, not of this module. Every
+  feature staging through `<root>/tmp` (meeting files, avatars) depends on it, so removing or
+  narrowing that sweep leaks temp files for all of them, not just for meeting files.
 - **`STORAGE_ROOT` resolution is duplicated on purpose, and `resolveStorageRoot()` must stay lazy.**
   `LocalDiskFileStorage`'s constructor reads it via injected `ConfigService` (idiomatic,
   DI-testable — see its unit spec). Multer's `diskStorage` `destination` callback cannot use DI at
