@@ -177,23 +177,28 @@ export default async function Home() {
             Create and join meetings in a few clicks.
           </Card.Description>
         </Card.Header>
-        <Card.Content className="flex items-center gap-4">
-          {/* The same mark the profile page shows, from the same server-side
-              profile — so the avatar is in the first response here too, at a
-              fixed size that reserves its space (AC-1, AC-5). */}
-          <UserAvatar
-            name={profile?.name ?? null}
-            email={profile?.email ?? session.email ?? ''}
-            hasAvatar={profile?.hasAvatar ?? false}
-            avatarUpdatedAt={profile?.avatarUpdatedAt ?? null}
-          />
-          <Alert status="success" className="min-w-0 flex-1">
-            <Alert.Indicator />
-            <Alert.Content>
-              {/* Rendered as text — a name of markup stays a name (AC-16). */}
-              <Alert.Title>Signed in as {greeting}</Alert.Title>
-            </Alert.Content>
-          </Alert>
+        <Card.Content>
+          {/* The row is its own element rather than `Card.Content` itself: the
+              slot brings layout of its own, which stacked the mark above the
+              greeting instead of beside it (AC-5). */}
+          <div className="flex items-center gap-4">
+            {/* The same mark the profile page shows, from the same server-side
+                profile — so the avatar is in the first response here too, at a
+                fixed size that reserves its space (AC-1, AC-5). */}
+            <UserAvatar
+              name={profile?.name ?? null}
+              email={profile?.email ?? session.email ?? ''}
+              hasAvatar={profile?.hasAvatar ?? false}
+              avatarUpdatedAt={profile?.avatarUpdatedAt ?? null}
+            />
+            <Alert status="success" className="min-w-0 flex-1">
+              <Alert.Indicator />
+              <Alert.Content>
+                {/* Rendered as text — a name of markup stays a name (AC-16). */}
+                <Alert.Title>Signed in as {greeting}</Alert.Title>
+              </Alert.Content>
+            </Alert>
+          </div>
         </Card.Content>
         <Card.Footer className="flex items-center gap-4">
           <form action={logoutAction}>
