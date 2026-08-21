@@ -224,7 +224,7 @@
         "AC-15",
         "AC-18"
       ],
-      "status": "in-progress",
+      "status": "in-review",
       "branch": "feature/user-profile-phase-3",
       "milestone": {
         "number": 26,
@@ -300,7 +300,12 @@
           ],
           "state": "OPEN"
         }
-      ]
+      ],
+      "pr": {
+        "number": 181,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/181",
+        "state": "open"
+      }
     },
     {
       "phase": 4,
