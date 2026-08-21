@@ -158,6 +158,27 @@ describe('UserAvatar', () => {
     expect(container.querySelector('img')).toHaveAttribute('alt', '');
   });
 
+  it('returns to the initials when the avatar is removed under it (AC-9)', () => {
+    stubLoadedImages();
+
+    const { container, rerender } = render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt="2026-08-21T09:15:30.000Z"
+      />,
+    );
+    expect(container.querySelector('img')).not.toBeNull();
+
+    // What `router.refresh()` produces after a removal: the same mark, told
+    // there is no avatar any more. It may not be left blank.
+    rerender(<UserAvatar name="Ada Lovelace" email="ada@example.com" />);
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByLabelText('Your avatar')).toHaveTextContent('AL');
+  });
+
   it('keeps showing the initials while the image is still loading (T-2)', () => {
     // No stub here: jsdom never loads the image, which is exactly the
     // still-loading state. The fallback showing then is an image load, not a
