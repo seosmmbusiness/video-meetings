@@ -79,9 +79,14 @@ export function UserAvatar({
     // loaded, and keeps hiding its fallback even after that image is gone — so
     // a removal under a mounted mark would leave an empty mark (AC-9). A new
     // key is a new mark, with nothing remembered.
+    // `role="img"` is what makes the `aria-label` count: HeroUI renders the
+    // root as a plain `<span>`, and a label on a generic role is ignored — so
+    // with the image's own `alt` deliberately empty the mark would have had no
+    // accessible name at all.
     <Avatar
       key={src ?? 'fallback'}
       size="lg"
+      role="img"
       aria-label={label}
       className="shrink-0"
     >

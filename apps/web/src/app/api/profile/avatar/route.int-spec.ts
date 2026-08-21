@@ -185,7 +185,7 @@ describe('/api/profile/avatar', () => {
           'content-type': 'image/png',
           'content-length': '9',
           'content-disposition': 'inline',
-          'cache-control': 'private, no-store',
+          'cache-control': 'private, max-age=60',
           'x-content-type-options': 'nosniff',
           'set-cookie': 'upstream=leaked',
         },
@@ -197,9 +197,10 @@ describe('/api/profile/avatar', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/png');
     expect(response.headers.get('content-disposition')).toBe('inline');
-    // `no-store` is what keeps a removed avatar from being re-painted from a
-    // cache (D-8, AC-9), so it has to survive the hop.
-    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    // The upstream's own caching decision — the 60-second private window of
+    // T-1 — has to survive the hop; what keeps a removed avatar from being
+    // re-painted is the `?v=` in the URL, not this header (D-8, AC-9).
+    expect(response.headers.get('cache-control')).toBe('private, max-age=60');
     expect(response.headers.get('set-cookie')).toBeNull();
     await expect(response.text()).resolves.toBe('png-bytes');
   });

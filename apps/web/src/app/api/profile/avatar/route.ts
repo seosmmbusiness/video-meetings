@@ -14,7 +14,7 @@ const UPSTREAM_PATH = '/profile/avatar';
  * so the session token stays server-side: the browser requests
  * `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>` and gets apps/api's
  * response — the image with its `Content-Type`, `Content-Disposition: inline`
- * and `Cache-Control: private, no-store`, or `404` when the account holds no
+ * and `Cache-Control: private, max-age=60` (T-1), or `404` when the account holds no
  * avatar (D-8, AC-9).
  * @param request - The incoming request to this route handler.
  * @returns The proxied response, or `401` with no body when signed out.

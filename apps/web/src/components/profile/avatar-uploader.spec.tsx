@@ -250,6 +250,33 @@ describe('AvatarUploader', () => {
     );
   });
 
+  it('says a first upload worked, since the new image itself is never announced', async () => {
+    mockProxy(
+      new Response(JSON.stringify({ hasAvatar: true }), { status: 201 }),
+    );
+    render(<AvatarUploader hasAvatar={false} />);
+
+    await selectAvatar(fileOf({ name: 'me.png', type: 'image/png' }));
+
+    // Polite, not an alert: a success has no reason to interrupt.
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Avatar uploaded.',
+    );
+  });
+
+  it('calls a replacement a replacement, not a first upload', async () => {
+    mockProxy(
+      new Response(JSON.stringify({ hasAvatar: true }), { status: 201 }),
+    );
+    render(<AvatarUploader hasAvatar />);
+
+    await selectAvatar(fileOf({ name: 'me.png', type: 'image/png' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Avatar replaced.',
+    );
+  });
+
   it('reports a transport failure instead of failing silently', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
     render(<AvatarUploader hasAvatar={false} />);
@@ -311,6 +338,21 @@ describe('AvatarUploader', () => {
       // Both pages read `hasAvatar` server-side, so only a refresh returns
       // them to the placeholder (AC-9).
       expect(refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('says the avatar is gone, since the mark returning to initials is not announced either', async () => {
+      mockProxy(
+        new Response(JSON.stringify({ hasAvatar: false }), { status: 200 }),
+      );
+      render(<AvatarUploader hasAvatar />);
+
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Remove avatar' }),
+      );
+
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'Avatar removed.',
+      );
     });
 
     it("shows apps/api's refusal and keeps the avatar when a removal fails", async () => {

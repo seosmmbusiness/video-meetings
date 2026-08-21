@@ -16,7 +16,7 @@ The avatar can now be uploaded, replaced and removed on `/profile`, and the resu
 
 `revalidatePath` isn't reachable from a Route Handler, so the upload calls `router.refresh()` instead; both pages read the avatar server-side, and without that refresh a successful upload would show nothing until a manual reload.
 
-**Cache-busting is done by the URL, not by headers.** The API answers `Cache-Control: private, no-store`, but what "the old avatar is gone" is actually about is the copy the browser already painted for a URL — so the image is requested as `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>` and a replacement is simply a different URL. A missing or unparsable timestamp degrades to `v=0` rather than to no URL: an avatar that never loads is the worse failure.
+**Cache-busting is done by the URL, not by headers.** The API answers `Cache-Control: private, max-age=60` — T-1's window, not `no-store` — but what "the old avatar is gone" is actually about is the copy the browser already painted for a URL — so the image is requested as `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>` and a replacement is simply a different URL. A missing or unparsable timestamp degrades to `v=0` rather than to no URL: an avatar that never loads is the worse failure.
 
 Two smaller things cost real debugging. HeroUI's `Avatar` **remembers that an image loaded** and keeps its fallback hidden afterwards, so removing an avatar under a mounted mark left an empty circle instead of the initials; the mark is now keyed on its source, making each state a fresh component. And the file input clears its own value on every change — picking the identical file twice fires no `change` event, so after a refusal the same corrected pick would have been silently swallowed.
 
