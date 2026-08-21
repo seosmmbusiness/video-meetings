@@ -22,8 +22,10 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPayloadTooLargeResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -132,8 +134,15 @@ export class ProfileController {
     description: 'The profile, after an existing avatar was replaced',
     type: ProfileResponseDto,
   })
+  @ApiBadRequestResponse({ description: 'The request carried no avatar part' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  @ApiPayloadTooLargeResponse({
+    description: 'The avatar exceeds the 5 MB limit',
+  })
+  @ApiUnsupportedMediaTypeResponse({
+    description: 'The content is not a PNG, JPEG or WebP image',
+  })
   async setAvatar(
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile(AvatarFilePipe) file: CheckedAvatarUpload,
