@@ -1,4 +1,8 @@
-import { Logger, NotFoundException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
 import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
@@ -402,6 +406,72 @@ describe('ProfileService', () => {
 
       expect(Object.keys(profile).sort()).toEqual([...PROFILE_KEYS]);
       expect(JSON.stringify(profile)).not.toContain(STORED_KEY);
+    });
+  });
+
+  describe('getAvatarFile', () => {
+    const STORED_KEY =
+      'users/user-1/avatar/22222222-2222-4222-8222-222222222222';
+    const LOCAL_PATH = `/srv/.data/uploads/${STORED_KEY}`;
+
+    beforeEach(() => {
+      queryBus.execute.mockResolvedValue(
+        userRow({
+          avatarKey: STORED_KEY,
+          avatarMimeType: 'image/webp',
+          avatarSize: 2048,
+          avatarUpdatedAt: new Date('2026-08-21T10:00:00.000Z'),
+        }),
+      );
+      storage.localPathFor.mockReturnValue(LOCAL_PATH);
+    });
+
+    it("resolves the key from the caller's own row alone (AC-15, D-8)", async () => {
+      await expect(service.getAvatarFile('user-1')).resolves.toEqual({
+        path: LOCAL_PATH,
+        mimeType: 'image/webp',
+      });
+
+      const [[query]] = queryBus.execute.mock.calls as [FindUserByIdQuery][];
+      expect(query).toBeInstanceOf(FindUserByIdQuery);
+      expect(query.userId).toBe('user-1');
+      expect(storage.localPathFor).toHaveBeenCalledWith(STORED_KEY);
+    });
+
+    it('throws NotFound when the account has no avatar (AC-9)', async () => {
+      queryBus.execute.mockResolvedValue(userRow());
+
+      await expect(service.getAvatarFile('user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(storage.localPathFor).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when the row no longer exists', async () => {
+      queryBus.execute.mockResolvedValue(null);
+
+      await expect(service.getAvatarFile('user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('falls back to the detected type stored beside the key', async () => {
+      queryBus.execute.mockResolvedValue(
+        userRow({ avatarKey: STORED_KEY, avatarMimeType: 'image/jpeg' }),
+      );
+
+      await expect(service.getAvatarFile('user-1')).resolves.toEqual({
+        path: LOCAL_PATH,
+        mimeType: 'image/jpeg',
+      });
+    });
+
+    it('refuses to guess a path for a backend that has none', async () => {
+      storage.localPathFor.mockReturnValue(null);
+
+      await expect(service.getAvatarFile('user-1')).rejects.toBeInstanceOf(
+        InternalServerErrorException,
+      );
     });
   });
 });

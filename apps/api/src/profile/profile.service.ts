@@ -139,6 +139,21 @@ export class ProfileService {
   }
 
   /**
+   * Resolves the caller's own avatar to bytes the route can serve.
+   * @param _userId - The caller's id, taken from the verified token.
+   * @returns The local path of the stored bytes and their stored type.
+   * @throws Error until the implementation lands.
+   */
+  /* eslint-disable @typescript-eslint/no-unused-vars -- red skeleton; the implementing commit resolves the key off it */
+  // eslint-disable-next-line @typescript-eslint/require-await -- red skeleton; the implementing commit awaits the row read
+  async getAvatarFile(
+    _userId: string,
+  ): Promise<{ path: string; mimeType: string }> {
+    throw new Error('Not implemented');
+  }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
+  /**
    * Reads the caller's own row over the users module's query bus.
    * @param userId - The caller's id, taken from the verified token.
    * @returns The caller's user row.

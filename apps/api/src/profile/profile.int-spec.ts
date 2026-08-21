@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { NotFoundException } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -288,6 +288,28 @@ describe('Profile module (integration)', () => {
 
       expect((await service.getProfile(bob.id)).hasAvatar).toBe(true);
       expect(await storage.stat(bobKey)).toEqual({ size: 1 });
+    });
+
+    it('resolves the stored key to a real file holding the committed bytes (D-8)', async () => {
+      const user = await createUser();
+      const bytes = Buffer.from('the served avatar');
+      await service.setAvatar(user.id, await stageUpload(bytes, 'image/webp'));
+      const key =
+        (await prisma.user.findUnique({ where: { id: user.id } }))?.avatarKey ??
+        '';
+      committedKeys.push(key);
+
+      const served = await service.getAvatarFile(user.id);
+
+      expect(served.mimeType).toBe('image/webp');
+      expect(await readFile(served.path)).toEqual(bytes);
+
+      // Removal makes the same read unserveable rather than leaving a path
+      // pointing at bytes that are gone (AC-9).
+      await service.removeAvatar(user.id);
+      await expect(service.getAvatarFile(user.id)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('never carries the storage key or the hash into a response (S-1, AC-18)', async () => {
