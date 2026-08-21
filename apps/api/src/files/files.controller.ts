@@ -46,7 +46,7 @@ import { MulterExceptionFilter } from './filters/multer-exception.filter';
 import { MeetingOwnerGuard } from './guards/meeting-owner.guard';
 import { UploadSizeGuard } from './guards/upload-size.guard';
 import { buildMulterOptions } from './multer.config';
-import { FileStorage } from './storage/file-storage';
+import { FileStorage } from '../storage/file-storage';
 
 /** Media families served `inline`; every other accepted type downloads. */
 const INLINE_MIME_PREFIXES = ['image/', 'video/', 'audio/'];

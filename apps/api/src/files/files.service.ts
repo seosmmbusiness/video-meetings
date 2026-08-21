@@ -20,7 +20,7 @@ import {
   UNSUPPORTED_TYPE_MESSAGE,
 } from './files.constants';
 import { InsufficientStorageException } from './quota';
-import { FileStorage } from './storage/file-storage';
+import { FileStorage } from '../storage/file-storage';
 
 /** A file as multer's `diskStorage` hands it to the controller. */
 export interface UploadedDiskFile {

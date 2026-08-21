@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { MeetingsModule } from '../meetings/meetings.module';
+import { StorageModule } from '../storage/storage.module';
 import { FilesPurgeService } from './files-purge.service';
 import { FileTypeService } from './file-type.service';
 import { FilesController } from './files.controller';
@@ -8,17 +9,17 @@ import { FilesService } from './files.service';
 import { MeetingOwnerGuard } from './guards/meeting-owner.guard';
 import { UploadSizeGuard } from './guards/upload-size.guard';
 import { QuotaReservationService } from './quota-reservation.service';
-import { FileStorage } from './storage/file-storage';
-import { LocalDiskFileStorage } from './storage/local-disk-file-storage';
 
 /**
  * Wires up the files controller and service. Depends on {@link AuthModule}
- * for the JWT guard and on {@link MeetingsModule} for
+ * for the JWT guard, on {@link MeetingsModule} for
  * `MeetingsService.findOneForOwner`, which {@link MeetingOwnerGuard} reuses
- * rather than re-implementing ownership resolution.
+ * rather than re-implementing ownership resolution, and on
+ * {@link StorageModule} for the `FileStorage` boundary this module used to
+ * bind itself (D-4).
  */
 @Module({
-  imports: [AuthModule, MeetingsModule],
+  imports: [AuthModule, MeetingsModule, StorageModule],
   controllers: [FilesController],
   providers: [
     FilesService,
@@ -27,7 +28,6 @@ import { LocalDiskFileStorage } from './storage/local-disk-file-storage';
     FilesPurgeService,
     MeetingOwnerGuard,
     UploadSizeGuard,
-    { provide: FileStorage, useClass: LocalDiskFileStorage },
   ],
 })
 export class FilesModule {}

@@ -8,10 +8,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import type { User } from '../../generated/prisma/client';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from '../prisma/prisma.service';
-// Imported from where the boundary lives today; task 3.3 lifts these two
-// files into `src/storage` (D-4) and this import moves with them.
-import { FileStorage } from '../files/storage/file-storage';
-import { resolveStorageRoot } from '../files/storage/storage-root';
+import { FileStorage } from '../storage/file-storage';
+import { resolveStorageRoot } from '../storage/storage-root';
 import { CreateUserCommand } from '../users/commands/create-user.command';
 import { UsersModule } from '../users/users.module';
 import { ProfileModule } from './profile.module';

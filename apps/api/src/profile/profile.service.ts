@@ -1,6 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { FileStorage } from '../storage/file-storage';
+import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from '../users/commands/update-user-name.command';
 import { FindUserByIdQuery } from '../users/queries/find-user-by-id.query';
 import { ProfileResponseDto } from './dto/profile-response.dto';
@@ -14,13 +17,18 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
  */
 @Injectable()
 export class ProfileService {
+  private readonly logger = new Logger(ProfileService.name);
+
   /**
    * @param queryBus - Used to read the caller's row from the users module.
    * @param commandBus - Used to write the caller's row through the users module.
+   * @param storage - The byte boundary the avatar is committed to and deleted
+   * from, reached through `StorageModule` rather than the files feature (D-4).
    */
   constructor(
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
+    private readonly storage: FileStorage,
   ) {}
 
   /**
@@ -30,14 +38,7 @@ export class ProfileService {
    * @throws NotFoundException if the token names a row that no longer exists.
    */
   async getProfile(userId: string): Promise<ProfileResponseDto> {
-    const user = await this.queryBus.execute<FindUserByIdQuery, User | null>(
-      new FindUserByIdQuery(userId),
-    );
-    if (!user) {
-      throw new NotFoundException('Profile not found');
-    }
-
-    return this.toResponse(user);
+    return this.toResponse(await this.findUser(userId));
   }
 
   /**
@@ -70,19 +71,44 @@ export class ProfileService {
    * the four avatar columns are written as one group, and only then are the
    * previous key's bytes deleted (D-5, D-7).
    *
-   * Unimplemented shell — task 3.1 ships it so the typed lint gate can
-   * resolve the specs that name it; task 3.3 is what makes it behave.
+   * The key carries a fresh `randomUUID()` per upload, which is what makes a
+   * replacement atomic from the reader's side: the row points at either the
+   * old key or the new one, never at a half-written file (AC-6).
    * @param userId - The caller's id, taken from the verified token.
    * @param file - The staged upload: its temp path, detected type and size.
    * @returns The caller's profile after the replacement.
+   * @throws NotFoundException if the token names a row that no longer exists.
    */
-  setAvatar(
+  async setAvatar(
     userId: string,
     file: { path: string; mimetype: string; size: number },
   ): Promise<ProfileResponseDto> {
-    void userId;
-    void file;
-    return Promise.reject(new Error('Not implemented'));
+    const previousKey = (await this.findUser(userId)).avatarKey;
+    const key = `users/${userId}/avatar/${randomUUID()}`;
+
+    await this.storage.save(key, file.path);
+
+    let updated: User;
+    try {
+      updated = await this.commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(userId, {
+          key,
+          mimeType: file.mimetype,
+          size: file.size,
+        }),
+      );
+    } catch (error) {
+      // Nothing references these bytes — the row still points at the previous
+      // key, or at nothing — so drop them rather than leave an orphan (S-5).
+      await this.deleteBytes(key);
+      throw error;
+    }
+
+    if (previousKey !== null) {
+      await this.deleteBytes(previousKey);
+    }
+
+    return this.toResponse(updated);
   }
 
   /**
@@ -90,13 +116,60 @@ export class ProfileService {
    * the bytes deleted after, so an interrupted removal leaves unreachable
    * bytes rather than a row pointing at nothing (D-7).
    *
-   * Unimplemented shell — see {@link ProfileService.setAvatar}.
+   * An account with no avatar is left exactly as it is, so a repeated removal
+   * answers the same profile rather than writing four columns that are
+   * already null.
    * @param userId - The caller's id, taken from the verified token.
    * @returns The caller's profile after the removal.
+   * @throws NotFoundException if the token names a row that no longer exists.
    */
-  removeAvatar(userId: string): Promise<ProfileResponseDto> {
-    void userId;
-    return Promise.reject(new Error('Not implemented'));
+  async removeAvatar(userId: string): Promise<ProfileResponseDto> {
+    const current = await this.findUser(userId);
+    if (current.avatarKey === null) {
+      return this.toResponse(current);
+    }
+
+    const cleared = await this.commandBus.execute<
+      UpdateUserAvatarCommand,
+      User
+    >(new UpdateUserAvatarCommand(userId, null));
+    await this.deleteBytes(current.avatarKey);
+
+    return this.toResponse(cleared);
+  }
+
+  /**
+   * Reads the caller's own row over the users module's query bus.
+   * @param userId - The caller's id, taken from the verified token.
+   * @returns The caller's user row.
+   * @throws NotFoundException if the token names a row that no longer exists.
+   */
+  private async findUser(userId: string): Promise<User> {
+    const user = await this.queryBus.execute<FindUserByIdQuery, User | null>(
+      new FindUserByIdQuery(userId),
+    );
+    if (!user) {
+      throw new NotFoundException('Profile not found');
+    }
+
+    return user;
+  }
+
+  /**
+   * Deletes bytes that nothing references any more, best-effort: a failure
+   * leaves an unreachable object on disk, which is the accepted residual of
+   * D-7's ordering, and is logged as a count only — never as a key, since a
+   * key is exactly what S-1 keeps off every other surface.
+   * @param key - The storage key whose bytes are no longer referenced.
+   */
+  private async deleteBytes(key: string): Promise<void> {
+    try {
+      await this.storage.delete(key);
+    } catch {
+      this.logger.warn(
+        'Failed to delete 1 unreferenced avatar object; it is orphaned under the storage root.',
+      );
+    }
   }
 
   /**

@@ -4,8 +4,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { PURGE_AFTER_MS } from './files.constants';
-import { FileStorage } from './storage/file-storage';
-import { resolveStorageRoot } from './storage/storage-root';
+import { FileStorage } from '../storage/file-storage';
+import { resolveStorageRoot } from '../storage/storage-root';
 
 /** Longest a leftover upload temp file may sit unattended before this service removes it (24 hours). */
 const STALE_TEMP_FILE_MS = 86_400_000;

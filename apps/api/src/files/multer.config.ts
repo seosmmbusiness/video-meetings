@@ -3,7 +3,7 @@ import { diskStorage } from 'multer';
 import { join } from 'path';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { MAX_FILE_BYTES } from './files.constants';
-import { resolveStorageRoot } from './storage/storage-root';
+import { resolveStorageRoot } from '../storage/storage-root';
 
 /**
  * Builds the multer options for the upload route: writes to

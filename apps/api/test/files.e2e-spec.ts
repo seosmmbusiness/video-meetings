@@ -8,8 +8,8 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { FilesPurgeService } from '../src/files/files-purge.service';
-import { FileStorage } from '../src/files/storage/file-storage';
-import { resolveStorageRoot } from '../src/files/storage/storage-root';
+import { FileStorage } from '../src/storage/file-storage';
+import { resolveStorageRoot } from '../src/storage/storage-root';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 const THIRTY_ONE_DAYS_MS = 31 * 24 * 60 * 60 * 1000;
