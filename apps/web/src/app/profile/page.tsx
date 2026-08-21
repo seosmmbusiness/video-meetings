@@ -56,7 +56,12 @@ export default async function ProfilePage() {
           {profile ? (
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-4">
-                <UserAvatar name={profile.name} email={profile.email} />
+                <UserAvatar
+                  name={profile.name}
+                  email={profile.email}
+                  hasAvatar={profile.hasAvatar}
+                  avatarUpdatedAt={profile.avatarUpdatedAt}
+                />
                 <dl className="min-w-0">
                   <dt className="text-sm text-muted">Email</dt>
                   <dd className="truncate font-medium">{profile.email}</dd>
