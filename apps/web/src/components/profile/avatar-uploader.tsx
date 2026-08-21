@@ -14,16 +14,21 @@ const AVATAR_PROXY_URL = '/api/profile/avatar';
  * apps/api error (`extractErrorMessage` in `lib/auth-api.ts`): a `message`
  * field holding a string or an array of `class-validator` messages.
  * @param response - The response the proxy answered with.
+ * @param fallback - What to say when the body carries no message of its own;
+ * the status is appended to it.
  * @returns A single human-readable refusal.
  */
-async function refusalFrom(response: Response): Promise<string> {
+async function refusalFrom(
+  response: Response,
+  fallback: string,
+): Promise<string> {
   const body = (await response.json().catch(() => null)) as {
     message?: string | string[];
   } | null;
 
   if (Array.isArray(body?.message)) return body.message.join(' ');
   if (typeof body?.message === 'string') return body.message;
-  return `Upload failed (${response.status}).`;
+  return `${fallback} (${response.status}).`;
 }
 
 /**
@@ -37,9 +42,14 @@ async function refusalFrom(response: Response): Promise<string> {
  * they save a doomed 5 MB transfer, but only apps/api reads the bytes, so a
  * file that lies about itself is refused upstream and that refusal is shown
  * verbatim rather than reworded (AC-7, AC-8).
+ *
+ * An account that holds an avatar also gets a removal control, which sends
+ * `DELETE` through the same proxy and refreshes the same way, returning both
+ * pages to the initials fallback (AC-9).
  * @param props - What the account currently holds.
  * @param props.hasAvatar - Whether an avatar is already stored, which decides
- * whether the control reads as an upload or a replacement.
+ * whether the control reads as an upload or a replacement, and whether the
+ * removal control exists at all.
  * @returns The rendered avatar control.
  */
 export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
@@ -47,6 +57,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   /**
    * Runs the browser-side checks over the chosen file and, when it passes,
@@ -71,7 +82,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
     try {
       const response = await fetch(AVATAR_PROXY_URL, { method: 'POST', body });
       if (!response.ok) {
-        setRefusal(await refusalFrom(response));
+        setRefusal(await refusalFrom(response, 'Upload failed'));
         return;
       }
       // Both pages read the avatar server-side, so only a refresh shows the
@@ -81,6 +92,29 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
       setRefusal('Upload failed. Please check your connection and try again.');
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  /**
+   * Removes the stored avatar through the same proxy, leaving it in place and
+   * saying why when apps/api refuses (AC-9).
+   */
+  async function remove(): Promise<void> {
+    setRefusal(null);
+    setIsRemoving(true);
+    try {
+      const response = await fetch(AVATAR_PROXY_URL, { method: 'DELETE' });
+      if (!response.ok) {
+        setRefusal(await refusalFrom(response, 'Removal failed'));
+        return;
+      }
+      // Both pages read `hasAvatar` server-side, so only a refresh returns
+      // them to the initials fallback without a manual reload (AC-9).
+      router.refresh();
+    } catch {
+      setRefusal('Removal failed. Please check your connection and try again.');
+    } finally {
+      setIsRemoving(false);
     }
   }
 
@@ -109,6 +143,16 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
         >
           {hasAvatar ? 'Replace avatar' : 'Upload avatar'}
         </Button>
+        {hasAvatar ? (
+          <Button
+            isPending={isRemoving}
+            onPress={() => void remove()}
+            size="sm"
+            variant="ghost"
+          >
+            Remove avatar
+          </Button>
+        ) : null}
       </div>
       <p className="text-sm text-muted">PNG, JPG or WebP, up to 5 MB.</p>
 
