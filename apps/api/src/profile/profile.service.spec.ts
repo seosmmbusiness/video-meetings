@@ -93,13 +93,33 @@ describe('ProfileService', () => {
       expect(profile).not.toHaveProperty('avatarSize');
     });
 
-    it('reports no avatar while phase 3 has not filled the columns yet', async () => {
+    it('reports no avatar when the columns are empty', async () => {
       queryBus.execute.mockResolvedValue(userRow());
 
       const profile = await service.getProfile('user-1');
 
       expect(profile.hasAvatar).toBe(false);
       expect(profile.avatarUpdatedAt).toBeNull();
+    });
+
+    it('computes hasAvatar from avatarKey and exposes avatarUpdatedAt (D-5)', async () => {
+      const avatarUpdatedAt = new Date('2026-08-21T09:00:00.000Z');
+      queryBus.execute.mockResolvedValue(
+        userRow({
+          avatarKey: 'users/user-1/avatar/abc',
+          avatarMimeType: 'image/png',
+          avatarSize: 4096,
+          avatarUpdatedAt,
+        }),
+      );
+
+      const profile = await service.getProfile('user-1');
+
+      // `hasAvatar` is the key's presence, never the key itself — that is
+      // what keeps STORAGE_ROOT's layout off the wire (S-1, AC-18).
+      expect(profile.hasAvatar).toBe(true);
+      expect(profile.avatarUpdatedAt).toBe(avatarUpdatedAt);
+      expect(Object.keys(profile).sort()).toEqual([...PROFILE_KEYS]);
     });
 
     it('throws NotFound when the token names a row that no longer exists', async () => {
