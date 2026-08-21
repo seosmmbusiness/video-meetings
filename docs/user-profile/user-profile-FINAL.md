@@ -276,33 +276,35 @@ Playwright. Cases go in `src/app/api/profile/avatar/route.int-spec.ts`,
 `src/components/profile/avatar-uploader.spec.tsx` and `apps/web/e2e/profile.spec.ts`. UI reviewed
 with `web-design-guidelines` then `ui-ux-pro-max`, verified visually with the Playwright MCP tools.
 Suites: `npm run test:web`, `npm run test:e2e:web`.
+**Status**: complete — 2026-08-21, branch feature/user-profile-phase-4, PR https://github.com/seosmmbusiness/video-meetings/pull/183
+
 **Tasks**:
 
-- [ ] **4.1** Cover the avatar UI and its byte proxy — tests: `route.int-spec.ts` for the header
+- [x] **4.1** Cover the avatar UI and its byte proxy — tests: `route.int-spec.ts` for the header
       allow-list, the server-side token attachment, the dropped caller `Authorization` and the
       pre-upstream `401`; `avatar-uploader.spec.tsx` for the browser-side size and declared-type
       refusals; `apps/web/e2e/profile.spec.ts` for AC-6, AC-7, AC-8, AC-9 and AC-17 through the page.
       Red before 4.2 starts.
-- [ ] **4.2** Proxy the avatar bytes same-origin — `src/app/api/profile/avatar/route.ts` exporting
+- [x] **4.2** Proxy the avatar bytes same-origin — `src/app/api/profile/avatar/route.ts` exporting
       `GET`, `POST` and `DELETE`, each calling `getSession()` and answering `401` with no body before
       any upstream call, then `proxyToApi(request, session.token, '/profile/avatar')` — a fixed path
       with no caller-controlled segment (AC-17, D-12). A Server Action cannot carry these bytes: Next
       caps an action's request body at 1 MB by default, against a 5 MB avatar.
-- [ ] **4.3** Upload and replace the avatar in the browser — a Client Component on `/profile` that
+- [x] **4.3** Upload and replace the avatar in the browser — a Client Component on `/profile` that
       refuses a file over 5 MB or outside `image/png`, `image/jpeg`, `image/webp` **by its declared
       type and size, before sending** — a convenience check, not the boundary; the API's
       content-based refusal (3.4) is surfaced verbatim when a file gets past it (AC-6, AC-7, AC-8).
       On success it calls `router.refresh()` so the server tree re-renders with the new
       `avatarUpdatedAt`, which changes the image URL and defeats T-1's 60-second cache.
-- [ ] **4.4** Remove the avatar from the profile page — a control issuing `DELETE` through the proxy
+- [x] **4.4** Remove the avatar from the profile page — a control issuing `DELETE` through the proxy
       and then `router.refresh()`, returning both pages to the fallback (AC-9).
-- [ ] **4.5** Show the avatar next to the user on both pages — `src/components/profile/user-avatar.tsx`
+- [x] **4.5** Show the avatar next to the user on both pages — `src/components/profile/user-avatar.tsx`
       renders HeroUI's `Avatar.Image` when `hasAvatar` and `Avatar.Fallback` when not, in the first
       server response rather than after mount (AC-1, AC-5), at a fixed rendered size so nothing
       shifts. `src` is `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>`; `next/image` is not used —
       `/_next/image` fetches its source server-side without the session cookie and would `401`
       (D-13). Per T-2, the fallback showing while the image loads is an image load, not a state flip.
-- [ ] **4.6** Document the avatar UI and the proxy — `docs/modules/module-web-profile.md` gains
+- [x] **4.6** Document the avatar UI and the proxy — `docs/modules/module-web-profile.md` gains
       the uploader, the proxy route and the `?v=` cache-busting rule, `apps/web/CLAUDE.md`'s
       Structure and Status lines follow, JSDoc on every function added, entry in
       `apps/web/HISTORY.md`.
