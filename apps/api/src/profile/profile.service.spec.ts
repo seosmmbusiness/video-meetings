@@ -1,6 +1,7 @@
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from '../users/commands/update-user-name.command';
 import { FindUserByIdQuery } from '../users/queries/find-user-by-id.query';
 import { ProfileService } from './profile.service';
@@ -37,17 +38,43 @@ function userRow(overrides: Partial<User> = {}): User {
   } as User;
 }
 
+/** The staged upload a route hands the service once multer has written it. */
+const STAGED_UPLOAD = {
+  path: '/tmp/uploads/tmp/staged-avatar',
+  mimetype: 'image/png',
+  size: 2048,
+};
+
+/** The key shape D-7 mandates: a per-user prefix and a fresh UUID per upload. */
+const AVATAR_KEY_PATTERN =
+  /^users\/user-1\/avatar\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 describe('ProfileService', () => {
   let queryBus: { execute: jest.Mock };
   let commandBus: { execute: jest.Mock };
+  let storage: {
+    save: jest.Mock;
+    delete: jest.Mock;
+    stat: jest.Mock;
+    createReadStream: jest.Mock;
+    localPathFor: jest.Mock;
+  };
   let service: ProfileService;
 
   beforeEach(() => {
     queryBus = { execute: jest.fn() };
     commandBus = { execute: jest.fn() };
+    storage = {
+      save: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue(undefined),
+      stat: jest.fn(),
+      createReadStream: jest.fn(),
+      localPathFor: jest.fn(),
+    };
     service = new ProfileService(
       queryBus as unknown as QueryBus,
       commandBus as unknown as CommandBus,
+      storage,
     );
   });
 
@@ -176,6 +203,205 @@ describe('ProfileService', () => {
 
       expect(Object.keys(profile).sort()).toEqual([...PROFILE_KEYS]);
       expect(JSON.stringify(profile)).not.toContain('$2b$10$hash');
+    });
+  });
+
+  describe('setAvatar', () => {
+    const PREVIOUS_KEY =
+      'users/user-1/avatar/00000000-0000-4000-8000-000000000000';
+
+    /**
+     * Reads the command the service dispatched, so a case can assert what it
+     * carried without repeating the cast.
+     * @returns The dispatched avatar command.
+     */
+    function dispatchedAvatarCommand(): UpdateUserAvatarCommand {
+      const [[command]] = commandBus.execute.mock.calls as [
+        UpdateUserAvatarCommand,
+      ][];
+      return command;
+    }
+
+    beforeEach(() => {
+      queryBus.execute.mockResolvedValue(userRow());
+      commandBus.execute.mockResolvedValue(
+        userRow({
+          avatarKey: 'users/user-1/avatar/new',
+          avatarMimeType: 'image/png',
+          avatarSize: 2048,
+          avatarUpdatedAt: new Date('2026-08-21T10:00:00.000Z'),
+        }),
+      );
+    });
+
+    it('commits the staged bytes under users/<id>/avatar/<uuid> (D-7)', async () => {
+      await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      expect(storage.save).toHaveBeenCalledTimes(1);
+      const [key, tempPath] = storage.save.mock.calls[0] as [string, string];
+      expect(key).toMatch(AVATAR_KEY_PATTERN);
+      expect(tempPath).toBe(STAGED_UPLOAD.path);
+    });
+
+    it('uses a fresh key for every upload, which is what makes a replacement atomic (AC-6)', async () => {
+      await service.setAvatar('user-1', STAGED_UPLOAD);
+      await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      const [firstKey] = storage.save.mock.calls[0] as [string];
+      const [secondKey] = storage.save.mock.calls[1] as [string];
+      expect(secondKey).not.toBe(firstKey);
+    });
+
+    it('writes the four columns with the detected type and size, after the bytes are committed (D-5, D-7)', async () => {
+      await service.setAvatar('user-1', {
+        ...STAGED_UPLOAD,
+        mimetype: 'image/webp',
+        size: 4096,
+      });
+
+      const command = dispatchedAvatarCommand();
+      expect(command).toBeInstanceOf(UpdateUserAvatarCommand);
+      expect(command.userId).toBe('user-1');
+      const [savedKey] = storage.save.mock.calls[0] as [string];
+      expect(command.avatar).toEqual({
+        key: savedKey,
+        mimeType: 'image/webp',
+        size: 4096,
+      });
+      expect(storage.save.mock.invocationCallOrder[0]).toBeLessThan(
+        commandBus.execute.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("deletes the previous key's bytes only once the row points at the new one (S-5, AC-6)", async () => {
+      queryBus.execute.mockResolvedValue(userRow({ avatarKey: PREVIOUS_KEY }));
+
+      await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      expect(storage.delete).toHaveBeenCalledTimes(1);
+      expect(storage.delete).toHaveBeenCalledWith(PREVIOUS_KEY);
+      expect(commandBus.execute.mock.invocationCallOrder[0]).toBeLessThan(
+        storage.delete.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('deletes nothing when the account had no avatar yet', async () => {
+      await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      expect(storage.delete).not.toHaveBeenCalled();
+    });
+
+    it('survives a failed delete of the previous bytes, logging a count and never the key (S-5)', async () => {
+      queryBus.execute.mockResolvedValue(userRow({ avatarKey: PREVIOUS_KEY }));
+      storage.delete.mockRejectedValue(new Error('EACCES'));
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      const profile = await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      expect(profile.hasAvatar).toBe(true);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const [message] = warn.mock.calls[0] as [string];
+      expect(message).toContain('1');
+      expect(message).not.toContain(PREVIOUS_KEY);
+      warn.mockRestore();
+    });
+
+    it('removes the bytes it just committed when the column write fails, so nothing is orphaned (S-5)', async () => {
+      const failure = new Error('write failed');
+      commandBus.execute.mockRejectedValue(failure);
+
+      await expect(service.setAvatar('user-1', STAGED_UPLOAD)).rejects.toBe(
+        failure,
+      );
+
+      const [savedKey] = storage.save.mock.calls[0] as [string];
+      expect(storage.delete).toHaveBeenCalledWith(savedKey);
+    });
+
+    it('throws NotFound without committing anything when the row no longer exists', async () => {
+      queryBus.execute.mockResolvedValue(null);
+
+      await expect(
+        service.setAvatar('user-1', STAGED_UPLOAD),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(storage.save).not.toHaveBeenCalled();
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
+    it('answers exactly the five profile keys, never the storage key (S-1, AC-18)', async () => {
+      const profile = await service.setAvatar('user-1', STAGED_UPLOAD);
+
+      expect(Object.keys(profile).sort()).toEqual([...PROFILE_KEYS]);
+      expect(profile.hasAvatar).toBe(true);
+      expect(JSON.stringify(profile)).not.toContain('avatar/new');
+      expect(JSON.stringify(profile)).not.toContain('$2b$10$hash');
+    });
+  });
+
+  describe('removeAvatar', () => {
+    const STORED_KEY =
+      'users/user-1/avatar/11111111-1111-4111-8111-111111111111';
+
+    beforeEach(() => {
+      queryBus.execute.mockResolvedValue(userRow({ avatarKey: STORED_KEY }));
+      commandBus.execute.mockResolvedValue(userRow());
+    });
+
+    it('clears the four columns first and deletes the bytes after (D-7)', async () => {
+      const profile = await service.removeAvatar('user-1');
+
+      const [[command]] = commandBus.execute.mock.calls as [
+        UpdateUserAvatarCommand,
+      ][];
+      expect(command).toBeInstanceOf(UpdateUserAvatarCommand);
+      expect(command.userId).toBe('user-1');
+      expect(command.avatar).toBeNull();
+      expect(storage.delete).toHaveBeenCalledWith(STORED_KEY);
+      // Row first, bytes second: an interrupted removal leaves unreachable
+      // bytes rather than a row pointing at nothing (D-7).
+      expect(commandBus.execute.mock.invocationCallOrder[0]).toBeLessThan(
+        storage.delete.mock.invocationCallOrder[0],
+      );
+      expect(profile.hasAvatar).toBe(false);
+      expect(profile.avatarUpdatedAt).toBeNull();
+    });
+
+    it('is a no-op when the account has no avatar', async () => {
+      queryBus.execute.mockResolvedValue(userRow());
+
+      const profile = await service.removeAvatar('user-1');
+
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(storage.delete).not.toHaveBeenCalled();
+      expect(profile.hasAvatar).toBe(false);
+    });
+
+    it('survives a failed delete, logging a count and never the key (S-5)', async () => {
+      storage.delete.mockRejectedValue(new Error('EACCES'));
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+      const profile = await service.removeAvatar('user-1');
+
+      expect(profile.hasAvatar).toBe(false);
+      const [message] = warn.mock.calls[0] as [string];
+      expect(message).not.toContain(STORED_KEY);
+      warn.mockRestore();
+    });
+
+    it('throws NotFound when the row no longer exists', async () => {
+      queryBus.execute.mockResolvedValue(null);
+
+      await expect(service.removeAvatar('user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(storage.delete).not.toHaveBeenCalled();
+    });
+
+    it('answers exactly the five profile keys (S-1, AC-18)', async () => {
+      const profile = await service.removeAvatar('user-1');
+
+      expect(Object.keys(profile).sort()).toEqual([...PROFILE_KEYS]);
+      expect(JSON.stringify(profile)).not.toContain(STORED_KEY);
     });
   });
 });
