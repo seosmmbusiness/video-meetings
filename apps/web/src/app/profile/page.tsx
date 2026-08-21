@@ -2,6 +2,7 @@ import NextLink from 'next/link';
 import { redirect } from 'next/navigation';
 import { Alert, Card } from '@heroui/react';
 import { linkVariants } from '@heroui/styles';
+import { AvatarUploader } from '@/components/profile/avatar-uploader';
 import { NameForm } from '@/components/profile/name-form';
 import { UserAvatar } from '@/components/profile/user-avatar';
 import { ApiError, getProfile, type Profile } from '@/lib/profile-api';
@@ -55,12 +56,18 @@ export default async function ProfilePage() {
           {profile ? (
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-4">
-                <UserAvatar name={profile.name} email={profile.email} />
+                <UserAvatar
+                  name={profile.name}
+                  email={profile.email}
+                  hasAvatar={profile.hasAvatar}
+                  avatarUpdatedAt={profile.avatarUpdatedAt}
+                />
                 <dl className="min-w-0">
                   <dt className="text-sm text-muted">Email</dt>
                   <dd className="truncate font-medium">{profile.email}</dd>
                 </dl>
               </div>
+              <AvatarUploader hasAvatar={profile.hasAvatar} />
               <NameForm name={profile.name} />
             </div>
           ) : (

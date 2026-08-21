@@ -10,6 +10,20 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-21 — Avatar upload in the browser, behind a byte proxy (`user-profile` phase 4)
+
+The avatar can now be uploaded, replaced and removed on `/profile`, and the resulting image renders beside the greeting on `/` as well. Its bytes take a different path from the name, which is the decision worth remembering: a **Route Handler proxy** at `app/api/profile/avatar/route.ts`, not a Server Action, because Next caps an action's request body at 1 MB by default and the avatar limit is 5 MB. Raising `serverActions.bodySizeLimit` would have lifted the ceiling for every action in the app to fix one route. The proxy is the shape both meeting-file proxies already use — `getSession()` first, `401` with no body before any upstream call, then `proxyToApi` with an upstream path that is a module constant, so nothing the caller appends to the URL can steer where the request goes.
+
+`revalidatePath` isn't reachable from a Route Handler, so the upload calls `router.refresh()` instead; both pages read the avatar server-side, and without that refresh a successful upload would show nothing until a manual reload.
+
+**Cache-busting is done by the URL, not by headers.** The API answers `Cache-Control: private, max-age=60` — T-1's window, not `no-store` — but what "the old avatar is gone" is actually about is the copy the browser already painted for a URL — so the image is requested as `/api/profile/avatar?v=<avatarUpdatedAt epoch ms>` and a replacement is simply a different URL. A missing or unparsable timestamp degrades to `v=0` rather than to no URL: an avatar that never loads is the worse failure.
+
+Two smaller things cost real debugging. HeroUI's `Avatar` **remembers that an image loaded** and keeps its fallback hidden afterwards, so removing an avatar under a mounted mark left an empty circle instead of the initials; the mark is now keyed on its source, making each state a fresh component. And the file input clears its own value on every change — picking the identical file twice fires no `change` event, so after a refusal the same corrected pick would have been silently swallowed.
+
+The browser-side size and declared-type checks in `lib/avatar-limits.ts` are a convenience, not the boundary: only `apps/api` reads the bytes. Their refusal strings are therefore copied verbatim from the API's own `413`/`415` bodies, so the page reads identically whichever side caught the file, and anything the filter lets through is refused upstream and shown word for word rather than reworded.
+
+Architecture and the full function reference: `docs/modules/module-web-profile.md`.
+
 ### 2026-08-20 — Profile page, and the dashboard greets by name (`user-profile` phase 2)
 
 `/profile` is auth-gated exactly as `/` is — `getSession()` first, `redirect('/login')` before any JSX, including when `apps/api` answers `401` for a cookie that is present — so there is no signed-out state to leak. The dashboard now greets by the stored name, falling back to the email; both are server-rendered, so neither is ever swapped for the other after mount, and both are rendered as text, which is what keeps a name of markup a name.

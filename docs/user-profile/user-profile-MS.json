@@ -326,7 +326,8 @@
         "AC-9",
         "AC-17"
       ],
-      "status": "pending",
+      "status": "in-progress",
+      "branch": "feature/user-profile-phase-4",
       "milestone": {
         "number": 27,
         "title": "UP 4 · Avatar in the profile and on the dashboard",
@@ -575,7 +576,7 @@
       2,
       3
     ],
-    "currentPhase": null,
+    "currentPhase": 4,
     "nextPhase": {
       "phase": 4,
       "milestone": 27,

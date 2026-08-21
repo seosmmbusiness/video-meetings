@@ -5,6 +5,7 @@ import { buttonVariants } from '@heroui/styles';
 import { logoutAction } from '@/app/actions/auth';
 import { getSession } from '@/lib/session';
 import { VideoCameraIcon } from '@/components/icons/video-camera-icon';
+import { UserAvatar } from '@/components/profile/user-avatar';
 import {
   ApiError,
   listMeetings,
@@ -149,10 +150,11 @@ export default async function Home() {
   // fallback email comes from the profile when it loaded, since `apps/api`
   // owns it; the session's own `email` is a decoded claim and is `null` when
   // the token can't be parsed, which renders as no greeting at all.
-  const greeting =
-    profileResult.status === 'fulfilled'
-      ? displayName(profileResult.value.name, profileResult.value.email)
-      : (session.email ?? '');
+  const profile =
+    profileResult.status === 'fulfilled' ? profileResult.value : null;
+  const greeting = profile
+    ? displayName(profile.name, profile.email)
+    : (session.email ?? '');
 
   if (meetingsResult.status === 'fulfilled') {
     ({ upcoming, recentPast } = splitMeetingsByTime(meetingsResult.value));
@@ -176,13 +178,27 @@ export default async function Home() {
           </Card.Description>
         </Card.Header>
         <Card.Content>
-          <Alert status="success">
-            <Alert.Indicator />
-            <Alert.Content>
-              {/* Rendered as text — a name of markup stays a name (AC-16). */}
-              <Alert.Title>Signed in as {greeting}</Alert.Title>
-            </Alert.Content>
-          </Alert>
+          {/* The row is its own element rather than `Card.Content` itself: the
+              slot brings layout of its own, which stacked the mark above the
+              greeting instead of beside it (AC-5). */}
+          <div className="flex items-center gap-4">
+            {/* The same mark the profile page shows, from the same server-side
+                profile — so the avatar is in the first response here too, at a
+                fixed size that reserves its space (AC-1, AC-5). */}
+            <UserAvatar
+              name={profile?.name ?? null}
+              email={profile?.email ?? session.email ?? ''}
+              hasAvatar={profile?.hasAvatar ?? false}
+              avatarUpdatedAt={profile?.avatarUpdatedAt ?? null}
+            />
+            <Alert status="success" className="min-w-0 flex-1">
+              <Alert.Indicator />
+              <Alert.Content>
+                {/* Rendered as text — a name of markup stays a name (AC-16). */}
+                <Alert.Title>Signed in as {greeting}</Alert.Title>
+              </Alert.Content>
+            </Alert>
+          </div>
         </Card.Content>
         <Card.Footer className="flex items-center gap-4">
           <form action={logoutAction}>
