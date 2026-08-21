@@ -56,6 +56,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
 
@@ -68,6 +69,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
     // A new attempt withdraws the last refusal outright — leaving it up would
     // read as a refusal of the file just chosen.
     setRefusal(null);
+    setConfirmation(null);
 
     const refusedInBrowser = refuseAvatar(file);
     if (refusedInBrowser) {
@@ -85,6 +87,9 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
         setRefusal(await refusalFrom(response, 'Upload failed'));
         return;
       }
+      // The new image is the only sign the upload worked, and an image is not
+      // announced — so the outcome is also said in words.
+      setConfirmation(hasAvatar ? 'Avatar replaced.' : 'Avatar uploaded.');
       // Both pages read the avatar server-side, so only a refresh shows the
       // new image without a manual reload (AC-6).
       router.refresh();
@@ -101,6 +106,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
    */
   async function remove(): Promise<void> {
     setRefusal(null);
+    setConfirmation(null);
     setIsRemoving(true);
     try {
       const response = await fetch(AVATAR_PROXY_URL, { method: 'DELETE' });
@@ -108,6 +114,7 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
         setRefusal(await refusalFrom(response, 'Removal failed'));
         return;
       }
+      setConfirmation('Avatar removed.');
       // Both pages read `hasAvatar` server-side, so only a refresh returns
       // them to the initials fallback without a manual reload (AC-9).
       router.refresh();
@@ -132,6 +139,10 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
           if (file) void upload(file);
         }}
         ref={inputRef}
+        // Out of the tab order on purpose: `sr-only` hides the input without
+        // removing its focusability, so a keyboard user would otherwise land
+        // on an invisible stop next to the button that already opens it.
+        tabIndex={-1}
         type="file"
       />
       <div className="flex items-center gap-3">
@@ -159,6 +170,13 @@ export function AvatarUploader({ hasAvatar }: { hasAvatar: boolean }) {
       {/* The refusal lands while focus is still on the upload control, so
           without a live region a screen reader user is told nothing at all
           happened (AC-7). HeroUI's `Alert` carries no role of its own. */}
+      {/* Polite, and separate from the refusal region: a success is not an
+          alert, and keeping one `role="alert"` on the control leaves the
+          refusal the only thing that interrupts. */}
+      <p className="text-sm text-muted" role="status">
+        {confirmation}
+      </p>
+
       <div role="alert">
         {refusal ? (
           <Alert status="danger">
