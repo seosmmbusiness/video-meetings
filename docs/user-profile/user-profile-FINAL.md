@@ -201,7 +201,7 @@ code", then re-run after each step, and stop and fix immediately if a step turns
 in `apps/api/test/profile.e2e-spec.ts` and `src/profile/profile.int-spec.ts`; the moved code keeps
 its existing specs, relocated with it. Suites: `npm run test:api`, `npm run test:int:api`,
 `npm run test:e2e:api`.
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/181
+**Status**: complete — 2026-08-21, branch feature/user-profile-phase-3, PR https://github.com/seosmmbusiness/video-meetings/pull/181
 
 **Tasks**:
 
