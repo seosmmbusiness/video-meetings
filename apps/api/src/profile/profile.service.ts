@@ -111,8 +111,10 @@ export class ProfileService {
       id: user.id,
       email: user.email,
       name: user.name,
-      // Derived rather than stored: phase 3 is what starts filling the avatar
-      // columns, so both answer "no avatar" for every row today.
+      // Derived rather than stored, and derived from the key's presence
+      // rather than the key itself — that is what keeps STORAGE_ROOT's
+      // layout off the wire while still telling the caller they have one
+      // (D-5, S-1).
       hasAvatar: user.avatarKey !== null,
       avatarUpdatedAt: user.avatarUpdatedAt,
     };

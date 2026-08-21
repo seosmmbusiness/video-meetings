@@ -1,14 +1,20 @@
 import { Module } from '@nestjs/common';
 import { CreateUserHandler } from './commands/create-user.handler';
+import { UpdateUserAvatarHandler } from './commands/update-user-avatar.handler';
 import { UpdateUserNameHandler } from './commands/update-user-name.handler';
 import { FindUserByEmailHandler } from './queries/find-user-by-email.handler';
 import { FindUserByIdHandler } from './queries/find-user-by-id.handler';
 
-const CommandHandlers = [CreateUserHandler, UpdateUserNameHandler];
+const CommandHandlers = [
+  CreateUserHandler,
+  UpdateUserNameHandler,
+  UpdateUserAvatarHandler,
+];
 const QueryHandlers = [FindUserByEmailHandler, FindUserByIdHandler];
 
 /**
- * Owns user persistence (the Prisma `User` model): creation and lookup.
+ * Owns user persistence (the Prisma `User` model): creation, lookup, and the
+ * display-name and avatar updates.
  * Exposed to other modules exclusively via CQRS commands/queries (see
  * `commands/` and `queries/`), never via direct service injection.
  */
