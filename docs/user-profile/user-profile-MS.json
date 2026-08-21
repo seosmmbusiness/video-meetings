@@ -224,7 +224,8 @@
         "AC-15",
         "AC-18"
       ],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/user-profile-phase-3",
       "milestone": {
         "number": 26,
         "title": "UP 3 · Avatar upload and serving in the API",
@@ -299,7 +300,12 @@
           ],
           "state": "OPEN"
         }
-      ]
+      ],
+      "pr": {
+        "number": 181,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/181",
+        "state": "open"
+      }
     },
     {
       "phase": 4,
@@ -556,17 +562,23 @@
     }
   ],
   "progress": {
-    "updatedAt": "2026-08-20",
+    "updatedAt": "2026-08-21",
     "completedPhases": [
       1,
       2
     ],
-    "currentPhase": null,
-    "nextPhase": {
+    "currentPhase": {
       "phase": 3,
       "milestone": 26,
       "title": "UP 3 · Avatar upload and serving in the API",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/26"
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/26",
+      "branch": "feature/user-profile-phase-3"
+    },
+    "nextPhase": {
+      "phase": 4,
+      "milestone": 27,
+      "title": "UP 4 · Avatar in the profile and on the dashboard",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/27"
     }
   }
 }

@@ -10,8 +10,8 @@ import {
 import type { MeetingFile, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MeetingFileResponseDto } from './dto/meeting-file-response.dto';
-import { FileTypeService } from './file-type.service';
 import {
+  ACCEPTED_MIME_TYPES,
   LIVE_FILE_CAP_MESSAGE,
   MAX_FILE_NAME_LENGTH,
   MAX_LIVE_FILES_PER_MEETING,
@@ -20,7 +20,8 @@ import {
   UNSUPPORTED_TYPE_MESSAGE,
 } from './files.constants';
 import { InsufficientStorageException } from './quota';
-import { FileStorage } from './storage/file-storage';
+import { FileStorage } from '../storage/file-storage';
+import { FileTypeService } from '../storage/file-type.service';
 
 /** A file as multer's `diskStorage` hands it to the controller. */
 export interface UploadedDiskFile {
@@ -110,6 +111,7 @@ export class FilesService {
     const detected = await this.fileTypeService.detect(
       file.path,
       file.originalname,
+      ACCEPTED_MIME_TYPES,
     );
     if (!detected) {
       await rm(file.path, { force: true });

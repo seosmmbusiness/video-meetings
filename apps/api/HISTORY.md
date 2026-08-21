@@ -10,6 +10,20 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-21 — A shared storage module, and one avatar per account (`user-profile` phase 3)
+
+The avatar routes needed bytes, and the bytes lived inside the meeting-files feature. Rather than have `FilesModule` export `FileStorage` and `FileTypeService` — which would make a self-service profile route import that feature's controller, its hourly purge cron and its quota reservation service — the four byte primitives moved into a new `src/storage` module: `FileStorage`, `LocalDiskFileStorage`, `resolveStorageRoot()` and `FileTypeService` (D-4). The third option, a second disk path and a second sniffer inside `profile`, is exactly the duplication the `FileStorage` boundary exists to prevent. `FileTypeService` gained one parameter in the move — the accepted MIME set — so `files` passes its twelve types and `profile` its three, one detector with two policies instead of two detectors to keep in step. The stated risk was the move itself, not the result: the files suites passed unchanged, which is what proves the `0o700`/`0o600` modes, the `tmp` staging and the lazy `resolveStorageRoot()` survived the extraction byte-for-byte.
+
+On top of it, `POST`/`GET`/`DELETE /profile/avatar`. Three things are worth the space:
+
+**Four nullable columns on `User`, not a `UserAvatar` table** (D-5). The relationship is 1:1 and the PRD rules out history, so a table would carry one row per user forever to express what four columns express; `MeetingFile` was the wrong home too, since its soft-delete/purge lifecycle and the 20-file/20 GB accounting are precisely what an avatar must not have. The columns are written and cleared as one group, and the response DTO exposes `hasAvatar` — derived from the key's _presence_ — rather than the key, so `STORAGE_ROOT`'s layout never reaches the wire (S-1).
+
+**A fresh `randomUUID()` key per upload, committed in a fixed order** (D-7): `save` the bytes → write the columns → delete the _previous_ key's bytes, best-effort, logged as a count and never as a key. A fixed key per user was rejected because a failed write leaves the row pointing at half-overwritten bytes and every cache keeps serving the old image under an unchanged URL; a fresh key makes a replacement atomic from the reader's side. Removal is the mirror — columns first, bytes after — so an interruption leaves unreachable bytes rather than a row pointing at nothing. The accepted residual is an orphaned object when a delete fails (S-5, low: it is bounded by the same 5 MB the upload was, and no route resolves to it).
+
+**`Cache-Control: private, max-age=60`, not the research's `no-store`.** That is T-1's ruling in the final plan, and it is the one place the implementation deliberately departs from `-RESEARCH.md`: 60 seconds spares a re-fetch per rendered page while still being short enough that a removed avatar stops rendering. The header is set explicitly before `res.sendFile` for the same reason the meeting-file route does it — `send` writes `public, max-age=0` when it is absent, marking one owner's private image storable by a shared cache — and the path is split into `root` + bare basename so `send`'s `dotfiles` check never sees `STORAGE_ROOT`'s own `.data` segment.
+
+The three refusal gates are the files module's shape minus the quota (an avatar sits outside the per-owner byte ledger, so there is nothing to reserve): declared `Content-Length` at zero bytes read, multer's own `limits.fileSize` for a chunked body that declared nothing, then content detection — which is what makes a PDF renamed `.png` a `415` rather than a stored avatar. SVG is deliberately not in the accepted set: none of PNG, JPEG or WebP is a script container, so the stored bytes cannot become an XSS payload served from our own origin.
+
 ### 2026-08-20 — The throttler's baseline reads the environment (`user-profile` phase 2)
 
 The app-wide ceiling of 20 requests per 60 s is no longer a literal in `AppModule`: it reads `THROTTLE_LIMIT`/`THROTTLE_TTL_MS` through `src/config/throttler.config.ts`, defaulting to exactly what it was.

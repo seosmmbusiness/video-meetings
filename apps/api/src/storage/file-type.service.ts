@@ -3,10 +3,9 @@ import { extname } from 'path';
 import { Injectable } from '@nestjs/common';
 import { loadEsm } from 'load-esm';
 import {
-  ACCEPTED_MIME_TYPES,
   TEXT_FILE_EXTENSIONS,
   TYPE_SNIFF_SAMPLE_BYTES,
-} from './files.constants';
+} from './storage.constants';
 
 /** The result of a successful type detection. */
 export interface DetectedFileType {
@@ -18,9 +17,6 @@ const MIME_BY_TEXT_EXTENSION: Readonly<Record<string, string>> = {
   txt: 'text/plain',
   md: 'text/markdown',
 };
-
-/** The set of MIME types `file-type` may return that this feature accepts. */
-const ACCEPTED_MIME_VALUES = new Set(ACCEPTED_MIME_TYPES.values());
 
 /**
  * Checks whether `sample` is safe to accept as plain text: valid UTF-8, no
@@ -50,6 +46,11 @@ function looksLikeText(sample: Buffer): boolean {
  * Determines a file's real type from its content, per D-2: `file-type`'s
  * signature detection first, falling back to the text-content rule only for
  * the two extensions (`txt`, `md`) that carry no signature at all.
+ *
+ * It lives beside the {@link FileStorage} boundary rather than inside a
+ * feature, and takes the accepted set as a parameter, so the meeting-files
+ * module's twelve types and the profile module's three images share one
+ * detector instead of keeping two in step (D-4).
  */
 @Injectable()
 export class FileTypeService {
@@ -60,13 +61,19 @@ export class FileTypeService {
    * @param tempPath - Absolute path of the file multer wrote to disk.
    * @param declaredName - The client-supplied file name, used only to read
    * its extension for the text-content fallback.
-   * @returns The detected type when it is one of the twelve accepted
-   * types, or `null` when it is not.
+   * @param acceptedMimeTypes - The calling feature's accepted types, keyed
+   * by extension; anything detected outside its values is refused, the
+   * text fallback included.
+   * @returns The detected type when it is one the caller accepts, or `null`
+   * when it is not.
    */
   async detect(
     tempPath: string,
     declaredName: string,
+    acceptedMimeTypes: ReadonlyMap<string, string>,
   ): Promise<DetectedFileType | null> {
+    const accepted = new Set(acceptedMimeTypes.values());
+
     // file-type is ESM-only; apps/api's CommonJS build reaches it through
     // load-esm's dynamic import, which needs --experimental-vm-modules under
     // Jest (apps/api/package.json's test/test:e2e scripts).
@@ -75,19 +82,22 @@ export class FileTypeService {
     const detected = await fileTypeFromFile(tempPath);
 
     if (detected) {
-      return ACCEPTED_MIME_VALUES.has(detected.mime)
-        ? { mime: detected.mime }
-        : null;
+      return accepted.has(detected.mime) ? { mime: detected.mime } : null;
     }
 
     const extension = extname(declaredName).slice(1).toLowerCase();
     if (!TEXT_FILE_EXTENSIONS.has(extension)) {
       return null;
     }
+    const textMime = MIME_BY_TEXT_EXTENSION[extension];
+    // A caller whose accepted set holds no text type — the profile's three
+    // images, say — refuses the fallback too, rather than accepting a type
+    // it never asked for (D-4).
+    if (!accepted.has(textMime)) {
+      return null;
+    }
     const sample = await this.readSample(tempPath);
-    return looksLikeText(sample)
-      ? { mime: MIME_BY_TEXT_EXTENSION[extension] }
-      : null;
+    return looksLikeText(sample) ? { mime: textMime } : null;
   }
 
   /**

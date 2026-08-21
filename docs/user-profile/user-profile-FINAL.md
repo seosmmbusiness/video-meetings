@@ -201,20 +201,22 @@ code", then re-run after each step, and stop and fix immediately if a step turns
 in `apps/api/test/profile.e2e-spec.ts` and `src/profile/profile.int-spec.ts`; the moved code keeps
 its existing specs, relocated with it. Suites: `npm run test:api`, `npm run test:int:api`,
 `npm run test:e2e:api`.
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/181
+
 **Tasks**:
 
-- [ ] **3.1** Cover avatar upload, serving and removal — tests: `profile.e2e-spec.ts` for AC-6
+- [x] **3.1** Cover avatar upload, serving and removal — tests: `profile.e2e-spec.ts` for AC-6
       (upload `201`, replace `200`), AC-7 (5 MB + 1 byte → `413` naming the 5 MB limit), AC-8 (a PDF
       renamed `.png` → `415` naming `png, jpg, webp`), AC-9 (`DELETE` then `GET` → `404`) and AC-15
       (B's token → `404`, never bytes); AC-18's key-set assertion on the avatar routes' JSON (S-1);
       and `profile.int-spec.ts` proving the replaced key's bytes are gone from `FileStorage` (S-5).
       Red before 3.2 starts.
-- [ ] **3.2** Fill the avatar's columns and DTO — the four columns from 1.2's migration
+- [x] **3.2** Fill the avatar's columns and DTO — the four columns from 1.2's migration
       (`avatarKey`, `avatarMimeType`, `avatarSize`, `avatarUpdatedAt`) are written and cleared as one
       group (D-5); `ProfileResponseDto` now computes `hasAvatar` from `avatarKey != null` and exposes
       `avatarUpdatedAt`, and still never carries the key, a path, the hash or `tokenVersion` (S-1,
       AC-18).
-- [ ] **3.3** Store and replace one avatar per account — first lift the boundary: `file-storage.ts`,
+- [x] **3.3** Store and replace one avatar per account — first lift the boundary: `file-storage.ts`,
       `local-disk-file-storage.ts` and `storage-root.ts` move from `src/files/storage/` into a new
       `src/storage` module that exports `FileStorage` (bound to `LocalDiskFileStorage`), which is
       what makes it reachable from `profile` without importing the meeting-files feature (D-4).
@@ -224,7 +226,7 @@ its existing specs, relocated with it. Suites: `npm run test:api`, `npm run test
       → `UpdateUserAvatarCommand` writes the four columns → the **previous** key's bytes are deleted
       best-effort, failures logged as a count and never as a key. A fresh UUID per upload is what
       makes a replacement atomic from the reader's side (AC-6).
-- [ ] **3.4** Refuse anything but a 5 MB PNG, JPEG or WebP — `FileTypeService` moves into
+- [x] **3.4** Refuse anything but a 5 MB PNG, JPEG or WebP — `FileTypeService` moves into
       `src/storage` beside the boundary and takes its accepted-MIME set as a parameter, so `files`
       passes its twelve and `profile` passes `{ png: image/png, jpg: image/jpeg, webp: image/webp }`
       (D-4). Three gates in order (D-6): `AvatarSizeGuard` refuses a declared `Content-Length` over
@@ -234,16 +236,16 @@ its existing specs, relocated with it. Suites: `npm run test:api`, `npm run test
       verbatim: `Avatar exceeds the 5 MB limit.` and
       `Unsupported image type. Accepted types: png, jpg, webp.` A refusal leaves the current avatar
       and the stored bytes untouched and unlinks the temp file (AC-7, AC-8).
-- [ ] **3.5** Serve and remove the owner's avatar — `GET /profile/avatar` resolves the key from the
+- [x] **3.5** Serve and remove the owner's avatar — `GET /profile/avatar` resolves the key from the
       caller's own row and sends the bytes with `Content-Type` from `avatarMimeType`,
       `Content-Disposition: inline`, `X-Content-Type-Options: nosniff` and **`Cache-Control: private,
-    max-age=60`** (T-1 — the 60 seconds is this document's number, not the research's `no-store`),
+max-age=60`** (T-1 — the 60 seconds is this document's number, not the research's `no-store`),
       splitting the resolved path into `root` + basename so `send`'s `dotfiles` check never sees
       `STORAGE_ROOT`'s `.data` segment (D-8); `404` when there is no avatar.
       `DELETE /profile/avatar` clears the four columns first, then deletes the bytes, and answers the
       same DTO (AC-9, AC-15, S-1). Throttles: `{ limit: 240, ttl: 60_000 }` on the read,
       `{ limit: 30, ttl: 60_000 }` on write and delete.
-- [ ] **3.6** Document the storage and profile modules — a new
+- [x] **3.6** Document the storage and profile modules — a new
       `docs/modules/module-api-storage.md` for the extracted module (the boundary, the modes, the
       lazy `resolveStorageRoot()` gotcha, the parameterised type detection),
       `module-api-files.md` pointing at it instead of describing it, `module-api-profile.md` gaining

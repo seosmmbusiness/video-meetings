@@ -13,10 +13,10 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 
 ## Architecture
 
-- `FilesModule` (`files.module.ts`) imports `AuthModule` (for `JwtAuthGuard`) and `MeetingsModule`
-  (for `MeetingsService.findOneForOwner`, which `MeetingsModule` now exports), declares
-  `FilesController` and `FilesService`, and binds the abstract `FileStorage` class as its own DI
-  token to `LocalDiskFileStorage`: `{ provide: FileStorage, useClass: LocalDiskFileStorage }`.
+- `FilesModule` (`files.module.ts`) imports `AuthModule` (for `JwtAuthGuard`), `MeetingsModule`
+  (for `MeetingsService.findOneForOwner`, which `MeetingsModule` now exports) and `StorageModule`
+  (for `FileStorage` and `FileTypeService`, which this module used to own itself — see
+  `docs/modules/module-api-storage.md`), and declares `FilesController` and `FilesService`.
 - `FilesController` (`files.controller.ts`) is guarded at the class level with
   `@UseGuards(JwtAuthGuard, MeetingOwnerGuard)` — Nest runs guards in that order, so an unowned
   `:meetingId` is refused before `JwtAuthGuard`'s output is even needed by the handler, and (for the
@@ -49,9 +49,6 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
   and sweeps `<STORAGE_ROOT>/tmp` of any leftover upload temp file older than 24 hours. Runs hourly
   via `@Cron(CronExpression.EVERY_HOUR)`; also a plain public method, callable directly (e.g. from a
   test, after backdating `deletedAt`) without waiting for a tick.
-- `FileTypeService` (`file-type.service.ts`) — content-based type detection (D-2): `file-type`'s
-  signature detection first, a text-content rule (`txt`/`md` only) as the fallback for the two
-  extensions that carry no signature at all.
 - `QuotaReservationService` (`quota-reservation.service.ts`) — the owner-byte-quota reservation
   S-3 needs: holds a declared upload's size against the owner's ceiling for the request's lifetime,
   in-process, serialized per owner so two concurrent uploads for the same owner can never both read
@@ -68,24 +65,22 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - `MeetingOwnerGuard` (`guards/meeting-owner.guard.ts`) resolves `:meetingId` through
   `MeetingsService.findOneForOwner`, reusing the meetings module's ownership rule and 404 parity
   rather than re-implementing it.
-- `storage/file-storage.ts` — the abstract `FileStorage` class (`save`, `createReadStream`,
-  `delete`, `stat`, `localPathFor`), used as its own Nest injection token so a future backend is one
-  new class plus one line in `FilesModule`.
-- `storage/local-disk-file-storage.ts` — the only implementation today. Root directory from
-  `STORAGE_ROOT` (via `storage-root.ts`'s `resolveStorageRoot()`… except this class reads it through
-  `ConfigService` directly, for DI-testability — see Gotchas). Creates the root and `<root>/tmp` at
-  `onModuleInit` with mode `0o700`; commits a file with `fs.rename` (same filesystem as the temp
-  dir, so this is atomic) followed by `chmod 0o600`.
-- `storage/storage-root.ts` — `resolveStorageRoot()`, a plain function (not DI) that duplicates
-  `LocalDiskFileStorage`'s `STORAGE_ROOT` defaulting logic against `process.env` directly. Used by
-  `multer.config.ts`'s `destination` callback, which cannot receive `ConfigService` — see Gotchas.
+- **The byte primitives live in `src/storage`, not here** (D-4): `FileStorage` (the abstract
+  boundary and its Nest injection token), `LocalDiskFileStorage` (the local-disk implementation, its
+  `0o700`/`0o600` modes and its stage-then-rename commit), `resolveStorageRoot()` and
+  `FileTypeService` all moved out of `src/files/` unchanged when the profile module needed an avatar,
+  so a self-service route could reach bytes without importing this feature's controller, purge cron
+  and quota service. What each one does, and the gotchas that come with them, are in
+  `docs/modules/module-api-storage.md` — this module is one of two consumers.
 - `multer.config.ts` — `buildMulterOptions()`, called once at `FilesController`'s decoration time.
 - `files.constants.ts` — `MAX_FILE_BYTES` (500 MB), `PURGE_AFTER_MS` (30 days, used by `purgeAt` even
   though nothing sets `deletedAt` until phase 3), `MAX_FILE_NAME_LENGTH` (255),
   `MAX_LIVE_FILES_PER_MEETING` (20), `MAX_TOTAL_BYTES_PER_OWNER` (20 GB),
-  `UPLOAD_IDLE_TIMEOUT_MS` (60 s, S-9 — see Limit enforcement), `TYPE_SNIFF_SAMPLE_BYTES` (4100,
-  `file-type`'s own default sample size), `TEXT_FILE_EXTENSIONS` (`txt`/`md`), `ACCEPTED_MIME_TYPES`
-  (the twelve accepted extension → MIME pairs) and the verbatim `413`/`415`/`409` message constants.
+  `UPLOAD_IDLE_TIMEOUT_MS` (60 s, S-9 — see Limit enforcement), `ACCEPTED_MIME_TYPES` (the twelve
+  accepted extension → MIME pairs, passed to `FileTypeService.detect` per call since the detector is
+  shared) and the verbatim `413`/`415`/`409` message constants. The detector's own sampling
+  constants (`TYPE_SNIFF_SAMPLE_BYTES`, `TEXT_FILE_EXTENSIONS`) moved with it, into
+  `src/storage/storage.constants.ts`.
 - `dto/meeting-file-response.dto.ts` — `MeetingFileResponseDto`, the one shape returned by every
   route (create, list, and — once phase 3 lands — delete/restore); never carries `storageKey` or a
   filesystem path.
@@ -167,15 +162,11 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
 
 ## Gotchas (non-obvious, worth preserving)
 
-- **`STORAGE_ROOT` resolution is duplicated on purpose.** `LocalDiskFileStorage`'s constructor reads
-  it via injected `ConfigService` (idiomatic, DI-testable — see its unit spec). `multer.config.ts`'s
-  `destination` callback cannot use DI at all: `buildMulterOptions()` runs once, synchronously, when
-  `FilesController` is decorated — which happens while `AppModule`'s own `imports` array (containing
-  `ConfigModule.forRoot(...)`) is still being evaluated, i.e. before the root `.env` has been loaded.
-  Reading `process.env.STORAGE_ROOT` at that point would see it unset even when `.env` does set it.
-  The fix is deferral, not DI: the `destination` callback itself only runs per-request, long after
-  bootstrap has finished, so `storage-root.ts`'s `resolveStorageRoot()` (a plain `process.env` read)
-  is safe to call from inside it.
+- **`multer.config.ts` resolves `STORAGE_ROOT` lazily, inside the `destination` callback.**
+  `buildMulterOptions()` runs once, synchronously, at `FilesController`'s decoration time — before
+  `ConfigModule.forRoot(...)` has loaded the root `.env` — so the deferral is what makes the value
+  correct at all. The full reasoning, and the DI-based path `LocalDiskFileStorage` uses instead, are
+  in `docs/modules/module-api-storage.md`'s Gotchas.
 - **busboy's `limits.parts` counts the closing multipart boundary as its own "part".** A request
   carrying exactly one file and no other fields needs `parts: 2`, not the seemingly-obvious `1` —
   `1` makes busboy emit its `partsLimit` event on that single upload and multer answers `400`.
@@ -192,10 +183,6 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
   bytes, letting both pass a ceiling only one of them should. `runExclusive` chains each owner's
   calls onto a private promise queue so the read-then-write never interleaves with another
   reservation for that owner; different owners are never serialized against each other.
-- **`file-type` is ESM-only.** `FileTypeService` reaches it through `load-esm`'s `loadEsm()`
-  (already a transitive dependency of `@nestjs/common`, the same path Nest's own built-in
-  `FileTypeValidator` uses internally), which needs `NODE_OPTIONS=--experimental-vm-modules` —
-  carried on both of `apps/api`'s `test` and `test:e2e` npm scripts, not just `test:e2e`.
 - **`UploadSizeGuard` must run _before_ `FileInterceptor`, not inside the handler.** Nest runs every
   guard before every interceptor regardless of declaration order (same reasoning as
   `MeetingOwnerGuard` above) — this is what lets the declared-size check and the quota reservation
@@ -255,9 +242,6 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
 - `FilesPurgeService.purgeStaleTempFiles(): Promise<number>` — private; removes any entry directly
   under `<STORAGE_ROOT>/tmp` (skipping `.gitkeep`) whose `mtime` is older than 24 hours; returns the
   count removed.
-- `FileTypeService.detect(tempPath, declaredName): Promise<DetectedFileType | null>` — signature
-  detection via `file-type`, falling back to the text-content rule (private `looksLikeText`) only
-  for a declared `txt`/`md` extension when no signature was found at all.
 - `QuotaReservationService.reserve(ownerId, declaredBytes): Promise<() => void>` — reserves
   `declaredBytes` against `ownerId`'s ceiling (persisted total + every other still-reserved amount
   for that owner), serialized per owner via `runExclusive`; throws `InsufficientStorageException` if
@@ -273,13 +257,11 @@ request.destroy())`.
 - `MeetingOwnerGuard.canActivate(context): Promise<boolean>` — resolves `:meetingId` through
   `meetingsService.findOneForOwner`; throws (propagating `NotFoundException`) rather than returning
   `false` for an unowned or nonexistent meeting.
-- `LocalDiskFileStorage.save(key, tempPath): Promise<void>` — `mkdir` the destination's parent
-  (`0o700`), `rename` the temp file into place, `chmod 0o600`.
-- `LocalDiskFileStorage.createReadStream(key, range?): Readable` / `.delete(key)` / `.stat(key)` /
-  `.localPathFor(key): string` — thin wrappers over `fs`/`fs/promises`, all keyed through the same
-  `pathFor(key)`.
-- `resolveStorageRoot(): string` (`storage/storage-root.ts`) — see Gotchas.
 - `buildMulterOptions(): MulterOptions` (`multer.config.ts`) — see Gotchas.
+
+`FileStorage`, `LocalDiskFileStorage`, `resolveStorageRoot()` and `FileTypeService.detect()` are
+documented in `docs/modules/module-api-storage.md`; `FilesService` and `FilesPurgeService` call them
+as consumers of that module.
 
 ## DTOs
 

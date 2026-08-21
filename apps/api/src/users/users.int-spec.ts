@@ -7,6 +7,7 @@ import type { User } from '../../generated/prisma/client';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserCommand } from './commands/create-user.command';
+import { UpdateUserAvatarCommand } from './commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from './commands/update-user-name.command';
 import { FindUserByEmailQuery } from './queries/find-user-by-email.query';
 import { FindUserByIdQuery } from './queries/find-user-by-id.query';
@@ -348,6 +349,122 @@ describe('Users module (integration)', () => {
       // account is how a caller reaches this.
       await expect(
         commandBus.execute(new UpdateUserNameCommand(randomUUID(), 'Ada')),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('UpdateUserAvatarCommand', () => {
+    it('writes the four avatar columns as one group (D-5)', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      const key = `users/${created.id}/avatar/${randomUUID()}`;
+
+      const updated = await commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(created.id, {
+          key,
+          mimeType: 'image/png',
+          size: 4096,
+        }),
+      );
+
+      expect(updated.avatarKey).toBe(key);
+      expect(updated.avatarMimeType).toBe('image/png');
+      expect(updated.avatarSize).toBe(4096);
+      expect(updated.avatarUpdatedAt).toBeInstanceOf(Date);
+
+      await expect(
+        prisma.user.findUnique({ where: { id: created.id } }),
+      ).resolves.toMatchObject({
+        avatarKey: key,
+        avatarMimeType: 'image/png',
+        avatarSize: 4096,
+      });
+    });
+
+    it('clears all four columns as one group (D-5, AC-9)', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(created.id, {
+          key: `users/${created.id}/avatar/${randomUUID()}`,
+          mimeType: 'image/webp',
+          size: 10,
+        }),
+      );
+
+      const cleared = await commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(created.id, null),
+      );
+
+      // A row must never hold three of the four: the key is what every read
+      // path tests, and a leftover size or type would outlive the bytes.
+      expect(cleared.avatarKey).toBeNull();
+      expect(cleared.avatarMimeType).toBeNull();
+      expect(cleared.avatarSize).toBeNull();
+      expect(cleared.avatarUpdatedAt).toBeNull();
+    });
+
+    it('leaves the rest of the row alone', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      const updated = await commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(created.id, {
+          key: `users/${created.id}/avatar/${randomUUID()}`,
+          mimeType: 'image/jpeg',
+          size: 512,
+        }),
+      );
+
+      expect(updated.email).toBe(email);
+      expect(updated.name).toBe('Ada Lovelace');
+      expect(updated.passwordHash).toBe(PASSWORD_HASH);
+      expect(updated.tokenVersion).toBe(0);
+    });
+
+    it('writes nothing to any other account (the id from the token is the only key)', async () => {
+      const emailA = uniqueEmail();
+      const emailB = uniqueEmail();
+      createdEmails.push(emailA, emailB);
+
+      const userA = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailA, PASSWORD_HASH, true),
+      );
+      const userB = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailB, PASSWORD_HASH, true),
+      );
+
+      await commandBus.execute<UpdateUserAvatarCommand, User>(
+        new UpdateUserAvatarCommand(userB.id, {
+          key: `users/${userB.id}/avatar/${randomUUID()}`,
+          mimeType: 'image/png',
+          size: 64,
+        }),
+      );
+
+      await expect(
+        prisma.user.findUnique({ where: { id: userA.id } }),
+      ).resolves.toMatchObject({ avatarKey: null, avatarUpdatedAt: null });
+    });
+
+    it('answers a 404 rather than a 500 when the row is already gone', async () => {
+      await expect(
+        commandBus.execute(new UpdateUserAvatarCommand(randomUUID(), null)),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
