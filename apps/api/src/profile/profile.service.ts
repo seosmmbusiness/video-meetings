@@ -1,5 +1,10 @@
 import { randomUUID } from 'crypto';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
 import { FileStorage } from '../storage/file-storage';
@@ -139,19 +144,40 @@ export class ProfileService {
   }
 
   /**
-   * Resolves the caller's own avatar to bytes the route can serve.
-   * @param _userId - The caller's id, taken from the verified token.
+   * Resolves the caller's own avatar to the bytes a route can serve: the key
+   * comes from the caller's own row and never from the request, so there is
+   * nothing to point at another account's image (AC-15, D-8).
+   *
+   * The type served is the one detection wrote at upload time, not anything
+   * the caller declared then or asks for now (D-6).
+   * @param userId - The caller's id, taken from the verified token.
    * @returns The local path of the stored bytes and their stored type.
-   * @throws Error until the implementation lands.
+   * @throws NotFoundException if the row no longer exists, or holds no avatar (AC-9).
+   * @throws InternalServerErrorException if the storage backend has no local path.
    */
-  /* eslint-disable @typescript-eslint/no-unused-vars -- red skeleton; the implementing commit resolves the key off it */
-  // eslint-disable-next-line @typescript-eslint/require-await -- red skeleton; the implementing commit awaits the row read
   async getAvatarFile(
-    _userId: string,
+    userId: string,
   ): Promise<{ path: string; mimeType: string }> {
-    throw new Error('Not implemented');
+    const user = await this.findUser(userId);
+    if (user.avatarKey === null) {
+      throw new NotFoundException('Avatar not found');
+    }
+
+    const path = this.storage.localPathFor(user.avatarKey);
+    if (path === null) {
+      // Every bound FileStorage today has a local path; a backend without
+      // one needs a streamed fallback rather than a guessed path.
+      throw new InternalServerErrorException('Avatar is not readable');
+    }
+
+    return {
+      path,
+      // The four columns are written as one group (D-5), so a row holding a
+      // key holds its type too; the fallback is for a row no code path
+      // produces rather than a type the caller gets to influence.
+      mimeType: user.avatarMimeType ?? 'application/octet-stream',
+    };
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   /**
    * Reads the caller's own row over the users module's query bus.
