@@ -1,8 +1,32 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { UserAvatar } from './user-avatar';
 
+/**
+ * Makes every `new window.Image()` report an already-decoded image, which is
+ * how HeroUI's `Avatar.Image` decides to render the `<img>` at all — jsdom
+ * never fetches, so without this the mark stays on its fallback forever and no
+ * spec could see the `src` the component asks for.
+ * @returns Nothing; the stub is removed by `vi.unstubAllGlobals`.
+ */
+function stubLoadedImages(): void {
+  vi.stubGlobal(
+    'Image',
+    class {
+      complete = true;
+      naturalWidth = 1;
+      src = '';
+      addEventListener() {}
+      removeEventListener() {}
+    },
+  );
+}
+
 describe('UserAvatar', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('renders the initials of a two-part name', () => {
     render(<UserAvatar name="Ada Lovelace" email="ada@example.com" />);
 
@@ -51,5 +75,102 @@ describe('UserAvatar', () => {
     );
 
     expect(screen.getByLabelText('Ada')).toHaveTextContent('AL');
+  });
+
+  it('renders no image at all when the account has no avatar (AC-5)', () => {
+    stubLoadedImages();
+
+    const { container } = render(
+      <UserAvatar name="Ada Lovelace" email="ada@example.com" />,
+    );
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByLabelText('Your avatar')).toHaveTextContent('AL');
+  });
+
+  it('renders the avatar through the same-origin proxy, busted by avatarUpdatedAt (D-8, D-13)', () => {
+    stubLoadedImages();
+
+    const { container } = render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt="2026-08-21T09:15:30.000Z"
+      />,
+    );
+
+    const image = container.querySelector('img');
+    expect(image).not.toBeNull();
+    expect(image).toHaveAttribute(
+      'src',
+      `/api/profile/avatar?v=${Date.parse('2026-08-21T09:15:30.000Z')}`,
+    );
+  });
+
+  it('never routes the private image through next/image, which would 401 (D-13)', () => {
+    stubLoadedImages();
+
+    const { container } = render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt="2026-08-21T09:15:30.000Z"
+      />,
+    );
+
+    expect(container.querySelector('img')?.getAttribute('src')).not.toContain(
+      '/_next/image',
+    );
+  });
+
+  it('still asks for the avatar when the account carries no change time', () => {
+    stubLoadedImages();
+
+    const { container } = render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt={null}
+      />,
+    );
+
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      '/api/profile/avatar?v=0',
+    );
+  });
+
+  it('leaves the image undescribed, so the labelled mark is announced once', () => {
+    stubLoadedImages();
+
+    const { container } = render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt="2026-08-21T09:15:30.000Z"
+      />,
+    );
+
+    expect(container.querySelector('img')).toHaveAttribute('alt', '');
+  });
+
+  it('keeps showing the initials while the image is still loading (T-2)', () => {
+    // No stub here: jsdom never loads the image, which is exactly the
+    // still-loading state. The fallback showing then is an image load, not a
+    // state flip, so the mark is never empty.
+    render(
+      <UserAvatar
+        name="Ada Lovelace"
+        email="ada@example.com"
+        hasAvatar
+        avatarUpdatedAt="2026-08-21T09:15:30.000Z"
+      />,
+    );
+
+    expect(screen.getByLabelText('Your avatar')).toHaveTextContent('AL');
   });
 });
