@@ -1,0 +1,1 @@
+../../plugins/bldprj/agents/architecture-scout.md

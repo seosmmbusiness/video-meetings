@@ -1,0 +1,1 @@
+../../plugins/bldprj/agents/docs-writer.md
