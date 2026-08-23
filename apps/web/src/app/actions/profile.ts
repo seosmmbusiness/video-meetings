@@ -90,6 +90,15 @@ const CONFIRMATION_MISMATCH_MESSAGE =
   'New password and its confirmation do not match.';
 
 /**
+ * Shown when apps/api's per-route throttle refuses the change (S-4). It is the
+ * one refusal on this path whose own wording is not meant for a reader — Nest
+ * answers `ThrottlerException: Too Many Requests`, an exception class name —
+ * so this is the single exception to returning apps/api's message verbatim.
+ */
+const RATE_LIMITED_MESSAGE =
+  'Too many password changes. Please try again in a minute.';
+
+/**
  * Server Action backing the profile page's password form: changes the
  * account's password via apps/api's `PATCH /profile/password` behind the
  * current one. `getSession()` is the first statement and the signed-out
@@ -102,7 +111,9 @@ const CONFIRMATION_MISMATCH_MESSAGE =
  * action (AC-12). Every other rule stays apps/api's and its refusal is
  * returned verbatim (AC-11, AC-12); a `403` is a wrong current password —
  * refused, still signed in — while a `401` is the session itself being gone,
- * which is the split that keeps a typo from signing anyone out (D-11).
+ * which is the split that keeps a typo from signing anyone out (D-11). A `429`
+ * is the other exception: the route's own throttle answers with an exception
+ * class name, so it is said in words instead (S-4).
  *
  * On success the caller stays signed in: the change revokes every token the
  * account holds (D-9), so the token apps/api answers with is written straight
@@ -146,10 +157,14 @@ export async function changePasswordAction(
     return { ok: true };
   } catch (error) {
     if (error instanceof ApiError) {
-      return {
-        ok: false,
-        error: error.status === 401 ? SIGNED_OUT_MESSAGE : error.message,
-      };
+      if (error.status === 401) {
+        return { ok: false, error: SIGNED_OUT_MESSAGE };
+      }
+      if (error.status === 429) {
+        return { ok: false, error: RATE_LIMITED_MESSAGE };
+      }
+
+      return { ok: false, error: error.message };
     }
 
     return { ok: false, error: 'Something went wrong. Please try again.' };
