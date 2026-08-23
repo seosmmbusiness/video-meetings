@@ -8,7 +8,7 @@
  * set here, writes the receipt, and merges only on a clean sweep. A single non-zero exit halts the
  * chain with the failing command and its output kept in the log.
  *
- * Usage: node .claude/ralph/verify.js --phase-index <n> --pr <url> --scope full|docs
+ * Usage: node .claude/ralph/verify.js --phase-index <n> --pr <url> --scope full|docs|closeout
  */
 
 const fs = require('node:fs');
@@ -138,23 +138,67 @@ function docsLint() {
 }
 
 /**
+ * The scripts a scope has to run, in the order they run.
+ *
+ * A phase PR is gated on its own layer. A settle PR moves documents only. A close-out PR is the last
+ * gate of the whole feature — it re-proves what close-feature claimed the acceptance criteria on, so
+ * it is the union of every layer the feature touched, plus the build, whatever phase index the run
+ * has reached by then.
+ *
+ * @param {object} config The loop config.
+ * @param {number} phaseIndex Zero-based index into `config.phases`.
+ * @param {string} scope `'full'`, `'docs'` or `'closeout'`.
+ * @returns {string[]} The npm script names to run.
+ */
+function checkScripts(config, phaseIndex, scope) {
+  if (scope === 'docs') return ['lint', 'format:check'];
+  if (scope === 'closeout') {
+    const every = Object.values(config.checks || {}).flat();
+    return [...new Set([...every, 'build'])];
+  }
+  const layer = lib.layerOf(config, phaseIndex);
+  return config.checks[layer] || config.checks.api;
+}
+
+/**
+ * Whether this gate has to bring Postgres up before it runs.
+ *
+ * @param {object} config The loop config.
+ * @param {number} phaseIndex Zero-based index into `config.phases`.
+ * @param {string} scope `'full'`, `'docs'` or `'closeout'`.
+ * @returns {boolean} True when the check set touches the database.
+ */
+function needsDb(config, phaseIndex, scope) {
+  if (scope === 'docs') return false;
+  if (scope === 'closeout') return true;
+  return Boolean((config.phases[phaseIndex] || {}).needsDb);
+}
+
+/**
  * Runs the check set a scope calls for, bringing up whatever infrastructure it needs first and
  * taking it down afterwards.
  *
  * @param {object} config The loop config.
  * @param {number} phaseIndex Zero-based index into `config.phases`.
- * @param {string} scope `'full'` for a phase PR, `'docs'` for a settle PR.
+ * @param {string} scope `'full'` for a phase PR, `'docs'` for a settle PR, `'closeout'` for the
+ *   close-out PR that ends the feature.
  * @returns {Promise<Array<object>>} One result per check, in the order they ran.
  */
 async function runChecks(config, phaseIndex, scope) {
-  if (scope === 'docs')
-    return [npmRun('lint'), npmRun('format:check'), docsLint()];
+  const scripts = checkScripts(config, phaseIndex, scope);
+  if (scope === 'docs') {
+    const docs = [];
+    for (const script of scripts) {
+      const result = npmRun(script);
+      docs.push(result);
+      if (result.code !== 0) return docs;
+    }
+    docs.push(docsLint());
+    return docs;
+  }
 
-  const layer = lib.layerOf(config, phaseIndex);
-  const scripts = config.checks[layer] || config.checks.api;
-  const phase = config.phases[phaseIndex] || {};
   const results = [];
-  if (phase.needsDb) {
+  if (needsDb(config, phaseIndex, scope)) {
     const up = npmRun('db:up');
     results.push(up);
     if (up.code !== 0) return results;
@@ -251,7 +295,9 @@ async function main() {
   fs.writeFileSync(
     path.join(
       lib.runDir(state),
-      `phase-${opts.phaseIndex + 1}-${opts.scope}-checks.json`,
+      opts.scope === 'closeout'
+        ? 'closeout-checks.json'
+        : `phase-${opts.phaseIndex + 1}-${opts.scope}-checks.json`,
     ),
     `${JSON.stringify(receipt, null, 2)}\n`,
   );
@@ -293,12 +339,19 @@ async function main() {
       return;
     }
     lib.event(state, { type: 'merged', pr: opts.pr, strategy });
+    if (opts.scope === 'closeout') {
+      // What tells the chain the track is over. Without it the next decision would find no phase
+      // left, no open close-out PR, and start close-feature all over again.
+      const now = lib.readState() || state;
+      now.closeout = { pr: opts.pr, mergedAt: new Date().toISOString() };
+      lib.writeState(now);
+    }
   }
 
   lib.advance();
 }
 
-module.exports = { abandoned, parseArgs };
+module.exports = { abandoned, checkScripts, needsDb, parseArgs };
 
 // Only when run as a step of the chain: requiring this file — a suite does — must not merge a PR.
 if (require.main === module) {
