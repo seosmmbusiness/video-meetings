@@ -45,7 +45,7 @@ roughly 60–150 turns, and more when a suite keeps failing.
 ceiling; the process simply ends mid-work on turn N+1. That is why `.claude/hooks/stop.js` registers
 on `SessionEnd` as well as `Stop`: a session killed by its turn ceiling never reaches a clean stop.
 
-Two ceilings, picked in `lib.js:1049` by `stage === 'task' ? maxTurnsPerTask : maxTurnsPerBookend`:
+Two ceilings, picked in `lib.js` (`decide`) by `stage === 'task' ? maxTurnsPerTask : maxTurnsPerBookend`:
 
 | Key                  | Links it governs                  | What happens there                                                                                                                 |
 | -------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -128,11 +128,16 @@ Find the last `"type":"result"` line: `num_turns`, `total_cost_usd`, `is_error` 
 whether it was the turn ceiling, the budget, or a plain failure. `events.jsonl` in the same directory
 is the machine-readable record of the whole chain (`spawn`, `retry`, `halt`).
 
-### 3. Clean the tree
+### 3. The tree the session left
 
-Ralph refuses to start on a dirty tree — the preflight runs `git status --porcelain` and reports
-`the working tree is dirty`. Decide what happens to the half-written work first: commit it onto the
-phase branch, or roll it back.
+A killed session usually leaves uncommitted work. `--resume` no longer refuses it: the preflight
+stashes it as `ralph/<runId> <stage> #<issue> <time>` — untracked files included — and the next
+session is told the stash exists, which files it touched, and to decide whether it belongs to the
+task it is about to do before applying or ignoring it. Nothing drops a stash; `git stash list` still
+has it afterwards either way.
+
+A run started **without** `--resume` still refuses a dirty tree, because that work belongs to
+whoever left it there. Commit it onto the phase branch, stash it yourself, or roll it back first.
 
 ### 4. Pick a way back
 
@@ -143,9 +148,10 @@ the last steps):
 node .claude/ralph-start.js --resume
 ```
 
-`--resume` keeps `runId`, `phaseIndex`, `stage` **and `attempts`** (`ralph-start.js:228`), so spent
-retries stay spent, and it clears the halt and any pause by deleting `.claude/ralph.stop` and
-`.claude/ralph.pause` (`ralph-start.js:250`). This is also the command for "I raised the ceilings in
+`--resume` keeps `runId`, `phaseIndex`, `stage` **and `attempts`** — and the `link`, `closeout`,
+`stash` and `selection` records with them (`lib.js`, `startState`) — so spent retries stay spent and
+the chain still knows what was in flight, and it clears the halt and any pause by deleting `.claude/ralph.stop` and
+`.claude/ralph.pause` (`ralph-start.js`, just before the state is written). This is also the command for "I raised the ceilings in
 the overrides, give the task another go".
 
 **It opens a fresh ceiling window too** (`ralph-start.js:240`): `maxRunHours` and
@@ -164,7 +170,7 @@ node .claude/ralph-start.js --resume --phase 1     # from the top of that phase
 node .claude/ralph-start.js --resume --stage task  # force the stage
 ```
 
-`reconcile()` (`lib.js:734`) still checks the claimed stage against the MS file and the PR state on
+`reconcile()` (`lib.js`) still checks the claimed stage against the MS file and the PR state on
 GitHub, and **the MS file wins any disagreement** — you can point the chain at a stage, but you
 cannot lie to it about what is already done.
 
