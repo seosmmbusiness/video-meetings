@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -7,7 +6,10 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { throttlerOptionsFromEnv } from './config/throttler.config';
+import {
+  throttlerOptionsFromEnv,
+  trackerFromRequest,
+} from './config/throttler.config';
 import { AuthModule } from './auth/auth.module';
 import { CredentialsModule } from './credentials/credentials.module';
 import { FilesModule } from './files/files.module';
@@ -27,12 +29,11 @@ import { UsersModule } from './users/users.module';
     // why it — and only it — is configurable (THROTTLE_LIMIT/THROTTLE_TTL_MS):
     // the whole web e2e suite registers fixtures through one bucket. The
     // route-level overrides that model the real controls stay hard-coded.
-    // Tracked by credential rather than socket: apps/web calls this API
-    // server-to-server, so every user's traffic would otherwise share one
-    // IP bucket behind that proxy (APP_GUARD guards run before controller
-    // guards, so `req.user` isn't set yet — hashing the raw header avoids
-    // decoding it twice, and keeps the token itself out of throttler
-    // storage/logs).
+    // Tracked by credential rather than socket, because apps/web calls this
+    // API server-to-server: see `trackerFromRequest`, which owns the rule and
+    // is unit-tested against the header spellings passport-jwt accepts.
+    // (APP_GUARD guards run before controller guards, so `req.user` isn't set
+    // yet — the header is all this has to key on.)
     // forRootAsync, not forRoot: ConfigModule.forRoot() above is what loads the
     // root .env into process.env, and it has not run yet while this module's
     // metadata is being built — reading the ceiling eagerly would always see
@@ -46,15 +47,7 @@ import { UsersModule } from './users/users.module';
             THROTTLE_LIMIT: config.get<string>('THROTTLE_LIMIT'),
           }),
         ],
-        getTracker: (req: {
-          headers: { authorization?: string };
-          ip?: string;
-        }) => {
-          const { authorization } = req.headers;
-          return authorization
-            ? createHash('sha256').update(authorization).digest('hex')
-            : String(req.ip);
-        },
+        getTracker: trackerFromRequest,
       }),
     }),
     // Registered once, app-wide (it's a global module): backs the

@@ -1,6 +1,8 @@
+import { ForbiddenException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ProfileController } from './profile.controller';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { ProfileService } from './profile.service';
 
@@ -57,6 +59,7 @@ describe('ProfileController', () => {
     setAvatar: jest.Mock;
     getAvatarFile: jest.Mock;
     removeAvatar: jest.Mock;
+    changePassword: jest.Mock;
   };
   let controller: ProfileController;
 
@@ -70,6 +73,7 @@ describe('ProfileController', () => {
         mimeType: 'image/png',
       }),
       removeAvatar: jest.fn().mockResolvedValue(PROFILE),
+      changePassword: jest.fn().mockResolvedValue(undefined),
     };
     controller = new ProfileController(service as unknown as ProfileService);
   });
@@ -192,6 +196,56 @@ describe('ProfileController', () => {
       await expect(controller.removeAvatar(CALLER)).resolves.toBe(PROFILE);
 
       expect(service.removeAvatar).toHaveBeenCalledWith('user-1');
+    });
+  });
+
+  describe('PATCH /profile/password', () => {
+    const CHANGE: ChangePasswordDto = {
+      currentPassword: 'Str0ngPass',
+      newPassword: 'N3wStrongPass',
+    };
+
+    it('takes its subject from the token, never from the body (AC-15)', async () => {
+      await controller.changePassword(CALLER, CHANGE);
+
+      expect(service.changePassword).toHaveBeenCalledWith('user-1', CHANGE);
+    });
+
+    it('answers the fresh token the service issued, alone (AC-13, AC-18)', async () => {
+      service.changePassword.mockResolvedValue({
+        accessToken: 'signed.jwt.token',
+      });
+
+      const response = await controller.changePassword(CALLER, CHANGE);
+
+      expect(response).toEqual({ accessToken: 'signed.jwt.token' });
+    });
+
+    it('carries the same throttle override /auth/login does (S-4, AC-20)', () => {
+      // The route answers whether a supplied password is the account's, so
+      // one stolen session must not buy the global 20 guesses a minute.
+      // @nestjs/throttler writes one metadata key per named throttler and
+      // exports neither prefix from its entry point, hence the literals.
+      const route = Object.getOwnPropertyDescriptor(
+        ProfileController.prototype,
+        'changePassword',
+      )?.value as object;
+      const limit = Reflect.getMetadata('THROTTLER:LIMITdefault', route) as
+        number | undefined;
+      const ttl = Reflect.getMetadata('THROTTLER:TTLdefault', route) as
+        number | undefined;
+
+      expect(limit).toBe(10);
+      expect(ttl).toBe(60_000);
+    });
+
+    it("lets the service's refusal through untouched (AC-11)", async () => {
+      const failure = new ForbiddenException('Current password is incorrect.');
+      service.changePassword.mockRejectedValue(failure);
+
+      await expect(controller.changePassword(CALLER, CHANGE)).rejects.toBe(
+        failure,
+      );
     });
   });
 });

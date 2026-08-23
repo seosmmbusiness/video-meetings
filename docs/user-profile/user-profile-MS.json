@@ -327,7 +327,8 @@
       "phase": 5,
       "title": "Password change and session revocation",
       "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-15", "AC-18", "AC-20"],
-      "status": "pending",
+      "status": "in-review",
+      "branch": "feature/user-profile-phase-5",
       "milestone": {
         "number": 28,
         "title": "UP 5 · Password change and session revocation",
@@ -383,7 +384,12 @@
           "labels": ["backend", "documentation"],
           "state": "OPEN"
         }
-      ]
+      ],
+      "pr": {
+        "number": 185,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/185",
+        "state": "open"
+      }
     },
     {
       "phase": 6,
@@ -441,14 +447,14 @@
     }
   ],
   "progress": {
-    "updatedAt": "2026-08-21",
+    "updatedAt": "2026-08-23",
     "completedPhases": [1, 2, 3, 4],
     "currentPhase": 5,
     "nextPhase": {
-      "phase": 5,
-      "milestone": 28,
-      "title": "UP 5 · Password change and session revocation",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/28"
+      "phase": 6,
+      "milestone": 29,
+      "title": "UP 6 · Password change on the profile page",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/29"
     }
   }
 }

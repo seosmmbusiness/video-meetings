@@ -328,9 +328,10 @@ credential check on a route a signed-in caller can hammer. E2e proves the revoca
 HTTP with two tokens (`apps/api/test/profile.e2e-spec.ts`); the guard's own decision is a unit spec
 (`src/auth/strategies/jwt.strategy.spec.ts`). Suites: `npm run test:api`, `npm run test:int:api`,
 `npm run test:e2e:api`.
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/185
 **Tasks**:
 
-- [ ] **5.1** Cover the password change and session revocation — tests: `profile.e2e-spec.ts` for
+- [x] **5.1** Cover the password change and session revocation — tests: `profile.e2e-spec.ts` for
       AC-10 (new password logs in, old one `401`s at `/auth/login`), AC-11 (wrong current password
       → `403`, nothing changed, no session ended), AC-12 (each broken rule named), AC-13 (a token
       minted before the change → `401` after it, while the token the change returned still works)
@@ -338,7 +339,7 @@ HTTP with two tokens (`apps/api/test/profile.e2e-spec.ts`); the guard's own deci
       11th is `429` (S-4); AC-18's asserts the body is exactly `{ accessToken }` (S-1);
       `jwt.strategy.spec.ts` covers the `ver` comparison including a token with no `ver` claim. Red
       before 5.2 starts.
-- [ ] **5.2** Change the password behind the current one — `PATCH /profile/password` takes
+- [x] **5.2** Change the password behind the current one — `PATCH /profile/password` takes
       `{ currentPassword, newPassword }`, verifies the current one through `VerifyPasswordQuery`'s
       timing-safe path, hashes the new one with `HashPasswordCommand`, and answers **`403`** with
       `Current password is incorrect.` when it is wrong — never `401`, because `apps/web` reads 401
@@ -347,19 +348,19 @@ HTTP with two tokens (`apps/api/test/profile.e2e-spec.ts`); the guard's own deci
       `@Throttle({ default: { limit: 10, ttl: 60_000 } })`, the same override `/auth/login` has: it
       answers whether a supplied password is the account's, so it is a password oracle behind one
       stolen session (S-4, AC-20).
-- [ ] **5.3** Hold the new password to the registration rules — `ChangePasswordDto.newPassword`
+- [x] **5.3** Hold the new password to the registration rules — `ChangePasswordDto.newPassword`
       reuses `RegisterDto`'s bounds and `PASSWORD_COMPLEXITY_REGEX`: 8–72 characters, at least one
       lowercase, one uppercase and one digit, with the failed rule named in the refusal (AC-12).
       `currentPassword` is bounded like `LoginDto`'s — non-empty, ≤72 — and carries no complexity
       check.
-- [ ] **5.4** Make a session revocable per account — `User.tokenVersion` (already migrated in 1.2)
+- [x] **5.4** Make a session revocable per account — `User.tokenVersion` (already migrated in 1.2)
       becomes a `ver` claim on **every** token this app issues, and `JwtStrategy.validate` gains a
       `FindUserByIdQuery` lookup that refuses the token unless the user exists and
       `(payload.ver ?? 0) === user.tokenVersion` (D-9). A missing `ver` reads as `0`, so tokens
       issued before this ships stay valid until their own `exp` instead of signing everyone out on
       deploy. `UpdateUserPasswordCommand` writes the new hash and `tokenVersion: { increment: 1 }` in
       one `UPDATE`. This touches the authentication path of **every** guarded route in the app.
-- [ ] **5.5** Issue every token through one handler — `IssueAccessTokenCommand(userId, email,
+- [x] **5.5** Issue every token through one handler — `IssueAccessTokenCommand(userId, email,
 tokenVersion)` in the auth module owns the claim set `{ sub, email, ver }`, and
       `AuthService.register`, `AuthService.login` **and** the password route all mint through it
       (D-10). Migrating the two existing flows is not optional: leave them signing without `ver` and
@@ -368,7 +369,7 @@ tokenVersion)` in the auth module owns the claim set `{ sub, email, ver }`, and
       the increment and answers `{ accessToken }` alone — the row it was built from never reaches
       the wire (S-1, AC-18) — so the caller continues without signing in again while every other
       token for that account is refused on its next request (AC-13).
-- [ ] **5.6** Document the revocation and the password route — `docs/modules/module-api-auth.md`
+- [x] **5.6** Document the revocation and the password route — `docs/modules/module-api-auth.md`
       (the `ver` claim, what the guard now reads, the one-place token minting),
       `module-api-users.md` (the password command and its `tokenVersion` increment),
       `module-api-profile.md` (the route, its `403`, its throttle), Swagger for the new route and

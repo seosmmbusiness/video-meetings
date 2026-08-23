@@ -16,8 +16,8 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 
 Before this module, nothing verified JWTs — `AuthService` only signed them. To protect meetings routes, `src/auth` gained:
 
-- `strategies/jwt.strategy.ts` — `JwtStrategy` (passport-jwt), extracts the bearer token, verifies against `JWT_SECRET`, and maps the payload (`{ sub, email }`) to `Request.user` as `{ userId, email }` (`AuthenticatedUser`).
-- `guards/jwt-auth.guard.ts` — `JwtAuthGuard extends AuthGuard('jwt')`. Rejects with 401 on a missing/invalid/expired token.
+- `strategies/jwt.strategy.ts` — `JwtStrategy` (passport-jwt), extracts the bearer token, verifies against `JWT_SECRET`, and maps the payload (`{ sub, email, ver }`) to `Request.user` as `{ userId, email }` (`AuthenticatedUser`). Since per-account revocation shipped, a valid signature is **not** enough on its own: the strategy also looks the subject's row up and refuses a token whose `ver` no longer matches the account's `tokenVersion` — see `module-api-auth.md`'s revocation section, which is where that behaviour is documented.
+- `guards/jwt-auth.guard.ts` — `JwtAuthGuard extends AuthGuard('jwt')`. Rejects with 401 on a missing/invalid/expired token, and now on a revoked one or one naming a deleted account.
 - `decorators/current-user.decorator.ts` — `@CurrentUser()` param decorator, pulls `AuthenticatedUser` off the request.
 - `AuthModule` now also imports `PassportModule` and registers `JwtStrategy` as a provider (see `docs/modules/module-api-auth.md` if it needs updating for this — that doc's function reference is register/login-focused and wasn't rewritten here since register/login behavior itself didn't change).
 
@@ -36,7 +36,7 @@ Before this module, nothing verified JWTs — `AuthService` only signed them. To
 - `MeetingsService.create(ownerId, dto): Promise<MeetingResponseDto>` — inserts a meeting with `description` normalized to `null` when omitted.
 - `MeetingsService.findAllForOwner(ownerId): Promise<MeetingResponseDto[]>` — `findMany` filtered by `ownerId`, newest first (`orderBy: { createdAt: 'desc' }`).
 - `MeetingsService.findOneForOwner(id, ownerId): Promise<MeetingResponseDto>` — `findFirst` filtered by both `id` and `ownerId`; throws `NotFoundException('Meeting not found')` if nothing matches.
-- `JwtStrategy.validate(payload): AuthenticatedUser` (`src/auth/strategies/jwt.strategy.ts`) — maps `{ sub, email }` to `{ userId, email }`.
+- `JwtStrategy.validate(payload): Promise<AuthenticatedUser>` (`src/auth/strategies/jwt.strategy.ts`) — maps `{ sub, email }` to `{ userId, email }` after the revocation check; `async` and one primary-key read per request since then (see `module-api-auth.md`).
 - `CurrentUser` (`src/auth/decorators/current-user.decorator.ts`) — param decorator returning `request.user`.
 
 ## DTOs
