@@ -1,7 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ApiError, updateProfileName } from '@/lib/profile-api';
+import {
+  ApiError,
+  changeProfilePassword,
+  updateProfileName,
+} from '@/lib/profile-api';
 import { getSession } from '@/lib/session';
 
 /** Result of the profile name Server Action, for use with `useActionState`. */
@@ -54,6 +58,76 @@ export async function updateNameAction(
     revalidatePath('/');
 
     return { ok: true, name: profile.name ?? '' };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return {
+        ok: false,
+        error: error.status === 401 ? SIGNED_OUT_MESSAGE : error.message,
+      };
+    }
+
+    return { ok: false, error: 'Something went wrong. Please try again.' };
+  }
+}
+
+/**
+ * Result of the password Server Action, for use with `useActionState`.
+ *
+ * It carries no token and no password on purpose: an action's return value is
+ * serialised into the page payload, where `httpOnly` protects nothing, so a
+ * state that held the re-issued token would ship an hour-long credential into
+ * the browser (S-6, AC-17).
+ */
+export interface ChangePasswordState {
+  /** Whether apps/api stored the new password. */
+  ok: boolean;
+  /** apps/api's own refusal message, or a web-side one, on failure. */
+  error?: string;
+}
+
+/** Shown when the new password and its confirmation differ (AC-12). */
+const CONFIRMATION_MISMATCH_MESSAGE =
+  'New password and its confirmation do not match.';
+
+/**
+ * Server Action backing the profile page's password form: changes the
+ * account's password via apps/api's `PATCH /profile/password` behind the
+ * current one. `getSession()` is the first statement and the signed-out
+ * outcome is returned without calling apps/api at all, since a Server Action
+ * is reachable by a direct POST rather than only through the rendered form
+ * (S-3, AC-19).
+ *
+ * The confirmation is checked here rather than in the browser, so the gate
+ * still holds with JavaScript disabled and the form posting straight to this
+ * action (AC-12). Every other rule stays apps/api's and its refusal is
+ * returned verbatim (AC-11, AC-12); a `403` is a wrong current password —
+ * refused, still signed in — while a `401` is the session itself being gone,
+ * which is the split that keeps a typo from signing anyone out (D-11).
+ * @param _prevState - The previous action state (unused; required by `useActionState`).
+ * @param formData - The submitted fields (`currentPassword`, `newPassword`, `confirmPassword`).
+ * @returns The outcome to render — never the token and never either password.
+ */
+export async function changePasswordAction(
+  _prevState: ChangePasswordState | undefined,
+  formData: FormData,
+): Promise<ChangePasswordState> {
+  const session = await getSession();
+  if (!session) {
+    return { ok: false, error: SIGNED_OUT_MESSAGE };
+  }
+
+  const currentPassword = String(formData.get('currentPassword') ?? '');
+  const newPassword = String(formData.get('newPassword') ?? '');
+  const confirmPassword = String(formData.get('confirmPassword') ?? '');
+
+  if (newPassword !== confirmPassword) {
+    return { ok: false, error: CONFIRMATION_MISMATCH_MESSAGE };
+  }
+
+  try {
+    await changeProfilePassword(session.token, currentPassword, newPassword);
+
+    return { ok: true };
   } catch (error) {
     if (error instanceof ApiError) {
       return {

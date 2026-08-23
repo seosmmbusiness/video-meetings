@@ -4,6 +4,7 @@ import { Alert, Card } from '@heroui/react';
 import { linkVariants } from '@heroui/styles';
 import { AvatarUploader } from '@/components/profile/avatar-uploader';
 import { NameForm } from '@/components/profile/name-form';
+import { PasswordForm } from '@/components/profile/password-form';
 import { UserAvatar } from '@/components/profile/user-avatar';
 import { ApiError, getProfile, type Profile } from '@/lib/profile-api';
 import { getSession } from '@/lib/session';
@@ -69,6 +70,23 @@ export default async function ProfilePage() {
               </div>
               <AvatarUploader hasAvatar={profile.hasAvatar} />
               <NameForm name={profile.name} />
+              <section
+                aria-labelledby="password-heading"
+                className="flex flex-col gap-4 border-t border-default pt-6"
+              >
+                <div>
+                  {/* `h4`, because HeroUI's `Card.Title` above renders an
+                      `h3` — this is a section within that card, not beside it. */}
+                  <h4 className="text-lg font-medium" id="password-heading">
+                    Password
+                  </h4>
+                  <p className="text-sm text-muted">
+                    Changing it signs out every other device this account is
+                    signed in on.
+                  </p>
+                </div>
+                <PasswordForm />
+              </section>
             </div>
           ) : (
             <Alert status="danger">
