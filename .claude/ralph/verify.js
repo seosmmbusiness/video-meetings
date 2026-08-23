@@ -8,7 +8,7 @@
  * set here, writes the receipt, and merges only on a clean sweep. A single non-zero exit halts the
  * chain with the failing command and its output kept in the log.
  *
- * Usage: node .claude/ralph/verify.js --phase-index <n> --pr <url> --scope full|docs
+ * Usage: node .claude/ralph/verify.js --phase-index <n> --pr <url> --scope full|docs|closeout
  */
 
 const fs = require('node:fs');
@@ -138,23 +138,117 @@ function docsLint() {
 }
 
 /**
+ * What to do about the branch the checks would run on.
+ *
+ * The chain is normally already standing on the branch it is about to merge — the close, settle and
+ * close-out sessions all end there. A run resumed by hand can be anywhere, and a check set that
+ * passes on another branch says nothing about the PR it would merge.
+ *
+ * @param {string} current The branch the working tree is on.
+ * @param {string|null} head The PR's head branch, when GitHub reported one.
+ * @param {boolean} dirty Whether the tree has uncommitted changes.
+ * @returns {{ action: string, why: string }} `none`, `checkout` or `refuse`, and why.
+ */
+function branchPlan(current, head, dirty) {
+  if (!head || current === head) return { action: 'none', why: '' };
+  if (dirty) {
+    return {
+      action: 'refuse',
+      why: `the checks would run on ${current}, not on the PR's ${head}, and the tree is dirty`,
+    };
+  }
+  return { action: 'checkout', why: `switching from ${current} to ${head}` };
+}
+
+/**
+ * Puts the working tree on the PR's own branch, when it is not there already.
+ *
+ * @param {object} pr What `prView` reported about the PR.
+ * @returns {{ ok: boolean, why: string }} Whether the checks may run.
+ */
+function alignToPr(pr) {
+  const current = lib
+    .run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
+    .stdout.trim();
+  const dirty = Boolean(
+    lib.run('git', ['status', '--porcelain']).stdout.trim(),
+  );
+  const plan = branchPlan(current, pr && pr.headRefName, dirty);
+  if (plan.action === 'none') return { ok: true, why: '' };
+  if (plan.action === 'refuse') return { ok: false, why: plan.why };
+  process.stdout.write(`\n=== ${plan.why} ===\n`);
+  const out = lib.run('git', ['checkout', pr.headRefName]);
+  if (out.code !== 0)
+    return {
+      ok: false,
+      why: `git checkout ${pr.headRefName}: ${out.stderr.trim()}`,
+    };
+  lib.run('git', ['pull', '--ff-only']);
+  return { ok: true, why: plan.why };
+}
+
+/**
+ * The scripts a scope has to run, in the order they run.
+ *
+ * A phase PR is gated on its own layer. A settle PR moves documents only. A close-out PR is the last
+ * gate of the whole feature — it re-proves what close-feature claimed the acceptance criteria on, so
+ * it is the union of every layer the feature touched, plus the build, whatever phase index the run
+ * has reached by then.
+ *
+ * @param {object} config The loop config.
+ * @param {number} phaseIndex Zero-based index into `config.phases`.
+ * @param {string} scope `'full'`, `'docs'` or `'closeout'`.
+ * @returns {string[]} The npm script names to run.
+ */
+function checkScripts(config, phaseIndex, scope) {
+  if (scope === 'docs') return ['lint', 'format:check'];
+  if (scope === 'closeout') {
+    const every = Object.values(config.checks || {}).flat();
+    return [...new Set([...every, 'build'])];
+  }
+  const layer = lib.layerOf(config, phaseIndex);
+  return config.checks[layer] || config.checks.api;
+}
+
+/**
+ * Whether this gate has to bring Postgres up before it runs.
+ *
+ * @param {object} config The loop config.
+ * @param {number} phaseIndex Zero-based index into `config.phases`.
+ * @param {string} scope `'full'`, `'docs'` or `'closeout'`.
+ * @returns {boolean} True when the check set touches the database.
+ */
+function needsDb(config, phaseIndex, scope) {
+  if (scope === 'docs') return false;
+  if (scope === 'closeout') return true;
+  return Boolean((config.phases[phaseIndex] || {}).needsDb);
+}
+
+/**
  * Runs the check set a scope calls for, bringing up whatever infrastructure it needs first and
  * taking it down afterwards.
  *
  * @param {object} config The loop config.
  * @param {number} phaseIndex Zero-based index into `config.phases`.
- * @param {string} scope `'full'` for a phase PR, `'docs'` for a settle PR.
+ * @param {string} scope `'full'` for a phase PR, `'docs'` for a settle PR, `'closeout'` for the
+ *   close-out PR that ends the feature.
  * @returns {Promise<Array<object>>} One result per check, in the order they ran.
  */
 async function runChecks(config, phaseIndex, scope) {
-  if (scope === 'docs')
-    return [npmRun('lint'), npmRun('format:check'), docsLint()];
+  const scripts = checkScripts(config, phaseIndex, scope);
+  if (scope === 'docs') {
+    const docs = [];
+    for (const script of scripts) {
+      const result = npmRun(script);
+      docs.push(result);
+      if (result.code !== 0) return docs;
+    }
+    docs.push(docsLint());
+    return docs;
+  }
 
-  const layer = lib.layerOf(config, phaseIndex);
-  const scripts = config.checks[layer] || config.checks.api;
-  const phase = config.phases[phaseIndex] || {};
   const results = [];
-  if (phase.needsDb) {
+  if (needsDb(config, phaseIndex, scope)) {
     const up = npmRun('db:up');
     results.push(up);
     if (up.code !== 0) return results;
@@ -226,6 +320,12 @@ async function main() {
     return;
   }
 
+  const aligned = alignToPr(lib.prView(opts.pr));
+  if (!aligned.ok) {
+    lib.halt(`${aligned.why} — PR ${opts.pr} left open`, state);
+    return;
+  }
+
   const results = await runChecks(config, opts.phaseIndex, opts.scope);
 
   // Being killed is not a red check set. The monitor's Stop and Rollback write the stop or pause
@@ -251,7 +351,9 @@ async function main() {
   fs.writeFileSync(
     path.join(
       lib.runDir(state),
-      `phase-${opts.phaseIndex + 1}-${opts.scope}-checks.json`,
+      opts.scope === 'closeout'
+        ? 'closeout-checks.json'
+        : `phase-${opts.phaseIndex + 1}-${opts.scope}-checks.json`,
     ),
     `${JSON.stringify(receipt, null, 2)}\n`,
   );
@@ -293,12 +395,33 @@ async function main() {
       return;
     }
     lib.event(state, { type: 'merged', pr: opts.pr, strategy });
+    // Back to the base, which now holds what was just merged. The branch this step checked out to
+    // run the checks may not even exist any more, and everything after this — the next decision, the
+    // survey of what is open — should read the branch the work landed on.
+    const base = config.baseBranch || 'main';
+    if (
+      branchPlan(
+        lib.run('git', ['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim(),
+        base,
+        false,
+      ).action === 'checkout'
+    ) {
+      lib.run('git', ['checkout', base]);
+      lib.run('git', ['pull', '--ff-only']);
+    }
+    if (opts.scope === 'closeout') {
+      // What tells the chain the track is over. Without it the next decision would find no phase
+      // left, no open close-out PR, and start close-feature all over again.
+      const now = lib.readState() || state;
+      now.closeout = { pr: opts.pr, mergedAt: new Date().toISOString() };
+      lib.writeState(now);
+    }
   }
 
   lib.advance();
 }
 
-module.exports = { abandoned, parseArgs };
+module.exports = { abandoned, branchPlan, checkScripts, needsDb, parseArgs };
 
 // Only when run as a step of the chain: requiring this file — a suite does — must not merge a PR.
 if (require.main === module) {

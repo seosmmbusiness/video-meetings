@@ -10,6 +10,8 @@
  */
 
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert');
@@ -24,10 +26,11 @@ const SKIP = ['--no', 'verify'].join('-');
  *
  * @param {string} command The bash command line.
  * @param {boolean} inLoop Whether to present the call as a Ralph link.
+ * @param {string} [cwd] Where to run it, for the rules that ask git about a branch.
  * @returns {string} `'deny'` or `'allow'`.
  * @throws {Error} When the guard cannot be run or prints something unparseable.
  */
-function verdict(command, inLoop) {
+function verdict(command, inLoop, cwd) {
   const env = { ...process.env };
   if (inLoop) env.RALPH_LINK = '9999';
   else delete env.RALPH_LINK;
@@ -35,6 +38,7 @@ function verdict(command, inLoop) {
     input: JSON.stringify({ tool_input: { command } }),
     encoding: 'utf8',
     env,
+    cwd: cwd || process.cwd(),
   });
   return out.trim()
     ? JSON.parse(out).hookSpecificOutput.permissionDecision
@@ -147,4 +151,95 @@ test('says why it refused', () => {
   const decision = JSON.parse(out).hookSpecificOutput;
   assert.strictEqual(decision.hookEventName, 'PreToolUse');
   assert.match(decision.permissionDecisionReason, /guard-bash\.js/);
+});
+
+/** Built rather than written out, so the guard cannot match this file's own source. */
+const PUSH_DELETE = ['git', 'push', 'origin', '--delete'].join(' ');
+const FORCE_DELETE = ['git', 'branch', '-D'].join(' ');
+
+/**
+ * A throwaway repository with remote refs standing in for a pipeline's branches.
+ *
+ * No real remote is needed: what the guard asks is whether `origin/<branch>` is an ancestor of the
+ * base, and a ref written by hand answers that exactly as a fetched one would.
+ *
+ * @returns {string} The repository's path.
+ */
+function repoWithBranches() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ralph-guard-'));
+  const git = (...args) =>
+    execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: 'pipe' });
+  git('init', '--initial-branch', 'main');
+  git('config', 'user.email', 'suite@example.test');
+  git('config', 'user.name', 'Suite');
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'a\n');
+  git('add', '-A');
+  git('commit', '-m', 'first');
+  const base = git('rev-parse', 'HEAD').trim();
+  git('update-ref', 'refs/remotes/origin/main', base);
+  git('update-ref', 'refs/remotes/origin/feature/demo-phase-1', base);
+  git('update-ref', 'refs/remotes/origin/chore/demo-phase-1-done', base);
+  git('checkout', '-q', '-b', 'unmerged');
+  fs.writeFileSync(path.join(dir, 'b.txt'), 'b\n');
+  git('add', '-A');
+  git('commit', '-m', 'second');
+  git(
+    'update-ref',
+    'refs/remotes/origin/feature/demo-phase-9',
+    git('rev-parse', 'HEAD').trim(),
+  );
+  git('checkout', '-q', 'main');
+  return dir;
+}
+
+test('a link may retire a merged phase branch on origin, which is close-out step 7', () => {
+  const cwd = repoWithBranches();
+  assert.strictEqual(
+    verdict(`${PUSH_DELETE} feature/demo-phase-1`, true, cwd),
+    'allow',
+  );
+  assert.strictEqual(
+    verdict(`${PUSH_DELETE} chore/demo-phase-1-done`, true, cwd),
+    'allow',
+  );
+  assert.strictEqual(
+    verdict(
+      `${PUSH_DELETE} feature/demo-phase-1 chore/demo-phase-1-done`,
+      true,
+      cwd,
+    ),
+    'allow',
+  );
+});
+
+test('a branch that never landed is not the pipeline\u2019s to retire', () => {
+  const cwd = repoWithBranches();
+  // Unmerged: it may be the only copy of a phase.
+  assert.strictEqual(
+    verdict(`${PUSH_DELETE} feature/demo-phase-9`, true, cwd),
+    'deny',
+  );
+  // Not a pipeline branch at all, however merged it is.
+  assert.strictEqual(verdict(`${PUSH_DELETE} main`, true, cwd), 'deny');
+  assert.strictEqual(
+    verdict(`${PUSH_DELETE} refs/heads/feature/demo-phase-1`, true, cwd),
+    'deny',
+  );
+  // One good name does not carry a bad one along with it.
+  assert.strictEqual(
+    verdict(
+      `${PUSH_DELETE} feature/demo-phase-1 feature/demo-phase-9`,
+      true,
+      cwd,
+    ),
+    'deny',
+  );
+});
+
+test('the force-delete of a local branch stays refused whatever it is called', () => {
+  const cwd = repoWithBranches();
+  assert.strictEqual(
+    verdict(`${FORCE_DELETE} feature/demo-phase-1`, true, cwd),
+    'deny',
+  );
 });

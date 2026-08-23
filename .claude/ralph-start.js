@@ -15,6 +15,7 @@
  *                                                  granting its ceilings again
  *   node .claude/ralph-start.js --phase 2          start (or resume) at a specific phase number
  *   node .claude/ralph-start.js --status           print where the run got to, change nothing
+ *   node .claude/ralph-start.js --pick [n]         list what is open and start the nth of it
  *   node .claude/ralph-start.js --watch            start it, then watch it in this terminal
  *   node .claude/ralph-start.js --ui [--port N]    start it, and open the dashboard as well
  *
@@ -26,6 +27,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const lib = require('./ralph/lib');
+const pick = require('./ralph/pick');
 
 const argv = process.argv.slice(2);
 
@@ -55,15 +57,16 @@ function option(name) {
  * the loop cannot recover from on its own, which is why they are fatal rather than warnings.
  *
  * @param {object} config The loop config.
+ * @param {object} [opts] `{ resuming }` — a resume stashes a dirty tree rather than refusing it.
  * @returns {string[]} The problems found; an empty array means the ground is fit.
  */
-function preflight(config) {
+function preflight(config, opts = {}) {
   const problems = [];
 
   const status = lib.run('git', ['status', '--porcelain']);
   if (status.code !== 0)
     problems.push('git status failed — is this a repository?');
-  else if (status.stdout.trim()) {
+  else if (status.stdout.trim() && !opts.resuming) {
     problems.push(`the working tree is dirty:\n${status.stdout.trim()}`);
   }
 
@@ -123,6 +126,67 @@ function preflight(config) {
   }
 
   return problems;
+}
+
+/**
+ * Reads one line from the terminal, when there is one to read.
+ *
+ * Synchronous on purpose: everything else this script does is, and a picker that turned the file
+ * inside out to await a keystroke would be harder to follow than the question it asks.
+ *
+ * @param {string} question What to print before reading.
+ * @returns {string} What was typed, trimmed; an empty string when there is no terminal.
+ */
+function askLine(question) {
+  if (!process.stdin.isTTY) return '';
+  process.stdout.write(question);
+  const buffer = Buffer.alloc(256);
+  try {
+    const read = fs.readSync(0, buffer, 0, buffer.length, null);
+    return buffer.subarray(0, read).toString('utf8').trim();
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Surveys what is open, prints it, and starts what the person picked.
+ *
+ * @param {string|undefined} argument The `--pick` value, when one was given.
+ * @returns {{ phaseIndex: number, selection: object }|null} What was chosen, or `null` when nothing
+ *   is open or nobody chose.
+ */
+function pickWork(argument) {
+  const work = pick.survey();
+  process.stdout.write(`${pick.describe(work)}\n`);
+  if (work.empty) return null;
+
+  const typed =
+    argument && /^\d+$/.test(argument)
+      ? argument
+      : askLine(
+          `\nWhich one? [1-${work.candidates.length}, or enter to stop] `,
+        );
+  const at = Number(typed);
+  if (
+    !typed ||
+    !Number.isInteger(at) ||
+    at < 1 ||
+    at > work.candidates.length
+  ) {
+    process.stdout.write(
+      '\nNothing picked — start again with `--pick <n>` when you have decided.\n',
+    );
+    return null;
+  }
+
+  const chosen = pick.selectWork(work.candidates[at - 1]);
+  const { selection } = chosen;
+  process.stdout.write(
+    `\n✓ ${selection.kind === 'closeout' ? `closing out ${selection.feature}` : `${selection.feature} phase ${selection.phase}`}` +
+      `${selection.stopAfterPhase ? ` — the run stops once phase ${selection.stopAfterPhase} has settled` : ' — the run goes to the end of the feature'}\n\n`,
+  );
+  return chosen;
 }
 
 /**
@@ -190,14 +254,17 @@ function printStatus(config) {
 // time rather than at load, so setting it here reaches the spawn.
 if (flag('dry-run')) process.env.RALPH_DRY_RUN = '1';
 
-const config = lib.readConfig();
+let config = lib.effectiveConfig();
 
 if (flag('status')) {
   printStatus(config);
   process.exit(0);
 }
 
-const problems = preflight(config);
+const existingState = lib.readState();
+const resumingRun = flag('resume') && existingState;
+
+const problems = preflight(config, { resuming: Boolean(resumingRun) });
 if (problems.length) {
   process.stdout.write(
     `Ralph will not start:\n${problems.map((p) => `  • ${p}`).join('\n')}\n`,
@@ -205,47 +272,59 @@ if (problems.length) {
   process.exit(1);
 }
 
-const ms = lib.readMs(config);
-const existing = lib.readState();
-const resuming = flag('resume') && existing;
+let ms = lib.readMs(config);
+const existing = existingState;
+const resuming = resumingRun;
+
+// Whether this feature still has anything for the chain to do. A feature whose phases have all
+// settled is not finished — the close-out is the last link — but one whose documents have been
+// archived is, and that is when the loop looks for what else is open rather than refusing to start.
+const settledOut =
+  ms.phases.every((phase) => phase.status === 'completed') &&
+  (/^docs\/archive\//.test(config.ms) ||
+    !fs.existsSync(path.join(lib.ROOT, config.ms)) ||
+    Boolean(existing && existing.closeout && existing.closeout.mergedAt));
+
+let selection = resuming && existing ? existing.selection || null : null;
+
+if (flag('pick') || (settledOut && !flag('dry-run'))) {
+  const chosen = pickWork(option('pick'));
+  // Nothing open, or nothing picked, is not a failure — there is simply no run to start.
+  if (!chosen) process.exit(0);
+  selection = chosen.selection;
+  config = lib.effectiveConfig();
+  ms = lib.readMs(config);
+}
+
+// A resume over a killed session finds its half-written tree. Neither carrying on over it nor
+// dropping it is right, so it goes into a stash of its own and the next session is asked to judge
+// whether what it holds belongs to the task it is about to do.
+const stashed = resuming && !flag('dry-run') ? lib.stashDirty(existing) : null;
 
 const phaseArg = option('phase');
 const phaseIndex = phaseArg
   ? ms.phases.findIndex((p) => String(p.phase) === String(phaseArg))
-  : resuming
-    ? existing.phaseIndex
-    : firstOpenPhase(ms);
+  : selection && selection.phase
+    ? ms.phases.findIndex((p) => p.phase === selection.phase)
+    : resuming
+      ? existing.phaseIndex
+      : firstOpenPhase(ms);
 
-if (phaseIndex < 0 || phaseIndex >= ms.phases.length) {
-  process.stdout.write(
-    `No phase ${phaseArg ?? ''} to work — every phase in ${config.ms} has settled.\n`,
-  );
+if (phaseArg && phaseIndex < 0) {
+  process.stdout.write(`${config.ms} holds no phase ${phaseArg}.\n`);
   process.exit(1);
 }
+// Past the last phase is not an error: it is the close-out, which is a link like any other.
 
-const startedAt = resuming ? existing.startedAt : new Date().toISOString();
-const sessions = resuming ? existing.sessions || 0 : 0;
-
-const state = {
-  runId: resuming ? existing.runId : Math.floor(Date.now() / 1000),
-  active: true,
+const state = lib.startState({
+  existing,
+  resuming: Boolean(resuming),
   phaseIndex,
-  stage: resuming && !phaseArg ? existing.stage : 'start',
-  currentIssue: null,
-  attempts: resuming ? existing.attempts || {} : {},
-  sessions,
-  startedAt,
-  // A resume keeps the checkpoints the chain took, or rolling back after one would have nothing to
-  // rewind to — and stopping at a boundary and picking the run up later is now a button.
-  checkpoints: resuming ? existing.checkpoints || [] : [],
-  // Asking for a resume is asking for the ceilings again: a run held at a boundary overnight spent
-  // those hours waiting for a person, and counting them would refuse the resume that was asked for.
-  // `startedAt` still says how long the whole run has been going; only the ceilings move on.
-  budget: resuming
-    ? { since: new Date().toISOString(), sessions }
-    : { since: startedAt, sessions: 0 },
-};
+  phaseNamed: Boolean(phaseArg),
+});
 
+if (stashed) state.stash = stashed;
+if (selection) state.selection = selection;
 if (option('stage')) state.stage = option('stage');
 // Starting a run clears the halt and the hold it is starting from — but a dry run must not, or
 // looking at what would happen next would quietly un-halt a loop somebody stopped on purpose. The
@@ -265,15 +344,35 @@ lib.event(state, {
   phase: state.phaseIndex + 1,
 });
 
+if (stashed) {
+  process.stdout.write(
+    `📦 the tree was dirty — stashed as ${stashed.sha.slice(0, 8)} (${stashed.message})\n` +
+      `   files: ${stashed.files.join(', ')}\n` +
+      '   the next session reads it and decides whether it belongs to its task.\n\n',
+  );
+}
+
+const startingOn = ms.phases[phaseIndex];
 process.stdout.write(
-  `🚀 Ralph run ${state.runId} — ${ms.feature}, phase ${ms.phases[phaseIndex].phase} (${ms.phases[phaseIndex].title})\n` +
+  `🚀 Ralph run ${state.runId} — ${ms.feature}, ${startingOn ? `phase ${startingOn.phase} (${startingOn.title})` : 'close-out'}\n` +
     `   logs:  tail -f ${path.join('.claude/ralph-logs', String(state.runId))}/*\n` +
     `   watch: node .claude/ralph-watch.js  (add --ui for the dashboard)\n` +
     `   halt:  touch .claude/ralph.stop\n` +
     `   where: node .claude/ralph-start.js --status\n\n`,
 );
 
-lib.advance();
+// A resume must not decide anything while a link is still working: `advance()` reads its caller as
+// the link that just ended, so resuming over a live session used to retire it on paper and spawn a
+// second agent onto the same task and the same working tree.
+const owner = lib.linkOwner(state, {});
+if (owner.ok) {
+  lib.advance();
+} else {
+  process.stdout.write(
+    `   note:  ${owner.why}\n` +
+      '          the chain carries on by itself when it ends; nothing was spawned here.\n\n',
+  );
+}
 
 if (!flag('dry-run') && (flag('watch') || flag('ui'))) {
   require('./ralph-watch')

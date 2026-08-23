@@ -87,11 +87,12 @@ npm run db:down         # stop
 
 ## Autonomous builds
 
-`node .claude/ralph-start.js` works a planned feature's backlog unattended — one session per task, following the same `/bldprj:build-phase` contract a hand-driven build does, and merging a phase only after re-running its whole check set itself. It needs the pipeline's documents and the GitHub backlog to exist first.
+`node .claude/ralph-start.js` works a planned feature's backlog unattended — one session per task, following the same `/bldprj:build-phase` contract a hand-driven build does, and merging a phase only after re-running its whole check set itself. It carries on to the end: when the last phase settles it runs `/bldprj:close-feature`, re-runs both layers' suites against the close-out PR and merges that too, then reports what else is open. It needs the pipeline's documents and the GitHub backlog to exist first.
 
 ```bash
 node .claude/ralph-start.js --dry-run    # decide and print every step, spawn nothing
 node .claude/ralph-start.js              # start
+node .claude/ralph-start.js --pick       # list what is open, and start the one you pick
 node .claude/ralph-start.js --watch      # start, and watch it in this terminal
 node .claude/ralph-start.js --ui         # start, and open the dashboard on 127.0.0.1:4599
 node .claude/ralph-watch.js              # attach a view to a run already going
@@ -100,9 +101,10 @@ touch .claude/ralph.stop                 # halt it
 ```
 
 A view shows which phase and task the run is on, what the running session is doing right now, the
-model, effort and ceilings the next session will get, and offers pause, stop, rollback and a
-**standing hold** — pause or stop the run when the task, or the whole phase, it is on finishes.
-Closing a view leaves the run going.
+model, effort and ceilings the next session will get, and offers pause, two kinds of stop — when the
+link ends, or now — rollback, a **standing hold** that stops or pauses the run at the end of the task
+or phase it is on, and the list of open work with a button to start any of it. Closing a view leaves
+the run going.
 
 Full guide — configuration, watching a run, and what to do when it stops: [`docs/ralph-loop.md`](docs/ralph-loop.md).
 

@@ -31,7 +31,12 @@ const LOG_ROOT = path.join(CLAUDE_DIR, 'ralph-logs');
 const CONTRACT = path.join('.claude', 'ralph.md');
 
 /** Stages that need no session — `advance()` performs them and moves straight on. */
-const SILENT_STAGES = new Set(['merge', 'settle-merge', 'next']);
+const SILENT_STAGES = new Set([
+  'merge',
+  'settle-merge',
+  'closeout-merge',
+  'next',
+]);
 
 /** What an armed hold does to the chain when the boundary it waits for arrives. */
 const HOLD_ACTIONS = ['pause', 'stop'];
@@ -120,8 +125,16 @@ function effectiveConfig(config = readConfig()) {
  * @returns {object} The parsed `docs/<slug>/<slug>-MS.json`.
  * @throws {Error} When the file is missing or is not valid JSON.
  */
-function readMs(config) {
-  return JSON.parse(fs.readFileSync(path.join(ROOT, config.ms), 'utf8'));
+function readMs(config, root = ROOT) {
+  const named = path.join(root, config.ms);
+  if (fs.existsSync(named)) return JSON.parse(fs.readFileSync(named, 'utf8'));
+  // Close-out moves `docs/<slug>/` into `docs/archive/`, and the chain has to read the MS file on
+  // the other side of that move — the last decision of a run happens after the archiving commit.
+  const archived = path.join(
+    root,
+    config.ms.replace(/^docs\//, 'docs/archive/'),
+  );
+  return JSON.parse(fs.readFileSync(archived, 'utf8'));
 }
 
 /**
@@ -549,7 +562,8 @@ function issueHasLabel(number, label) {
  * The state of a pull request.
  *
  * @param {string} ref A PR URL or number.
- * @returns {{ state: string, mergedAt: string|null, mergeable: string }} What GitHub reports.
+ * @returns {{ state: string, mergedAt: string|null, mergeable: string, headRefName: string }} What
+ *   GitHub reports.
  */
 function prView(ref) {
   return gh([
@@ -557,7 +571,7 @@ function prView(ref) {
     'view',
     ref,
     '--json',
-    'state,mergedAt,mergeable,url,number',
+    'state,mergedAt,mergeable,url,number,headRefName',
   ]);
 }
 
@@ -604,6 +618,16 @@ function phaseBranch(ms, phaseIndex) {
  */
 function settleBranch(ms, phaseIndex) {
   return `chore/${ms.feature}-phase-${phaseOf(ms, phaseIndex).phase}-done`;
+}
+
+/**
+ * The branch close-feature cuts for the close-out commit, per its step 8.
+ *
+ * @param {object} ms The parsed MS file.
+ * @returns {string} `chore/<slug>-closeout`, on both tracks — close-feature names it the same way.
+ */
+function closeoutBranch(ms) {
+  return `chore/${ms.feature}-closeout`;
 }
 
 /**
@@ -706,10 +730,31 @@ function spawnStep(state, label, args) {
  * @throws {Error} When the stage has no prompt because it needs no session.
  */
 function promptFor(stage, ctx) {
+  return `${basePrompt(stage, ctx)}${stashNote(ctx.state)}`;
+}
+
+/**
+ * The prompt for a stage, before anything the run's own history adds to it.
+ *
+ * @param {string} stage The stage to build a prompt for.
+ * @param {object} ctx `{ config, ms, state, issue }` as far as the stage needs them.
+ * @returns {string} The session's instruction.
+ * @throws {Error} When the stage has no prompt because it needs no session.
+ */
+function basePrompt(stage, ctx) {
   const { config, ms, state, issue } = ctx;
   const base = config.baseBranch || 'main';
   if (stage === 'done') {
-    return `Read ${CONTRACT} first. Every phase of ${ms.feature} has settled. Run \`/bldprj:close-feature ${ms.feature}\` and end the session. Do not merge the close-out PR — leave it for the user.`;
+    return `Read ${CONTRACT} first. Every phase of ${ms.feature} has settled — close the feature out.
+
+Run \`/bldprj:close-feature ${ms.feature}\`: prove every acceptance criterion against the shipped code, mark the PRD done, audit the docs, archive \`docs/${ms.feature}/\` to \`docs/archive/\`, collapse the log rows, clean up the merged phase branches, and open the close-out PR on \`${closeoutBranch(ms)}\` against ${base}.
+
+Two things the loop needs from this session, and one it does not:
+- the archiving commit moves the MS file, so update \`ms\` in \`.claude/ralph.config.json\` to its new path in the same commit — the chain reads that file to decide what happens next;
+- a branch the cleanup step is refused permission to remove goes into the report by name, rather than being worked around;
+- **do not merge the close-out PR.** The loop re-runs the whole check set itself and merges on a clean sweep, exactly as it does for a phase PR.
+
+End the session once the PR is open.`;
   }
 
   const phase = phaseOf(ms, state.phaseIndex);
@@ -774,6 +819,277 @@ function layerOf(config, phaseIndex) {
 }
 
 /**
+ * Records what is open now that a run has finished, and says it.
+ *
+ * A finished run is the moment the question "what next" is actually asked, so the answer is written
+ * into the state — where a view can draw it — and printed into the chain's own log. Nothing is
+ * started from here: what to take next is a person's call, through `--pick` or the dashboard.
+ *
+ * @param {object} state The current state, mutated in place.
+ * @returns {object|null} The survey, or `null` when it could not be taken.
+ */
+function surveyAfterRun(state) {
+  let work = null;
+  try {
+    // Required here rather than at the top: the picker reads this module, and the cycle would only
+    // bite the one direction that is never needed at load time.
+    const pick = require('./pick');
+    work = pick.survey();
+    state.work = {
+      at: new Date().toISOString(),
+      candidates: work.candidates,
+      loose: work.loose,
+      empty: work.empty,
+    };
+    writeState(state);
+    process.stdout.write(`${pick.describe(work)}\n`);
+  } catch (err) {
+    process.stdout.write(
+      `Ralph: could not survey what is open — ${err.message}\n`,
+    );
+  }
+  return work;
+}
+
+/**
+ * Whether the run has finished the work it was told to take.
+ *
+ * A run started from the work picker carries what was picked. A milestone or a single phase is one
+ * phase's worth of work: once that phase has settled the run is done, and going on to the next phase
+ * would be taking work nobody asked for. A close-out selection, and a run with no selection at all,
+ * carry on to the end of the feature.
+ *
+ * @param {object|null} state The current state.
+ * @param {object|null} settled The phase that has just settled.
+ * @returns {boolean} True when the chain should stop here.
+ */
+function selectionSatisfied(state, settled) {
+  const selection = state && state.selection;
+  if (!selection || !selection.stopAfterPhase) return false;
+  return Boolean(settled) && settled.phase === selection.stopAfterPhase;
+}
+
+/**
+ * The state a run starts, or resumes, with.
+ *
+ * A resume carries what the chain was in the middle of. Rebuilding the state from scratch was what
+ * the loop used to do, and it dropped the `link` record with everything else — leaving the chain
+ * blind to the session still working, so the next caller of `advance()` was read as that session
+ * ending and a second agent was spawned onto the same task.
+ *
+ * @param {object} opts `{ existing, resuming, phaseIndex, stage, phaseNamed }`.
+ * @returns {object} The state to write.
+ */
+function startState(opts = {}) {
+  const { existing = null, resuming = false, stage, phaseNamed = false } = opts;
+  const from = resuming && existing ? existing : null;
+  const phaseIndex =
+    opts.phaseIndex === undefined
+      ? from
+        ? from.phaseIndex || 0
+        : 0
+      : opts.phaseIndex;
+  const startedAt = from ? from.startedAt : new Date().toISOString();
+  const sessions = from ? from.sessions || 0 : 0;
+  const next = {
+    runId: from ? from.runId : Math.floor(Date.now() / 1000),
+    active: true,
+    phaseIndex,
+    stage: stage || (from && !phaseNamed ? from.stage : 'start'),
+    currentIssue: null,
+    attempts: from ? from.attempts || {} : {},
+    sessions,
+    startedAt,
+    // A resume keeps the checkpoints the chain took, or rolling back after one would have nothing
+    // to rewind to. Asking for a resume is also asking for the ceilings again: a run held at a
+    // boundary overnight spent those hours waiting for a person, and counting them would refuse the
+    // resume that was asked for. `startedAt` still says how long the whole run has been going.
+    checkpoints: from ? from.checkpoints || [] : [],
+    budget: from
+      ? { since: new Date().toISOString(), sessions }
+      : { since: startedAt, sessions: 0 },
+  };
+  for (const key of ['link', 'closeout', 'stash', 'selection']) {
+    if (from && from[key]) next[key] = from[key];
+  }
+  return next;
+}
+
+/**
+ * Puts whatever an interrupted session left uncommitted into a stash of its own.
+ *
+ * A killed session leaves a half-written tree, and the run cannot simply carry on over it: the next
+ * session would inherit edits it never made, and the phase's evidence would mix two attempts. Nor is
+ * dropping them right — the work may be most of a task. Stashing keeps both options open, and the
+ * session that follows is told the stash exists and asked to judge whether it belongs to its task.
+ *
+ * @param {object} state The current state, for the run and link the leftovers belong to.
+ * @param {object} [opts] `{ cwd }`, for a suite working in a repository of its own.
+ * @returns {{ sha: string, message: string, at: string, files: string[], stage: string|null,
+ *   issue: number|null }|null} What was stashed, or `null` when the tree was already clean.
+ * @throws {Error} When git refuses to stash, which leaves the tree exactly as it was.
+ */
+function stashDirty(state, opts = {}) {
+  const cwd = opts.cwd || ROOT;
+  const status = run('git', ['status', '--porcelain'], { cwd });
+  if (status.code !== 0 || !status.stdout.trim()) return null;
+  const files = status.stdout
+    .split('\n')
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean)
+    .map((name) => (name.includes(' -> ') ? name.split(' -> ')[1] : name));
+  const at = new Date().toISOString();
+  const message = `ralph/${state.runId}${state.stage ? ` ${state.stage}` : ''}${
+    state.currentIssue ? ` #${state.currentIssue}` : ''
+  } ${at}`;
+  // Untracked files go with it: a session interrupted mid-task usually has new spec files, and a
+  // stash that left them behind would hand the next session half of the previous attempt.
+  const pushed = run(
+    'git',
+    ['stash', 'push', '--include-untracked', '-m', message],
+    { cwd },
+  );
+  if (pushed.code !== 0)
+    throw new Error(`git stash push failed: ${pushed.stderr.trim()}`);
+  const sha = run('git', ['rev-parse', 'refs/stash'], { cwd }).stdout.trim();
+  return {
+    sha,
+    message,
+    at,
+    files,
+    stage: state.stage || null,
+    issue: state.currentIssue || null,
+  };
+}
+
+/**
+ * What a session is told about the stash an interrupted attempt left behind.
+ *
+ * @param {object} state The current state.
+ * @returns {string} The paragraph to append to the prompt, or an empty string when there is none.
+ */
+function stashNote(state) {
+  const stash = state && state.stash;
+  if (!stash || stash.handedTo) return '';
+  const files = (stash.files || []).slice(0, 12).join(', ');
+  return `
+
+An earlier attempt was interrupted and left uncommitted work behind. Nothing was lost and nothing was applied: it is stashed as \`${stash.sha}\` (\`${stash.message}\`)${
+    files ? `, touching ${files}` : ''
+  }.
+
+Read it before you start — \`git stash show -p ${stash.sha}\`. If it belongs to this task, work out how far it got, apply what is right (\`git stash apply ${stash.sha}\`) and carry on from there rather than redoing it blind; re-run the tier's suites afterwards, since a killed session can leave a spec half-written. If it belongs to anything else, leave it where it is and do your task from scratch. Either way say in your report which of the two it was, and never drop a stash.`;
+}
+
+/**
+ * Whether a process is still running.
+ *
+ * @param {number|null} pid The process id.
+ * @returns {boolean} True when the process exists.
+ */
+function isAlive(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+/**
+ * The session id a link's own log reports.
+ *
+ * Every `stream-json` line carries it, so the tail is enough — the first line, which a long log's
+ * tail no longer holds, is not needed. A step's log is not JSON at all and simply has none.
+ *
+ * @param {object|null} link The link record, for its log path.
+ * @returns {string|null} The id, or `null` when the log has none to give.
+ */
+function linkSessionId(link) {
+  if (!link || !link.log) return null;
+  let text;
+  try {
+    const { size } = fs.statSync(link.log);
+    const start = Math.max(0, size - 64 * 1024);
+    const length = size - start;
+    if (!length) return null;
+    const buffer = Buffer.alloc(length);
+    const fd = fs.openSync(link.log, 'r');
+    try {
+      fs.readSync(fd, buffer, 0, length, start);
+    } finally {
+      fs.closeSync(fd);
+    }
+    text = buffer.toString('utf8');
+  } catch {
+    return null;
+  }
+  const found = text.match(/"session_id"\s*:\s*"([^"]+)"/g);
+  if (!found || !found.length) return null;
+  return found[found.length - 1].match(/"([^"]+)"$/)[1];
+}
+
+/**
+ * Whether whoever called `advance()` is the link the chain is actually waiting on.
+ *
+ * `decide()` treats its caller as the link that just ended — it stamps `endedAt` on it and checks
+ * the record that link promised to leave. That is only true of the link itself, and when it was not
+ * true the chain paid for it: a session the loop had already replaced ended minutes later, its Stop
+ * hook advanced the chain, the still-running link looked like a task that finished without its
+ * `ralph:done` label, and the retry put a second agent on the same task and the same working tree.
+ * A manual `--resume` while a link was still working did the same thing from the other end.
+ *
+ * @param {object|null} state The current state.
+ * @param {object} [hookInput] The Stop/SessionEnd hook's parsed stdin, when a hook is the caller.
+ * @param {object} [deps] `{ alive, sessionOf, pid }`, injected by the suite.
+ * @returns {{ ok: boolean, why: string }} Whether this caller may decide, and why not when not.
+ */
+function linkOwner(state, hookInput = {}, deps = {}) {
+  const alive = deps.alive || isAlive;
+  const sessionOf = deps.sessionOf || linkSessionId;
+  const pid = deps.pid || process.pid;
+  const link = state && state.link;
+  if (!link || link.endedAt) return { ok: true, why: '' };
+  const working = alive(link.pid);
+
+  if (link.kind === 'step') {
+    // A step calls `advance()` in its own process at the end of its work, so the pid is the proof.
+    if (link.pid === pid) return { ok: true, why: '' };
+    if (!working) return { ok: true, why: '' };
+    return {
+      ok: false,
+      why: `the ${link.stage} step (pid ${link.pid}) is still running`,
+    };
+  }
+
+  const mine = sessionOf(link);
+  if (hookInput.session_id) {
+    if (mine && hookInput.session_id !== mine) {
+      return {
+        ok: false,
+        why: `session ${hookInput.session_id} is not the link in flight (${mine}) — leaving the chain to it`,
+      };
+    }
+    if (!mine && working) {
+      return {
+        ok: false,
+        why: `a link is still in flight (pid ${link.pid}) and has not identified itself yet`,
+      };
+    }
+    return { ok: true, why: '' };
+  }
+
+  if (working) {
+    return {
+      ok: false,
+      why: `a link is still in flight (pid ${link.pid}) — it carries the chain on when it ends`,
+    };
+  }
+  return { ok: true, why: '' };
+}
+
+/**
  * The guards every link runs before doing anything. Any false answer ends the chain quietly, which
  * is the behaviour a loop left running overnight needs: it stops, it does not improvise.
  *
@@ -830,7 +1146,7 @@ function guards(config, state, hookInput = {}) {
       };
     }
   }
-  return { ok: true, why: '' };
+  return linkOwner(state, hookInput);
 }
 
 /**
@@ -898,12 +1214,24 @@ function beginLink(state, link) {
  * @param {object} state The current state.
  * @returns {{ stage: string, why: string }} The stage to run, and what decided it.
  */
-function reconcile(config, ms, state) {
+function reconcile(config, ms, state, deps = {}) {
+  const openPr = deps.openPr || openPrForBranch;
+  const pullRequest = deps.pr || prView;
   const phase = phaseOf(ms, state.phaseIndex);
-  if (!phase) return { stage: 'done', why: 'no phase left in the MS file' };
+  if (!phase) {
+    if (state.closeout && state.closeout.mergedAt)
+      return { stage: 'finished', why: 'the close-out PR is merged' };
+    const closeout = openPr(closeoutBranch(ms));
+    if (closeout)
+      return {
+        stage: 'closeout-merge',
+        why: `close-out PR #${closeout.number} is open`,
+      };
+    return { stage: 'done', why: 'no phase left in the MS file' };
+  }
 
   if (phase.status === 'completed') {
-    const settlePr = openPrForBranch(settleBranch(ms, state.phaseIndex));
+    const settlePr = openPr(settleBranch(ms, state.phaseIndex));
     if (settlePr)
       return {
         stage: 'settle-merge',
@@ -922,7 +1250,7 @@ function reconcile(config, ms, state) {
         why: 'phase is in-review with no PR recorded in the MS file',
       };
     }
-    const pr = prView(phase.pr.url);
+    const pr = pullRequest(phase.pr.url);
     if (pr.state === 'MERGED')
       return { stage: 'settle', why: `PR ${pr.url} is merged` };
     if (pr.state === 'OPEN')
@@ -1147,9 +1475,38 @@ function decide(hookInput) {
       return;
     }
 
+    // The end of the whole track: the close-out PR is merged, the documents are archived and there
+    // is no further link to spawn. It ends the run rather than halting it — a halt means something
+    // went wrong and blocks the next `--resume`, and nothing here went wrong.
+    if (stage === 'finished') {
+      state.active = false;
+      state.currentIssue = null;
+      writeState(state);
+      event(state, { type: 'finished', why });
+      process.stdout.write(`Ralph: ${ms.feature} is closed out — ${why}.\n`);
+      surveyAfterRun(state);
+      clearLock();
+      return;
+    }
+
     if (stage === 'next') {
       event(state, { type: 'phase-complete', why });
       const settled = phaseOf(ms, state.phaseIndex);
+      if (selectionSatisfied(state, settled)) {
+        state.active = false;
+        state.currentIssue = null;
+        writeState(state);
+        const what = state.selection.milestone
+          ? `milestone #${state.selection.milestone.number}`
+          : `phase ${settled.phase}`;
+        event(state, { type: 'finished', why: `${what} has settled` });
+        process.stdout.write(
+          `Ralph: ${what} of ${ms.feature} has settled — that was the work this run was given.\n`,
+        );
+        surveyAfterRun(state);
+        clearLock();
+        return;
+      }
       state.phaseIndex += 1;
       state.attempts = {};
       state.currentIssue = null;
@@ -1172,12 +1529,19 @@ function decide(hookInput) {
       // A merge re-runs the check set first, which takes minutes — far too long for a hook. It goes
       // out as its own detached step, and that step calls advance() again when it is done.
       const phase = phaseOf(ms, state.phaseIndex);
-      const target =
-        stage === 'merge'
-          ? phase.pr.url
-          : openPrForBranch(settleBranch(ms, state.phaseIndex)).url;
+      const branch =
+        stage === 'closeout-merge'
+          ? closeoutBranch(ms)
+          : phase && settleBranch(ms, state.phaseIndex);
+      const open = branch ? openPrForBranch(branch) : null;
+      const target = stage === 'merge' ? phase.pr.url : open && open.url;
+      if (!target) {
+        writeState(state);
+        halt(`${stage} has no open PR on ${branch} to merge`, state);
+        return;
+      }
       state.sessions += 1;
-      const label = `${stage}-p${phase.phase}`;
+      const label = phase ? `${stage}-p${phase.phase}` : stage;
       beginLink(state, {
         kind: 'step',
         stage,
@@ -1193,7 +1557,12 @@ function decide(hookInput) {
         '--pr',
         target,
         '--scope',
-        stage === 'merge' ? 'full' : 'docs',
+        // eslint-disable-next-line no-nested-ternary -- the three gates, in the order they run
+        stage === 'merge'
+          ? 'full'
+          : stage === 'closeout-merge'
+            ? 'closeout'
+            : 'docs',
       ]);
       if (spawned) {
         state.link = { ...state.link, ...spawned };
@@ -1234,14 +1603,14 @@ function decide(hookInput) {
       issue,
       layer: layerOf(config, state.phaseIndex),
     });
-    const maxTurns =
-      stage === 'task' ? config.maxTurnsPerTask : config.maxTurnsPerBookend;
-
-    // Close-out is the last link there is: end the run with it, rather than letting `done` re-enter.
-    if (stage === 'done') {
-      state.active = false;
+    // One session is told about it — the one that inherits the tree it was taken from. Repeating it
+    // to every later session would have them re-litigating work that has already been judged.
+    if (state.stash && !state.stash.handedTo) {
+      state.stash = { ...state.stash, handedTo: label };
       writeState(state);
     }
+    const maxTurns =
+      stage === 'task' ? config.maxTurnsPerTask : config.maxTurnsPerBookend;
 
     const spawned = spawnSession(config, state, label, prompt, maxTurns);
     if (spawned) {
@@ -1271,10 +1640,23 @@ function decide(hookInput) {
  * @param {object} state The current state.
  * @returns {{ ok: boolean, retry: boolean, why: string, key: string }} The verdict.
  */
-function verifyPreviousStage(config, ms, state) {
+function verifyPreviousStage(config, ms, state, deps = {}) {
   const ok = { ok: true, retry: false, why: '', key: '' };
+  const hasLabel = deps.hasLabel || issueHasLabel;
+  const openPr = deps.openPr || openPrForBranch;
   const phase = phaseOf(ms, state.phaseIndex);
-  if (!phase) return ok;
+  if (!phase) {
+    // The close-out session's promise is a PR, the same way a phase's close stage promises one.
+    if (state.stage === 'done' && !openPr(closeoutBranch(ms))) {
+      return {
+        ok: false,
+        retry: true,
+        why: 'close-feature left no close-out PR open',
+        key: 'closeout',
+      };
+    }
+    return ok;
+  }
 
   switch (state.stage) {
     case 'open':
@@ -1291,8 +1673,8 @@ function verifyPreviousStage(config, ms, state) {
     case 'task': {
       const number = state.currentIssue;
       if (!number) return ok;
-      const done = issueHasLabel(number, 'ralph:done');
-      const blocked = issueHasLabel(number, 'ralph:blocked');
+      const done = hasLabel(number, 'ralph:done');
+      const blocked = hasLabel(number, 'ralph:blocked');
       if (blocked)
         return {
           ok: false,
@@ -1359,6 +1741,7 @@ module.exports = {
   ceilingSpent,
   checkpoint,
   claimAdvance,
+  closeoutBranch,
   clearLock,
   describeHold,
   effectiveConfig,
@@ -1366,8 +1749,11 @@ module.exports = {
   gh,
   guards,
   halt,
+  isAlive,
   issueQueue,
   layerOf,
+  linkOwner,
+  linkSessionId,
   fireHold,
   holdFiresAt,
   openPrForBranch,
@@ -1384,9 +1770,15 @@ module.exports = {
   readOverrides,
   readState,
   reconcile,
+  selectionSatisfied,
+  verifyPreviousStage,
   run,
   runDir,
   settleBranch,
+  startState,
+  stashDirty,
+  stashNote,
+  surveyAfterRun,
   stopReason,
   stopRequested,
   writeHold,

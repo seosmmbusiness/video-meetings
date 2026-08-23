@@ -483,6 +483,24 @@ class Tui {
           `hold: ${snapshot.hold.label} — armed, not yet reached`,
         ),
       );
+    if (snapshot.selection && snapshot.selection.stopAfterPhase)
+      row(
+        colour.wrap(
+          '36',
+          `taking ${snapshot.selection.kind} ${snapshot.selection.feature} phase ${snapshot.selection.phase} — the run stops once it has settled`,
+        ),
+      );
+    if (!snapshot.active && snapshot.work) {
+      const open = snapshot.work.candidates || [];
+      row(
+        colour.wrap(
+          '36',
+          open.length
+            ? `${open.length} thing${open.length === 1 ? '' : 's'} open — pick one with \`node .claude/ralph-start.js --pick\``
+            : 'nothing open — no milestone, phase or feature is waiting',
+        ),
+      );
+    }
     if (snapshot.halt) row(colour.wrap('31', `halt: ${snapshot.halt}`));
     if (snapshot.msError)
       row(colour.wrap('31', `MS file: ${snapshot.msError}`));

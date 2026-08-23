@@ -62,3 +62,89 @@ test('parseArgs refuses to run without a PR to gate', () => {
     /--pr is required/,
   );
 });
+
+const CONFIG = {
+  checks: {
+    api: ['lint', 'format:check', 'test', 'test:int:api', 'test:e2e:api'],
+    web: ['lint', 'format:check', 'test', 'test:e2e:web'],
+  },
+  phases: [
+    { phase: 1, layer: 'api', needsDb: true },
+    { phase: 2, layer: 'web', needsDb: true },
+  ],
+};
+
+test('a phase PR is gated on its own layer’s check set', () => {
+  assert.deepEqual(verify.checkScripts(CONFIG, 0, 'full'), CONFIG.checks.api);
+  assert.deepEqual(verify.checkScripts(CONFIG, 1, 'full'), CONFIG.checks.web);
+});
+
+test('a settle PR is gated on the checks a docs-only commit can fail', () => {
+  assert.deepEqual(verify.checkScripts(CONFIG, 1, 'docs'), [
+    'lint',
+    'format:check',
+  ]);
+});
+
+test('the close-out gate runs both layers once, in order, and builds', () => {
+  // The last gate of the whole feature: it re-proves what close-feature claimed the acceptance
+  // criteria on, so it cannot be narrower than the union of the phases it is closing.
+  assert.deepEqual(verify.checkScripts(CONFIG, 2, 'closeout'), [
+    'lint',
+    'format:check',
+    'test',
+    'test:int:api',
+    'test:e2e:api',
+    'test:e2e:web',
+    'build',
+  ]);
+});
+
+test('the close-out gate stands up its own infrastructure, whatever the phase said', () => {
+  // `--phase-index` points past the last phase by then, so nothing about needsDb can be read off it.
+  assert.equal(verify.needsDb(CONFIG, 9, 'closeout'), true);
+  assert.equal(verify.needsDb(CONFIG, 0, 'full'), true);
+  assert.equal(
+    verify.needsDb({ ...CONFIG, phases: [{ phase: 1 }] }, 0, 'full'),
+    false,
+  );
+  assert.equal(verify.needsDb(CONFIG, 0, 'docs'), false);
+});
+
+test('the gate checks the PR’s own branch, and switches to it when it is not there', () => {
+  // The chain is normally already on the branch it is about to merge — the close stage left it
+  // there. A run resumed by hand can be anywhere, and checks that pass on another branch say
+  // nothing at all about the PR they would merge.
+  assert.deepEqual(
+    verify.branchPlan('feature/x-phase-1', 'feature/x-phase-1', false),
+    {
+      action: 'none',
+      why: '',
+    },
+  );
+  assert.equal(
+    verify.branchPlan('main', 'chore/x-closeout', false).action,
+    'checkout',
+  );
+});
+
+test('the gate refuses to switch over work somebody left in the tree', () => {
+  const plan = verify.branchPlan('main', 'chore/x-closeout', true);
+  assert.equal(plan.action, 'refuse');
+  assert.match(plan.why, /chore\/x-closeout/);
+});
+
+test('a PR whose branch cannot be read is checked where the chain stands', () => {
+  assert.equal(verify.branchPlan('main', null, false).action, 'none');
+  assert.equal(verify.branchPlan('main', '', true).action, 'none');
+});
+
+test('after a merge the tree goes back to the base branch it merged into', () => {
+  // The gate checks out the PR's branch to run the checks. Left there, the next decision — and the
+  // survey of what is open — would read a branch that has just been merged and deleted.
+  assert.equal(
+    verify.branchPlan('chore/x-closeout', 'main', false).action,
+    'checkout',
+  );
+  assert.equal(verify.branchPlan('main', 'main', false).action, 'none');
+});

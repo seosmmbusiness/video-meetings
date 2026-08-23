@@ -69,16 +69,18 @@ next is always derived from the MS file and GitHub, never from what you typed.
 The loop re-derives its position on every firing, from `docs/<slug>/<slug>-MS.json` and GitHub, so a
 run picked up days later resumes correctly rather than repeating work.
 
-| Stage          | Entered when                      | What happens                                                                                                       |
-| -------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `open`         | the phase is `pending`            | clean tree, base pulled, `db:up`, migrations, `feature/<slug>-phase-<N>` cut, phase claimed, `docs: start phase N` |
-| `task`         | the phase has an unfinished issue | one task, test-first, red `test(...)` then `feat(...)`, both `Refs #<n>`, issue labelled `ralph:done`              |
-| `close`        | no unfinished issue left          | docs with the code, full check set, code review, push, PR with `Closes #` lines, `docs: phase N in review`         |
-| `merge`        | the phase PR is open              | **no session** — the loop re-runs the checks itself and merges                                                     |
-| `settle`       | the phase PR is merged            | `/bldprj:build-phase <N>` as a settle run: issues, milestone, MS file, FINAL status, `docs/Features.md`            |
-| `settle-merge` | the settle PR is open             | **no session** — lint, format and docs-lint, then merge                                                            |
-| `next`         | the phase is `completed`          | **no session** — on to the next phase                                                                              |
-| `done`         | every phase has settled           | `/bldprj:close-feature <slug>`, and the run ends                                                                   |
+| Stage            | Entered when                      | What happens                                                                                                       |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `open`           | the phase is `pending`            | clean tree, base pulled, `db:up`, migrations, `feature/<slug>-phase-<N>` cut, phase claimed, `docs: start phase N` |
+| `task`           | the phase has an unfinished issue | one task, test-first, red `test(...)` then `feat(...)`, both `Refs #<n>`, issue labelled `ralph:done`              |
+| `close`          | no unfinished issue left          | docs with the code, full check set, code review, push, PR with `Closes #` lines, `docs: phase N in review`         |
+| `merge`          | the phase PR is open              | **no session** — the loop re-runs the checks itself and merges                                                     |
+| `settle`         | the phase PR is merged            | `/bldprj:build-phase <N>` as a settle run: issues, milestone, MS file, FINAL status, `docs/Features.md`            |
+| `settle-merge`   | the settle PR is open             | **no session** — lint, format and docs-lint, then merge                                                            |
+| `next`           | the phase is `completed`          | **no session** — on to the next phase                                                                              |
+| `done`           | every phase has settled           | `/bldprj:close-feature <slug>`: criteria proven, PRD marked done, docs archived, close-out PR opened               |
+| `closeout-merge` | the close-out PR is open          | **no session** — both layers' suites, the build and docs-lint, then merge                                          |
+| `finished`       | the close-out PR is merged        | **no session** — the run ends, and says what is open next                                                          |
 
 Task order comes from the `issues` array in the MS file, which is plan order — 1.1 before 1.6. It is
 never taken from `gh issue list`, which returns newest first.
@@ -86,6 +88,48 @@ never taken from `gh issue list`, which returns newest first.
 An issue is **labelled** `ralph:done`, not closed. Issues close when the PR that carries their
 `Closes #` lines merges, which is the pipeline's rule and the only one that keeps GitHub honest about
 what has actually shipped.
+
+## Watching a run
+
+A run stops on its own at one of three places: the work it was given has settled, the feature is
+closed out, or something went wrong. Only the last leaves a halt behind.
+
+## Which work a run takes
+
+A run works the feature `.claude/ralph.config.json` names, and that is all it ever does by itself.
+When there is nothing left in it — every phase settled and the documents archived — the loop asks
+what else is open instead of refusing to start:
+
+```bash
+node .claude/ralph-start.js --pick        # list what is open, and answer with a number
+node .claude/ralph-start.js --pick 2      # take the second one without being asked
+```
+
+The survey reads three sources, in the order the loop trusts them:
+
+| Offered            | Where it comes from                                                        | What taking it means                                     |
+| ------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **open milestone** | `gh api …/milestones --state open`, matched back to a phase by its MS file | that phase, to the end of its settle — then the run ends |
+| **phase**          | an MS file whose phase is not `completed` and whose milestone is closed    | the same, for work GitHub does not have open             |
+| **close-out**      | an MS file whose phases have all settled but which was never archived      | the close-out, and the end of the feature                |
+
+An issue with no milestone and no plan is **listed and never offered**: the loop's contract is a
+phase's Done when, Verified by and FINAL block, and an issue that has none of them gives a session
+nothing to work against. Nothing open at all says exactly that, in one line, and starts nothing.
+
+The pick is saved — into the run's overrides, not the committed config — so a run resumed later
+carries on with the same work, and a run given one milestone stops when that milestone has settled
+rather than wandering into the next phase. The dashboard shows the same survey with a **Start**
+button per line, and refuses to start anything while a link is still working.
+
+## When a resume finds a dirty tree
+
+A session killed mid-task leaves a half-written tree behind. `--resume` neither carries on over it
+nor throws it away: it goes into a stash of its own (`ralph/<runId> <stage> #<issue> <time>`,
+untracked files included), and the next session is told the stash exists, which files it touched, and
+to judge it — apply and continue if it belongs to the task it is about to do, leave it alone and
+start from scratch if it does not. The session says which of the two it did in its report, and never
+drops a stash. A fresh run still refuses a dirty tree: that work belongs to whoever left it there.
 
 ## Watching a run
 
@@ -115,15 +159,15 @@ Both views draw the same snapshot and drive the same controls — pick whichever
 
 ### The controls
 
-| Key                     | Button          | What it does                                                                                                                                                                                                      |
-| ----------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `p`                     | Pause/Resume    | Holds the chain at the next link boundary. The link in flight finishes; no successor is spawned. Pressing it again clears the hold — and any halt — and asks the chain for its next link.                         |
-| `s`                     | Stop            | Halts the run. `f` lets the link in flight finish first; `k` kills it and its whole process group now. Either way `.claude/ralph.stop` goes down first, so the dying session's own hook cannot spawn a successor. |
-| `h`                     | Hold            | Arms a pause or a halt for a boundary further off than the next link — the end of this task, or the end of this phase. Changes nothing now; described below.                                                      |
-| `r`                     | Rollback…       | Three ways back, described below. Every one asks first and names what it will do.                                                                                                                                 |
-| `m` `f` `e` `t` `b` `n` | settings fields | model, fallback, effort, turns per task, budget per session, retries.                                                                                                                                             |
-| `l`                     | —               | More activity lines.                                                                                                                                                                                              |
-| `q`                     | —               | Leaves the view. The run keeps going.                                                                                                                                                                             |
+| Key                     | Button          | What it does                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p`                     | Pause/Resume    | Holds the chain at the next link boundary. The link in flight finishes; no successor is spawned. Pressing it again clears the hold — and any halt — and asks the chain for its next link.                                                                                                                                                                                  |
+| `s`                     | Stop            | Halts the run. `f` lets the link in flight finish first; `k` kills it and its whole process group now. Either way `.claude/ralph.stop` goes down first, so the dying session's own hook cannot spawn a successor. The dashboard splits the same choice into two buttons — **Stop when the link ends** and **Stop now** — and offers **Stop after this phase** beside them. |
+| `h`                     | Hold            | Arms a pause or a halt for a boundary further off than the next link — the end of this task, or the end of this phase. Changes nothing now; described below.                                                                                                                                                                                                               |
+| `r`                     | Rollback…       | Three ways back, described below. Every one asks first and names what it will do.                                                                                                                                                                                                                                                                                          |
+| `m` `f` `e` `t` `b` `n` | settings fields | model, fallback, effort, turns per task, budget per session, retries.                                                                                                                                                                                                                                                                                                      |
+| `l`                     | —               | More activity lines.                                                                                                                                                                                                                                                                                                                                                       |
+| `q`                     | —               | Leaves the view. The run keeps going.                                                                                                                                                                                                                                                                                                                                      |
 
 **Settings apply to the next link, never to the session already running** — nothing can change a
 running session's model or ceilings. A change is written to `.claude/ralph.overrides.json`
