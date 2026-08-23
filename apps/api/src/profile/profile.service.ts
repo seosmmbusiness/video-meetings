@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -7,13 +8,22 @@ import {
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { HashPasswordCommand } from '../credentials/commands/hash-password.command';
+import { VerifyPasswordQuery } from '../credentials/queries/verify-password.query';
 import { FileStorage } from '../storage/file-storage';
 import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from '../users/commands/update-user-name.command';
+import { UpdateUserPasswordCommand } from '../users/commands/update-user-password.command';
 import { FindUserByIdQuery } from '../users/queries/find-user-by-id.query';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+
+/**
+ * The verbatim refusal a wrong current password answers with — `apps/web`
+ * shows it in place on the form rather than signing the user out (D-11).
+ */
+const WRONG_CURRENT_PASSWORD_MESSAGE = 'Current password is incorrect.';
 
 /**
  * Reads and updates the signed-in caller's own profile, reaching persistence
@@ -181,18 +191,40 @@ export class ProfileService {
   }
 
   /**
-   * Changes the caller's own password behind the current one.
+   * Changes the caller's own password behind the current one: the current
+   * password is verified over the credentials module's timing-safe path, the
+   * new one is hashed there too, and only then is the stored credential
+   * replaced (D-11, D-3).
    *
-   * Unimplemented shell — it ships with the failing specs so the typed lint
-   * gate can resolve the names they use; the commit after this one is what
-   * makes it behave.
+   * A wrong current password answers `403`, never `401` — `apps/web` reads a
+   * `401` from this API as "the session is gone", so signing a user out for a
+   * typo would be indistinguishable from a revoked token (D-11, AC-11). The
+   * refusal happens before anything is hashed or written, so a refused
+   * attempt leaves the account exactly as it was.
    * @param userId - The caller's id, taken from the verified token.
    * @param dto - The current password and the one to store in its place.
+   * @throws NotFoundException if the token names a row that no longer exists.
+   * @throws ForbiddenException if the current password is not the account's.
    */
-  changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
-    void userId;
-    void dto;
-    return Promise.reject(new Error('Not implemented'));
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.findUser(userId);
+
+    const currentMatches = await this.queryBus.execute<
+      VerifyPasswordQuery,
+      boolean
+    >(new VerifyPasswordQuery(dto.currentPassword, user.passwordHash));
+    if (!currentMatches) {
+      throw new ForbiddenException(WRONG_CURRENT_PASSWORD_MESSAGE);
+    }
+
+    const passwordHash = await this.commandBus.execute<
+      HashPasswordCommand,
+      string
+    >(new HashPasswordCommand(dto.newPassword));
+
+    await this.commandBus.execute<UpdateUserPasswordCommand, User>(
+      new UpdateUserPasswordCommand(userId, passwordHash),
+    );
   }
 
   /**

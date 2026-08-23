@@ -225,11 +225,14 @@ export class ProfileController {
   }
 
   /**
-   * Changes the caller's own password behind the current one.
+   * Changes the caller's own password behind the current one. The subject is
+   * the token's, so a body naming another account changes nothing but the
+   * caller's own credential (AC-15).
    *
-   * Unimplemented shell — it ships with the failing specs so the typed lint
-   * gate can resolve the names they use; the commit after this one is what
-   * makes it behave.
+   * The route carries the same throttle override `/auth/login` does: it
+   * answers whether a supplied password is the account's, which makes it a
+   * password oracle behind one stolen session, so it must not inherit the
+   * global 20 requests a minute (S-4, AC-20).
    * @param user - The authenticated user, extracted from the JWT.
    * @param dto - The current password and the one to store in its place.
    */
