@@ -183,26 +183,29 @@ function renderPage(port) {
     <div class="row">
       <div style="display:flex; gap:8px; flex-wrap:wrap">
         <button id="pause">Pause</button>
-        <button id="stop" class="bad">Stop</button>
+        <button id="stop" class="bad">Stop when the link ends</button>
+        <button id="stop-now" class="bad">Stop now</button>
         <button id="rollback" class="bad">Rollback…</button>
       </div>
-      <label style="display:flex; gap:6px; align-items:center; color:var(--muted)">
-        <input type="checkbox" id="kill" style="width:auto"> kill the session on stop
-      </label>
+      <span class="muted">“Stop now” kills the session in flight; “when the link ends” lets it finish.</span>
     </div>
     <div class="row hold">
-      <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <button id="hold-stop-phase">Stop after this phase</button>
+        <button id="hold-stop-task">Stop after this task</button>
         <button id="hold-pause-phase">Pause after this phase</button>
-        <label style="display:flex; gap:6px; align-items:center">
-          <input type="checkbox" id="hold-stop-phase" style="width:auto"> stop after this phase
-        </label>
-        <label style="display:flex; gap:6px; align-items:center">
-          <input type="checkbox" id="hold-stop-task" style="width:auto"> stop after this task
-        </label>
       </div>
       <span id="hold-state" class="muted"></span>
     </div>
     <div id="flash" class="muted"></div>
+  </div>
+
+  <div class="panel" id="work-panel" hidden>
+    <div class="k" style="margin-bottom:10px">open work — milestones first, then phases, then close-outs</div>
+    <div id="work-list"></div>
+    <div style="margin-top:10px; display:flex; gap:8px">
+      <button id="work-refresh">Refresh</button>
+    </div>
   </div>
 
   <div class="panel">
@@ -276,6 +279,8 @@ function renderPage(port) {
       const out = await res.json();
       $('flash').textContent = out.why || (out.ok ? 'done' : 'refused');
       $('flash').style.color = out.ok ? '' : 'var(--bad)';
+      // A survey answers with what it found rather than with a sentence: draw it.
+      if (out.work) renderWork(out.work, snap);
     } catch (err) {
       $('flash').textContent = String(err);
       $('flash').style.color = 'var(--bad)';
@@ -364,11 +369,14 @@ function renderPage(port) {
 
     const hold = s.hold || null;
     const armed = (action, at) => Boolean(hold && hold.action === action && hold.at === at);
-    $('hold-pause-phase').textContent = armed('pause', 'phase')
-      ? 'Cancel: pause after this phase'
-      : 'Pause after this phase';
-    $('hold-stop-phase').checked = armed('stop', 'phase');
-    $('hold-stop-task').checked = armed('stop', 'task');
+    const holdLabel = (id, action, at, label) => {
+      $(id).textContent = armed(action, at) ? 'Cancel: ' + label.toLowerCase() : label;
+      $(id).classList.toggle('bad', armed(action, at));
+    };
+    holdLabel('hold-pause-phase', 'pause', 'phase', 'Pause after this phase');
+    holdLabel('hold-stop-phase', 'stop', 'phase', 'Stop after this phase');
+    holdLabel('hold-stop-task', 'stop', 'task', 'Stop after this task');
+    renderWork(s.work || null, s);
     setText('hold-state', hold
       ? 'armed · ' + hold.label
       : 'no hold — one stands at a time, the last one set wins');
@@ -385,19 +393,69 @@ function renderPage(port) {
     }
   }
 
+  function renderWork(work, s) {
+    const panel = $('work-panel');
+    const list = $('work-list');
+    const busy = Boolean(s && s.active && s.link && s.link.alive);
+    panel.hidden = false;
+    list.textContent = '';
+    if (!work) {
+      const line = document.createElement('div');
+      line.className = 'muted';
+      line.textContent = busy
+        ? 'a run is going — what else is open is asked once it ends, or on Refresh'
+        : 'press Refresh to see what is open';
+      list.append(line);
+      return;
+    }
+    if (work.empty || !work.candidates || !work.candidates.length) {
+      const line = document.createElement('div');
+      line.className = 'muted';
+      line.textContent = 'Nothing open — no milestone, phase or feature is waiting.';
+      list.append(line);
+    }
+    (work.candidates || []).forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const what = document.createElement('span');
+      what.textContent = c.kind === 'milestone'
+        ? 'milestone #' + c.milestone.number + ' · ' + c.feature + ' phase ' + c.phase + ' · ' + c.open + ' open'
+        : c.kind === 'phase'
+          ? 'phase ' + c.phase + ' of ' + c.feature + ' (' + c.status + ')'
+          : 'close-out ' + c.feature;
+      const go = document.createElement('button');
+      go.textContent = 'Start';
+      go.disabled = busy;
+      go.onclick = () => command({ command: 'start-work', index: i + 1 });
+      row.append(what, go);
+      list.append(row);
+    });
+    (work.loose || []).forEach((issue) => {
+      const line = document.createElement('div');
+      line.className = 'muted';
+      line.textContent = 'outside the pipeline: #' + issue.number + ' ' + issue.title;
+      list.append(line);
+    });
+  }
+
   $('pause').onclick = () => command({ command: snap && (snap.paused || snap.stopped) ? 'resume' : 'pause' });
   $('stop').onclick = () => {
-    if (!confirm('Halt the run' + ($('kill').checked ? ' and kill the session in flight' : '') + '?')) return;
-    command({ command: 'stop', kill: $('kill').checked });
+    if (!confirm('Halt the run once the link in flight finishes?')) return;
+    command({ command: 'stop', kill: false });
   };
+  $('stop-now').onclick = () => {
+    if (!confirm('Halt the run and kill the session in flight now?')) return;
+    command({ command: 'stop', kill: true });
+  };
+  $('work-refresh').onclick = () => command({ command: 'work' });
   const armHold = (action, at) => {
     const hold = snap && snap.hold;
     const same = hold && hold.action === action && hold.at === at;
     command({ command: 'hold', action: same ? null : action, at });
   };
   $('hold-pause-phase').onclick = () => armHold('pause', 'phase');
-  $('hold-stop-phase').onchange = () => armHold('stop', 'phase');
-  $('hold-stop-task').onchange = () => armHold('stop', 'task');
+  $('hold-stop-phase').onclick = () => armHold('stop', 'phase');
+  $('hold-stop-task').onclick = () => armHold('stop', 'task');
   $('rollback').onclick = () => {
     const dialog = $('rollback-dialog');
     const holder = $('rollback-modes');
@@ -498,6 +556,10 @@ function runCommand(body) {
       });
     case 'settings':
       return monitor.applySettings(body.patch || {});
+    case 'work':
+      return monitor.work();
+    case 'start-work':
+      return monitor.startWork(Number(body.index));
     default:
       return { ok: false, why: `unknown command ${body && body.command}` };
   }

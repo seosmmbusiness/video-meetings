@@ -24,6 +24,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 
 const lib = require('./lib');
+const pick = require('./pick');
 
 /** How wide one activity line may be before it is truncated. */
 const ACTIVITY_WIDTH = 120;
@@ -897,6 +898,9 @@ function snapshot() {
       taskRetries: settings.taskRetries,
     },
     overrides,
+    // What the run was told to take, and what the last finished run found open after it.
+    selection: state.selection || null,
+    work: state.work || null,
     checks: readChecks(dir),
     lastMerge: lastMerge(events),
     events: events.slice(-8),
@@ -1021,6 +1025,91 @@ function spawnAdvance(state, opts = {}) {
   });
   child.unref();
   return child.pid || null;
+}
+
+/**
+ * What is open right now, asked of GitHub and the plans rather than of the state file.
+ *
+ * @param {object} [deps] `{ survey }`, injected by the suite.
+ * @returns {{ ok: boolean, work?: object, why?: string }} The survey, or why it could not be taken.
+ */
+function work(deps = {}) {
+  const survey = deps.survey || pick.survey;
+  try {
+    return { ok: true, work: survey() };
+  } catch (err) {
+    return { ok: false, why: `could not survey what is open: ${err.message}` };
+  }
+}
+
+/**
+ * Starts one of the things the survey offers, the way `ralph-start.js --pick` would.
+ *
+ * This is the dashboard's half of the same decision: the pick is saved to the run's overrides, the
+ * state is opened on the phase it names, and the chain is asked for its first link. What it refuses
+ * to do is start a second run over a first — a link still working owns the working tree.
+ *
+ * @param {number} index The 1-based position in the survey's candidates.
+ * @param {object} [deps] Everything it touches, injected by the suite.
+ * @returns {{ ok: boolean, why: string, selection?: object }} The outcome.
+ */
+function startWork(index, deps = {}) {
+  const survey = deps.survey || pick.survey;
+  const select = deps.selectWork || pick.selectWork;
+  const readState = deps.readState || lib.readState;
+  const writeState = deps.writeState || lib.writeState;
+  const writeLock = deps.writeLock || lib.writeLock;
+  const emit = deps.event || lib.event;
+  const spawn = deps.spawn || spawnAdvance;
+  const live = deps.alive || isAlive;
+
+  const state = readState();
+  if (state && state.active && state.link && live(state.link.pid)) {
+    return {
+      ok: false,
+      why: 'a link is still working — stop the run before starting other work',
+    };
+  }
+
+  let surveyed;
+  try {
+    surveyed = survey();
+  } catch (err) {
+    return { ok: false, why: `could not survey what is open: ${err.message}` };
+  }
+  if (surveyed.empty)
+    return { ok: false, why: 'nothing open — there is no work to start' };
+  const candidate = surveyed.candidates[Number(index) - 1];
+  if (!candidate)
+    return { ok: false, why: `there is no ${index} in the survey to start` };
+
+  let chosen;
+  try {
+    chosen = select(candidate);
+  } catch (err) {
+    return { ok: false, why: `could not take that work: ${err.message}` };
+  }
+
+  const next = lib.startState({
+    existing: state,
+    resuming: false,
+    phaseIndex: chosen.phaseIndex,
+  });
+  next.selection = chosen.selection;
+  if (fs.existsSync(lib.STOP_PATH)) fs.unlinkSync(lib.STOP_PATH);
+  if (fs.existsSync(lib.PAUSE_PATH)) fs.unlinkSync(lib.PAUSE_PATH);
+  writeState(next);
+  writeLock(next);
+  emit(next, { type: 'start', phase: next.phaseIndex + 1, by: 'monitor' });
+  spawn(next);
+  return {
+    ok: true,
+    why:
+      chosen.selection.kind === 'closeout'
+        ? `closing out ${chosen.selection.feature}`
+        : `${chosen.selection.feature} phase ${chosen.selection.phase} — the run stops once it has settled`,
+    selection: chosen.selection,
+  };
 }
 
 /**
@@ -1351,6 +1440,7 @@ module.exports = {
   runCost,
   settleDecision,
   shortPath,
+  startWork,
   snapshot,
   spawnAdvance,
   stop,
@@ -1358,4 +1448,5 @@ module.exports = {
   validateHold,
   validateSetting,
   waitForLink,
+  work,
 };

@@ -178,9 +178,12 @@ test('a snapshot that throws becomes an answer, not a dead dashboard', async () 
     throw new Error('the MS file is half-written');
   };
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/snapshot?token=${token}`, {
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await fetch(
+      `http://127.0.0.1:${port}/snapshot?token=${token}`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.ok, false);
@@ -216,4 +219,39 @@ test('a hold naming a boundary that does not exist is refused, and arms nothing'
     before,
     'a refused hold still touched the hold file',
   );
+});
+
+test('the page can end a run outright, and can end it at the end of the phase', () => {
+  const page = web.renderPage(4599);
+  for (const id of ['stop', 'stop-now', 'hold-stop-phase']) {
+    assert.ok(page.includes(id), `the page has no ${id} control`);
+  }
+  // Stopping now is a kill, not a request: the button says so rather than hiding it in a checkbox.
+  assert.ok(
+    page.includes('kill: true'),
+    'the immediate stop does not kill the link in flight',
+  );
+});
+
+test('the page offers the open work, and starting one of it', () => {
+  const page = web.renderPage(4599);
+  assert.ok(
+    page.includes('work-list'),
+    'the page has nowhere to draw the survey',
+  );
+  assert.ok(
+    page.includes("command: 'start-work'"),
+    'the survey offers nothing to start',
+  );
+});
+
+test('a command to start work that is not on the survey is refused, not guessed at', () => {
+  const out = web.runCommand({ command: 'start-work', index: 'nine' });
+  assert.equal(out.ok, false);
+});
+
+test('an unknown command is still refused by name', () => {
+  const out = web.runCommand({ command: 'launch-everything' });
+  assert.equal(out.ok, false);
+  assert.match(out.why, /launch-everything/);
 });

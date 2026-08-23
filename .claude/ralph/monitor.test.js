@@ -882,3 +882,93 @@ test('a validated hold carries a reason a person reads back in the event log', (
   const { hold } = monitor.validateHold({ action: 'stop', at: 'task' });
   assert.match(hold.reason, /stop after this task/);
 });
+
+/**
+ * The injected surroundings `startWork` runs against, with what it did recorded.
+ *
+ * @param {object} over What to change about the defaults.
+ * @returns {object} The deps, plus a `wrote`/`spawned` record of the calls made.
+ */
+function startWorkDeps(over = {}) {
+  const record = { wrote: [], spawned: [], locked: [], overrides: [] };
+  return {
+    record,
+    deps: {
+      alive: () => false,
+      readState: () => ({ runId: 1, active: false, link: null }),
+      writeState: (state) => record.wrote.push(state),
+      writeLock: (state) => record.locked.push(state),
+      event: () => {},
+      spawn: (state) => record.spawned.push(state),
+      survey: () => ({
+        candidates: [
+          {
+            kind: 'milestone',
+            feature: 'demo',
+            ms: 'docs/demo/demo-MS.json',
+            phase: 6,
+            milestone: { number: 29, title: 'demo 6' },
+            title: 'Password form',
+          },
+        ],
+        loose: [],
+        empty: false,
+      }),
+      selectWork: (candidate) => {
+        record.overrides.push(candidate);
+        return {
+          phaseIndex: 5,
+          selection: {
+            kind: candidate.kind,
+            feature: candidate.feature,
+            phase: candidate.phase,
+            stopAfterPhase: candidate.phase,
+          },
+        };
+      },
+      ...over,
+    },
+  };
+}
+
+test('starting picked work saves the pick and asks the chain for its first link', () => {
+  const { deps, record } = startWorkDeps();
+  const out = monitor.startWork(1, deps);
+  assert.equal(out.ok, true, out.why);
+  const written = record.wrote.at(-1);
+  assert.equal(written.phaseIndex, 5);
+  assert.equal(written.active, true);
+  assert.equal(written.selection.kind, 'milestone');
+  assert.equal(written.selection.stopAfterPhase, 6);
+  assert.equal(record.locked.length, 1);
+  assert.equal(record.spawned.length, 1);
+});
+
+test('starting picked work refuses while a link is still working', () => {
+  const { deps, record } = startWorkDeps({
+    alive: () => true,
+    readState: () => ({ runId: 1, active: true, link: { pid: 4242 } }),
+  });
+  const out = monitor.startWork(1, deps);
+  assert.equal(out.ok, false);
+  assert.match(out.why, /still/i);
+  assert.equal(record.spawned.length, 0);
+  assert.equal(record.wrote.length, 0);
+});
+
+test('a number the survey does not offer starts nothing', () => {
+  const { deps, record } = startWorkDeps();
+  assert.equal(monitor.startWork(9, deps).ok, false);
+  assert.equal(monitor.startWork(0, deps).ok, false);
+  assert.equal(record.spawned.length, 0);
+});
+
+test('nothing open starts nothing, and says so plainly', () => {
+  const { deps, record } = startWorkDeps({
+    survey: () => ({ candidates: [], loose: [], empty: true }),
+  });
+  const out = monitor.startWork(1, deps);
+  assert.equal(out.ok, false);
+  assert.match(out.why, /nothing open/i);
+  assert.equal(record.spawned.length, 0);
+});
