@@ -327,7 +327,8 @@
       "phase": 5,
       "title": "Password change and session revocation",
       "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-15", "AC-18", "AC-20"],
-      "status": "pending",
+      "status": "in-progress",
+      "branch": "feature/user-profile-phase-5",
       "milestone": {
         "number": 28,
         "title": "UP 5 · Password change and session revocation",
