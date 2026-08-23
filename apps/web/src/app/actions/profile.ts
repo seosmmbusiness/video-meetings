@@ -6,7 +6,7 @@ import {
   changeProfilePassword,
   updateProfileName,
 } from '@/lib/profile-api';
-import { getSession } from '@/lib/session';
+import { getSession, setSessionCookie } from '@/lib/session';
 
 /** Result of the profile name Server Action, for use with `useActionState`. */
 export interface UpdateNameState {
@@ -103,6 +103,12 @@ const CONFIRMATION_MISMATCH_MESSAGE =
  * returned verbatim (AC-11, AC-12); a `403` is a wrong current password —
  * refused, still signed in — while a `401` is the session itself being gone,
  * which is the split that keeps a typo from signing anyone out (D-11).
+ *
+ * On success the caller stays signed in: the change revokes every token the
+ * account holds (D-9), so the token apps/api answers with is written straight
+ * to the session cookie, whose expiry follows that token's own `exp` (AC-13).
+ * It is written, never returned — the state is serialised into the page
+ * payload (S-6, AC-17).
  * @param _prevState - The previous action state (unused; required by `useActionState`).
  * @param formData - The submitted fields (`currentPassword`, `newPassword`, `confirmPassword`).
  * @returns The outcome to render — never the token and never either password.
@@ -125,7 +131,17 @@ export async function changePasswordAction(
   }
 
   try {
-    await changeProfilePassword(session.token, currentPassword, newPassword);
+    const accessToken = await changeProfilePassword(
+      session.token,
+      currentPassword,
+      newPassword,
+    );
+
+    // The change revoked every token the account holds, this one included, so
+    // the cookie has to carry the token apps/api answered with or the very next
+    // request from this browser would be refused (D-9, AC-13). The write stays
+    // server-side and the token never enters the returned state (S-6, AC-17).
+    await setSessionCookie(accessToken);
 
     return { ok: true };
   } catch (error) {
