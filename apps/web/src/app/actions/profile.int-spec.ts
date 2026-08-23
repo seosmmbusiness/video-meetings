@@ -328,6 +328,22 @@ describe('changePasswordAction', () => {
     );
   });
 
+  it('says a rate-limited change in words rather than naming an exception class (S-4)', async () => {
+    mockSessionCookie(SESSION_TOKEN);
+    // What Nest's throttler actually answers, class name and all — the one
+    // refusal on this path that was never written for a reader.
+    mockUpstream(
+      { message: 'ThrottlerException: Too Many Requests', statusCode: 429 },
+      { status: 429 },
+    );
+
+    const state = await submitPassword();
+
+    expect(state.ok).toBe(false);
+    expect(state.error).not.toContain('ThrottlerException');
+    expect(state.error).toMatch(/too many/i);
+  });
+
   it('treats a 401 as the session being gone, not as a refused password (D-11)', async () => {
     mockSessionCookie(SESSION_TOKEN);
     mockUpstream({ message: 'Unauthorized', statusCode: 401 }, { status: 401 });
