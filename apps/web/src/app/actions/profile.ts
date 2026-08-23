@@ -107,8 +107,8 @@ const RATE_LIMITED_MESSAGE =
  * (S-3, AC-19).
  *
  * The confirmation is checked here rather than in the browser, so the gate
- * still holds with JavaScript disabled and the form posting straight to this
- * action (AC-12). Every other rule stays apps/api's and its refusal is
+ * holds for every way this action is reached — a direct POST included, since
+ * the rendered form is not a boundary (AC-12). Every other rule stays apps/api's and its refusal is
  * returned verbatim (AC-11, AC-12); a `403` is a wrong current password —
  * refused, still signed in — while a `401` is the session itself being gone,
  * which is the split that keeps a typo from signing anyone out (D-11). A `429`

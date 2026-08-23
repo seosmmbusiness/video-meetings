@@ -89,8 +89,9 @@ describe('PasswordForm', () => {
 
     await changePassword({ confirmPassword: `${NEW_PASSWORD}x` });
 
-    // The gate has to run server-side to hold with JavaScript disabled, so the
-    // form's job is to submit and render what comes back — not to decide.
+    // The gate has to run server-side to hold for a caller that never used
+    // this form, so the form's job is to submit and render what comes back —
+    // not to decide.
     expect(action).toHaveBeenCalledTimes(1);
     expect(
       await screen.findByText(

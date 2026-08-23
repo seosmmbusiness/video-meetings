@@ -133,7 +133,8 @@ request/error conventions rather than duplicating them.
   forward (e.g. `If-Range` for phase 6's playback) is an explicit addition to
   `FORWARDED_REQUEST_HEADERS`, never a blanket pass-through.
 - **A 401 from `getMeeting`/`listFiles` and a 404 are handled differently, and order matters.** The
-  401 branch (expired/tampered token) redirects to `/login`, checked _before_ the 404 branch
+  401 branch (expired, tampered, or revoked by a password change made elsewhere — see
+  `module-web-profile.md`) redirects to `/login`, checked _before_ the 404 branch
   (nonexistent-or-not-owned), matching `app/page.tsx`'s existing precedent — a session that
   `apps/api` no longer honors is signed-out, not merely "page not found".
 - **`getMeeting`/`listFiles` are called sequentially, not via `Promise.all`.** Fetching the meeting

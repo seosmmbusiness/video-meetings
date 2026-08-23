@@ -32,8 +32,8 @@ const EMPTY_FIELDS: PasswordFields = {
  * through `useActionState` (D-12: fields go through actions, only bytes need a
  * route). It submits and renders — every decision about whether the change is
  * allowed is made server-side, including the confirmation match, so the gate
- * still holds with JavaScript disabled (AC-12) and apps/api's own refusal is
- * what reaches the screen (AC-11).
+ * holds however the action is reached rather than only through this form
+ * (AC-12) and apps/api's own refusal is what reaches the screen (AC-11).
  *
  * For the same reason the new-password field carries no `pattern` and no
  * length cap: a client-side rule would swallow the value before apps/api ever
