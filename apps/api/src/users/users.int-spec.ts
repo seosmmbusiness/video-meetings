@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserCommand } from './commands/create-user.command';
 import { UpdateUserAvatarCommand } from './commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from './commands/update-user-name.command';
+import { UpdateUserPasswordCommand } from './commands/update-user-password.command';
 import { FindUserByEmailQuery } from './queries/find-user-by-email.query';
 import { FindUserByIdQuery } from './queries/find-user-by-id.query';
 import { UsersModule } from './users.module';
@@ -349,6 +350,105 @@ describe('Users module (integration)', () => {
       // account is how a caller reaches this.
       await expect(
         commandBus.execute(new UpdateUserNameCommand(randomUUID(), 'Ada')),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('UpdateUserPasswordCommand', () => {
+    const NEW_HASH =
+      '$2b$12$zyxwvutsrqponmlkjihgfe987654321098765432109876543210';
+
+    it('writes the new hash and bumps the revocation counter in one UPDATE (D-9)', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      const updated = await commandBus.execute<UpdateUserPasswordCommand, User>(
+        new UpdateUserPasswordCommand(created.id, NEW_HASH),
+      );
+
+      expect(updated.passwordHash).toBe(NEW_HASH);
+      expect(updated.tokenVersion).toBe(created.tokenVersion + 1);
+      await expect(
+        prisma.user.findUnique({ where: { id: created.id } }),
+      ).resolves.toMatchObject({
+        passwordHash: NEW_HASH,
+        tokenVersion: 1,
+      });
+    });
+
+    it('counts every change, so each one refuses the tokens the last one left', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+
+      await commandBus.execute<UpdateUserPasswordCommand, User>(
+        new UpdateUserPasswordCommand(created.id, NEW_HASH),
+      );
+      const second = await commandBus.execute<UpdateUserPasswordCommand, User>(
+        new UpdateUserPasswordCommand(created.id, PASSWORD_HASH),
+      );
+
+      expect(second.tokenVersion).toBe(2);
+    });
+
+    it('leaves the rest of the row alone', async () => {
+      const email = uniqueEmail();
+      createdEmails.push(email);
+
+      const created = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(email, PASSWORD_HASH, true),
+      );
+      await commandBus.execute<UpdateUserNameCommand, User>(
+        new UpdateUserNameCommand(created.id, 'Ada Lovelace'),
+      );
+
+      const updated = await commandBus.execute<UpdateUserPasswordCommand, User>(
+        new UpdateUserPasswordCommand(created.id, NEW_HASH),
+      );
+
+      expect(updated.email).toBe(email);
+      expect(updated.name).toBe('Ada Lovelace');
+      expect(updated.avatarKey).toBeNull();
+    });
+
+    it("revokes only the changing account's sessions", async () => {
+      const emailA = uniqueEmail();
+      const emailB = uniqueEmail();
+      createdEmails.push(emailA, emailB);
+
+      const userA = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailA, PASSWORD_HASH, true),
+      );
+      const userB = await commandBus.execute<CreateUserCommand, User>(
+        new CreateUserCommand(emailB, PASSWORD_HASH, true),
+      );
+
+      await commandBus.execute<UpdateUserPasswordCommand, User>(
+        new UpdateUserPasswordCommand(userB.id, NEW_HASH),
+      );
+
+      await expect(
+        prisma.user.findUnique({ where: { id: userA.id } }),
+      ).resolves.toMatchObject({
+        passwordHash: PASSWORD_HASH,
+        tokenVersion: 0,
+      });
+    });
+
+    it('answers a 404 rather than a 500 when the row is already gone', async () => {
+      // Only a real database rejects this: it is Prisma's "record to update
+      // not found", not the handler's own logic, that refuses the write.
+      await expect(
+        commandBus.execute(
+          new UpdateUserPasswordCommand(randomUUID(), NEW_HASH),
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

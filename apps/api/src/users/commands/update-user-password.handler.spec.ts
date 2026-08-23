@@ -29,6 +29,34 @@ describe('UpdateUserPasswordHandler', () => {
     expect(data.passwordHash).toBe('$2b$12$newhash');
   });
 
+  it('bumps the revocation counter in the same UPDATE as the hash (D-9)', async () => {
+    await handler.execute(
+      new UpdateUserPasswordCommand('user-1', '$2b$12$newhash'),
+    );
+
+    // One statement, so a session can never survive in the window between a
+    // committed hash and a committed increment (AC-13).
+    expect(update).toHaveBeenCalledTimes(1);
+    const [{ data }] = update.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(data.tokenVersion).toEqual({ increment: 1 });
+  });
+
+  it('increments the counter rather than writing a value it read first', async () => {
+    await handler.execute(
+      new UpdateUserPasswordCommand('user-1', '$2b$12$newhash'),
+    );
+
+    // A read-then-write would lose one of two concurrent changes; the atomic
+    // increment cannot.
+    const [{ data }] = update.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(typeof data.tokenVersion).toBe('object');
+    expect(data.tokenVersion).not.toBe(1);
+  });
+
   it('touches no column outside the credential (D-3)', async () => {
     await handler.execute(
       new UpdateUserPasswordCommand('user-1', '$2b$12$newhash'),
