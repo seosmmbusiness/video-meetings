@@ -108,6 +108,11 @@ A task that cannot be done as written, or that contradicts the research → stop
 
 Anything beyond the phase's tasks stays out of this branch: drive-by refactors, "while I'm here" fixes to neighbouring modules, and improvements the PRD put out of scope.
 
+**Delegate** — `test-designer`, mode `cases`, on a `tests:` task (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the task, the criteria the phase **Covers**, its **Verified by** line, and the paths of the project's own testing rules and of the suites nearest what the task touches.
+- **Expect back**: the case list per tier, each case traced to the criterion it proves, with what must be red before which task. The specs themselves are written here — a case list is not a test.
+
 Done when every issue in the phase has its code and green tests, or is named explicitly as not done and why.
 
 ### 6. Move the docs with the code
@@ -117,6 +122,11 @@ Part of the phase, not a follow-up — the project's own doc rules require it:
 - The project's module docs, where it keeps them: a new module gets its doc plus its index line; a changed module gets only the functions and gotchas that actually changed.
 - The pointer lines the project's doc conventions require — only for a new module or a changed one-line purpose.
 - `README.md`, the root docs, env samples — when scripts, env vars, infrastructure or architecture moved.
+
+**Delegate** — `docs-writer` (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the diff of what these tasks changed, the paths of the documents that own it, and the project's own rules for them.
+- **Expect back**: the exact lines to insert or replace, with the file and heading each belongs under, plus what is left undocumented. This session writes them; the agent writes nothing.
 
 Done when a teammate reading only the docs would find every function, endpoint and env var this phase added.
 
@@ -140,6 +150,13 @@ Then walk the phase's **Done when** from FINAL point by point, each backed by a 
 **Red does not get pushed as the branch's tip.** A `test(...)` commit inside the history is meant to be red — that is the record step 5 exists to leave — but the commit the PR is opened on is green. Fix the cause; a stubborn failure goes to the user with its output instead of a silenced test.
 
 A phase carrying an `S-<n>` finding, or touching user input, other users' data, files or authorization, gets a review before the push: the security pass (e.g. `/security-review`), or the project's code-review habit otherwise. Each `S-<n>` this phase carries is checked against its control, with the test that proves it.
+
+**Delegate** — `code-reviewer` mode `diff`, and `security-analyst` mode `diff` where the sentence above calls for a security pass and the project names none. Both read the same tree and neither writes, so they go out in one round (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: `git diff <base>...HEAD` and `git log --oneline <base>...HEAD`; this phase's FINAL block whole — Tasks, **Covers**, **Decisions**, **Threats**, **Verified by**, **Done when**; the `S-<n>` blocks it carries with their controls and what proves each; and, for the security pass, the absolute path of `security-analyse`'s own `SKILL.md` for the **Checklist** it works from. Where the phase touched one layer only, that layer's reviewer — `backend-reviewer` or `frontend-reviewer` — in place of the seam one.
+- **Expect back**: from the reviewer, one finding per line — `<file>:<line> · <what breaks> · <the smallest fix> · blocking | not blocking` — plus the phase-contract verdict and the docs a changed module still lacks. From the security analyst, one line per `S-<n>` — `held by <file:line>, proven by <test>` or `open` — and any new candidate as `<caller> → <input> → <asset>`.
+
+A finding that comes back is fixed on this branch, or named in the PR body and the report with why it stands. Neither verdict replaces the commands above: the phase is green because they ran, not because a review said so.
 
 Done when every command above is green, every clause of **Done when** has its evidence, and every finding this phase carries has its control in place.
 
@@ -261,4 +278,5 @@ Shipped features, newest first. Phase rows collect under **In progress** while a
 - Tests are not rewritten or weakened to reach green; any test rewrite is agreed with the user first.
 - Done means merged: issues, milestones and the log row wait for the PR to land on the base branch.
 - Docs — module docs, JSDoc, Swagger, `CLAUDE.md`, `README.md`, `.env.example` — land in the same phase as the code.
+- A review before the push is delegated or run inline, and either way it is a report: the phase is green because the check commands ran, not because a review said so.
 - Report honestly: failing tests and skipped steps are named outright, with the command output.

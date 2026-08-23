@@ -53,6 +53,11 @@ Done when you can state, for every task number in the plan, the `AC-<n>` it serv
 - a criterion quietly narrowed — a limit, count, format list or retention in the research Parameters table smaller than the number the PRD promised the user;
 - a criterion served only by a task the revisions dropped to `- [~]`.
 
+**Delegate** — `backlog-analyst`, once for both traces, this step's and the next (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the absolute paths of the PRD, the plan, the research and the threats.
+- **Expect back**: every promise with the phase and task that keep it, or nothing; every task with the promise it serves, or nothing; and each gap named as scope nobody asked for or a promise nobody wrote down. Step 4's contradictions and step 5's rulings stay here — a conflict is arbitrated by the skill that will ask the user about it.
+
 Done when every `AC-<n>` carries either its task list plus what proves it, or a named gap.
 
 ### 3. Trace every task back up to the promise it serves

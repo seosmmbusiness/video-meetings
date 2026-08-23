@@ -54,6 +54,11 @@ Done when every plan task that accepts input or returns data sits under an entry
 
 Take each entry point through each class in the **Checklist** below. The outcome is recorded either way: a class that is already closed names the control that closes it, so the file shows what was examined rather than only what failed.
 
+**Delegate** — `security-analyst`, mode `surface` (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the absolute paths of the PRD, the plan and the research; step 2's lists as they stand — every entry point with the caller who reaches it, the assets it touches and the task that builds it; step 1's control inventory, file by file; and the absolute path this file resolves to, for the **Checklist** below that it walks. On a revision pass, only the entry points a trigger fired on.
+- **Expect back**: one line per entry point per class — `<entry point> · <class> · held by <file:line>`, or the reach that is open — then candidates, each `<caller> → <input> → <asset>` with its task, its severity and the control that would close it. Unnumbered: step 4 mints every `S-<n>`, and steps 5 and 6 are never delegated — a disposition is this skill's, and **Promise** and **Accepted** are the user's.
+
 Done when every entry point has been through every class, with a named outcome for each.
 
 ### 4. Keep the reachable ones

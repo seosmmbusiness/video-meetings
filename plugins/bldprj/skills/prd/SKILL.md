@@ -58,6 +58,11 @@ Acceptance criteria are numbered `AC-1`, `AC-2`, … and those numbers are perma
 
 Where the feature stores or shows one user's data, one criterion states who may **not** reach it — the negative case is what `security-analyse` and the authorization tests are held against.
 
+**Delegate** — `backlog-analyst`, on the draft criteria before the file is written (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the draft criteria and the scope fence.
+- **Expect back**: the ones no test could ever fail, each with the rewrite that would make it provable. What the product promises stays this skill's and the user's — only the wording is being checked.
+
 Done when every section is filled, every scenario is covered by at least one acceptance criterion, and every criterion is falsifiable.
 
 ### 6. Open the feature's row in the index

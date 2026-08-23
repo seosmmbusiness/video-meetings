@@ -32,6 +32,11 @@ A refactor PRD describes behaviour that already exists, so the source is the imp
 
 Where doc and code disagree, that gap is a finding: a driver when the argument asks for doc compliance, a proposal for step 5 otherwise.
 
+**Delegate** — `code-reviewer`, mode `tree` (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the modules in scope and the documents that claim to describe them.
+- **Expect back**: the improvements found, each with its `file:line`, and the doc-mismatch table — what a document claims, what the code does, which of the two is wrong. What happens to each is step 5's question, never the agent's.
+
 Done when you can state, file by file, what the target does today from the code you read, and can name every caller that would notice if it changed.
 
 ### 2. Take the green baseline
@@ -63,6 +68,11 @@ Done when every behaviour named in step 1 appears either in the freeze or among 
 Per driver in the argument: the symptom in the code today, with the file and line, and an outcome with a number a person can take twice — response time, query count, bundle bytes, duplicated blocks, doc mismatches, findings closed.
 
 A driver that resists numbers gets an observable instead: "no handler builds SQL by concatenation", "no route file over 200 lines". A driver that resists both is a wish, not an outcome — take it back to the user.
+
+**Delegate** — `delivery-lead` (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the wish in the user's own words, the baseline step 2 took, and the project's commands for measuring.
+- **Expect back**: each outcome as a metric — the command that reads it, the value today, the value that counts as done, and the tolerance — and, where nothing can measure it, that verdict instead of an invented number.
 
 Done when every driver has its symptom in the code and an outcome that a measurement could prove false.
 

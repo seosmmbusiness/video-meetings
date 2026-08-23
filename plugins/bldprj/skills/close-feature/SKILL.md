@@ -46,6 +46,11 @@ Each criterion that holds gets its box ticked in the PRD, `- [ ]` → `- [x]`. A
 
 On the refactor track the same pass runs over the criteria that front the **Behaviour freeze** and the **Internal outcomes**: the baseline commands with today's output beside the PRD's, and the after-number for every outcome, measured the way the before-number was.
 
+**Delegate** — `test-designer`, mode `evidence`, one call for all criteria (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: every criterion in its current wording, FINAL's **Trace** table, and the project's own commands for running each suite.
+- **Expect back**: one row per criterion — the command, its literal output, and `proven` or `unprovable`, with what the code actually does wherever it cannot be proven. An `unprovable` row is the useful one: it is what step 2 stops on.
+
 Done when every criterion is ticked with its evidence named, or the run stopped on the one that could not be.
 
 ### 3. Mark the PRD shipped
@@ -63,6 +68,11 @@ Against the project's own documentation rules, for the modules this work created
 - The project's top-level docs (`CLAUDE.md`, `README.md`, env samples) reflect any scripts, env vars or infrastructure this work added, and its status or architecture record gains a sentence for what now exists, where the project keeps one.
 
 A gap here is fixed in this branch — the work does not get archived over stale docs.
+
+**Delegate** — `docs-writer`, and `code-reviewer` mode `tree` over the modules this work created or changed (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: those modules, the documents that claim to describe them, and the project's own documentation rules.
+- **Expect back**: the doc-mismatch table — what a document claims, what the code does, which of the two is wrong — and the exact lines that close each gap. The fix lands on this branch, written here.
 
 Done when each item above is checked against the file, not from memory.
 

@@ -79,6 +79,8 @@ A dependency added for speed carries the **dependency budget** like any other, p
 - **Security** — the finding-by-finding pass belongs to `security-analyse`; research settles the mechanism each control is built from — which guard, which validator, which limit — and judges it against parity like any other option.
 - **Doc compliance** — a mismatch table, one row per gap: doc claim · what the code does · which one is wrong. Where the code is right, the doc is fixed. Where the doc is right, aligning the code is behaviour change unless the doc describes internals only.
 
+**Delegating on this track.** Parity is an input, never something an agent can infer: hand `architecture-scout` the freeze lines and the **Baseline** table along with the decision point, and expect every option judged against parity before it is judged on anything else. See **Delegating a step** in [`PIPELINE.md`](PIPELINE.md).
+
 Template delta: section 4 carries a **Baseline** table — metric · how it was measured · value today · target — and every decision block gains **Parity**: what proves this option leaves behaviour identical.
 
 ## `security-analyse` on a refactor
@@ -101,11 +103,14 @@ Parity is an eleventh conflict class, and it outranks the rest:
 
 A phase's **Done when** in FINAL names the baseline commands with the result they must give, plus the before → after number for the outcome that phase serves.
 
+## `build-phase` on a refactor
+
 Sources are the `-REFACTOR-` files, phases are addressed `R<N>` (`/bldprj:build-phase R2`), the branch is `refactor/<slug>-phase-<N>`, and the log is `docs/Refactor.md`.
 
 - **Green baseline first.** On the freshly cut branch, before the first line changes, run the PRD's baseline commands and show the output. Red at the start stops the run and goes to the user: a failure inherited from the base branch is not this phase's to absorb.
 - **Parity, not TDD.** The feature track opens with a failing test; a refactor phase starts green and stays green. The only tests it writes are the characterization tests its own tasks name — against the current code, passing before that code moves. So `build-phase`'s red-then-green commit pair has nothing to record here: a characterization task commits once, green, and the one-commit-per-task floor stands as it does on the feature track.
 - **Prove parity in step 7**: the same commands as the baseline, the same result, shown next to the baseline output. Plus the after-number for every internal outcome the phase serves, measured the way the before-number was.
 - The PR body carries the baseline → after table and the evidence that the contract held: a diff over the project's test files (e.g. `git diff --stat <base>...HEAD -- '**/*.spec.ts'`) showing only added characterization tests.
+- **Delegating on this track**: `code-reviewer` is handed the baseline output beside this run's, and is expected back with the test-file diff showing only added characterization tests. Its red-then-green verdict has nothing to record here — say so rather than reporting it failed.
 - Behaviour that has to change for a task to finish is a stop-and-ask. It leaves the refactor and becomes a `/bldprj:prd` item.
 - `close-feature` on this track reads `<slug>-REFACTOR-PRD.md`, deletes merged `refactor/<slug>-phase-*` branches, and collapses the log rows in `docs/Refactor.md`.

@@ -128,6 +128,48 @@ A stage run again on a document it already wrote is a **revision pass**, not a r
 
 **Two rounds is the budget** — `research` → `security-analyse` → `research` → `security-analyse`. What survives that is a trade-off rather than a technical gap, and a trade-off is `pre-issues`' to rule on: at the end of round 2 each skill recommends `/bldprj:pre-issues` and names what stays open. A further round asked for by hand still runs, and still runs as a revision pass — the skill does the work, says the budget is past, and names the conflict it believes arbitration would settle more cheaply.
 
+## Delegating a step
+
+A step that only **reads** — a surface to map, a diff to review, options to cost, cases to enumerate, a criterion to evidence — may be handed to a subagent, and the skill says so where it pays. The agents ship with this plugin, in `agents/`.
+
+Three levels, in this order, the same ladder the postflight linter is on:
+
+1. **The project's own habit**, where its docs name one — a review command, a security pass, an agent of its own. It knows the project; nothing shipped here does.
+2. **The plugin's agent**, when the project names none.
+3. **Inline**, in the step itself, when the Agent tool is unavailable or disallowed, or the name does not resolve. This is a fallback, not a failure: **no step depends on delegation being possible**, and every **Done when** is written to be reachable without it.
+
+A delegation inside a step is three lines and nothing else:
+
+**Delegate** — `<agent>`, mode `<mode>`:
+
+- **Hand it**: the exact inputs, by absolute path where they are files.
+- **Expect back**: the exact shape, field by field.
+
+What the form leaves unsaid, because it is the same every time:
+
+- **Paths are absolute.** A subagent starts in the project root, not in the skill's directory — `../../PIPELINE.md` means nothing to it, and `${CLAUDE_PLUGIN_ROOT}` names the plugin's root only inside a shell command. Resolve the path this skill reads its siblings by, and hand over what it resolved to.
+- **Doctrine is handed over as a path, never restated.** Where an agent works to a checklist, an order or a rule this pipeline already states, it is given the file and the section: a rule stated twice will drift.
+- **A subagent returns text.** It writes no file, edits no code, mints no identifier and answers no question that is the user's. `AC-<n>`, `D-<n>`, `S-<n>` and `T-<n>` stay with the stage that owns them — what comes back is a candidate until this skill numbers it.
+- **What comes back is read, not pasted.** It is evidence for this step, checked against the files it cites. An agent that names a file, a line or a command has given something checkable; one that argues has not.
+- **The caller's `Expect back` line is the contract.** Where it and the agent's own report shape disagree, the caller wins.
+- **Fan out only where the parts are independent** — one call per decision point, two read-only reviewers over one diff. Anything that has to agree with itself runs as one call.
+- **The report says how the step ran**: delegated and to whom, or inline and why, named as plainly as a check that did not run.
+
+**Naming.** Installed as a plugin, an agent is `bldprj:<name>`; where this plugin is linked into a skills directory instead, its `agents/` folder has to be linked into an agents directory too, and there the same file is just `<name>`. The skills say the bare role name, so neither install is hard-wired — take whichever the session lists, and fall to level 3 when it lists neither.
+
+| Agent                                                           | Serves                                                              | Returns                                                                                                                                   |
+| --------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `security-analyst`                                              | `security-analyse` (`surface`), `build-phase` (`diff`)              | Coverage per entry point per class; candidates as caller → input → asset, with severity, control and the test that would prove it         |
+| `architecture-scout`                                            | `research`, `plan-phase`                                            | One decision's costed options, the recommendation, where it lands, and the source each fact came from                                     |
+| `code-reviewer`                                                 | `build-phase` (`diff`), `refactor-prd` and `close-feature` (`tree`) | Findings as `file:line · what breaks · smallest fix · blocking`, the phase-contract verdict, and the docs the change still owes           |
+| `test-designer`                                                 | `build-phase` (`cases`), `close-feature` (`evidence`)               | The case list per tier traced to what it proves; or one row per criterion with the command, its literal output and a verdict              |
+| `delivery-lead`                                                 | `plan-phase`, `refactor-prd`                                        | Sequencing and half-built states in a phase cut; a wish restated as numbers with the measurement behind each                              |
+| `backlog-analyst`                                               | `prd`, `pre-issues`                                                 | Criteria no test could fail, promises no task keeps, tasks no promise needs                                                               |
+| `backend-reviewer` · `frontend-reviewer` · `fullstack-reviewer` | `research`, `build-phase`                                           | One layer's mechanism options, or that layer's own findings in the reviewer's line shape — the seam reviewer where a phase crosses layers |
+| `docs-writer`                                                   | `build-phase`, `close-feature`                                      | The exact lines a change still owes, with the file and heading they belong under                                                          |
+
+**No agent writes.** Every shipped agent runs without `Write`, `Edit` or `NotebookEdit`, and each is told that `Bash` is for reading. The repository is changed by the session running the skill, and by nothing else.
+
 ## Asking
 
 Every skill asks. Each asks inside **its own class**, and hands a question outside that class to the stage that owns it — named in the report, so it is asked at the stage that can answer it cheaply:
