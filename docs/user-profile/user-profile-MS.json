@@ -402,18 +402,19 @@
       "phase": 6,
       "title": "Password change on the profile page",
       "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-14", "AC-17", "AC-19"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/user-profile-phase-6",
       "pr": {
         "number": 187,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/187",
-        "state": "open"
+        "state": "merged"
       },
       "milestone": {
         "number": 29,
         "title": "UP 6 · Password change on the profile page",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/29",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-23"
       },
       "issues": [
         {
@@ -422,7 +423,8 @@
           "title": "UP 6.1 — Cover the password form and the revoked session",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/164",
           "labels": ["frontend", "security", "test"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "6.2",
@@ -430,7 +432,8 @@
           "title": "UP 6.2 — Change the password from the profile page",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/165",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "6.3",
@@ -438,7 +441,8 @@
           "title": "UP 6.3 — Keep the caller signed in after the change",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/166",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "6.4",
@@ -446,7 +450,8 @@
           "title": "UP 6.4 — Land a revoked session on `/login`",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/167",
           "labels": ["frontend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "6.5",
@@ -454,20 +459,16 @@
           "title": "UP 6.5 — Document the password flow and close the feature's docs",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/168",
           "labels": ["frontend", "documentation"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         }
       ]
     }
   ],
   "progress": {
     "updatedAt": "2026-08-23",
-    "completedPhases": [1, 2, 3, 4, 5],
-    "currentPhase": 6,
-    "nextPhase": {
-      "phase": 6,
-      "milestone": 29,
-      "title": "UP 6 · Password change on the profile page",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/29"
-    }
+    "completedPhases": [1, 2, 3, 4, 5, 6],
+    "currentPhase": null,
+    "nextPhase": null
   }
 }
