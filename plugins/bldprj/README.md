@@ -30,6 +30,7 @@ bldprj/
 ├── CLAUDE.md                    # for whoever edits the plugin: goals, invariants, workflow
 ├── PIPELINE.md                  # the contract all stages share: identity, versions, asking
 ├── REFACTOR-TRACK.md            # everything the refactor track does differently
+├── agents/<name>.md             # the read-only subagents the skills delegate their reading to
 ├── skills/<name>/SKILL.md       # one skill per stage
 └── scripts/docs-lint.mjs        # the validator (docs-lint.test.mjs is its node:test suite)
 ```
@@ -48,6 +49,8 @@ claude plugin install bldprj@<marketplace name> --scope project
 A marketplace install **copies** the plugin into `~/.claude/plugins/cache`; edits to the source reach that copy only after `claude plugin marketplace update` + `claude plugin update`, and the `version` in `plugin.json` is the update signal — bump it when a skill changes.
 
 The zero-install alternative: symlink this folder into a **skills directory** — `.claude/skills/bldprj` for one project, `~/.claude/skills/bldprj` for every project — and it loads in place, edits taking effect the next session. Don't combine both in one project: the pipeline would load twice.
+
+A skills directory loads **skills only**. The subagents below are scanned from `agents/` on a plugin install, so on the symlink route link them too — `.claude/agents/<name>.md` → `<this folder>/agents/<name>.md` — or every delegation quietly falls back to running inline.
 
 Either way the skills are invoked namespaced:
 
@@ -78,6 +81,27 @@ node --test scripts/docs-lint.test.mjs      # the validator's own suite
 
 Exit code 1 on an error, 0 on warnings only. A project may wrap it in a `docs:lint` script of its own; the skills' postflight uses that script when it exists and falls back to the plugin's copy (`PIPELINE.md`, Writing a document).
 
+## Subagents
+
+`agents/` ships ten read-only subagents, and twelve steps across eight skills hand their reading to one:
+
+| Agent                                                           | Serves                                                                                     |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `security-analyst`                                              | `security-analyse` and `build-phase` — the checklist walk, and the diff against it         |
+| `architecture-scout`                                            | `research` and `plan-phase` — one decision's options, costed and sourced                   |
+| `code-reviewer`                                                 | `build-phase`, `refactor-prd`, `close-feature` — a diff or a module, and its docs          |
+| `test-designer`                                                 | `build-phase` and `close-feature` — the cases a task needs, the evidence a criterion has   |
+| `delivery-lead`                                                 | `plan-phase` and `refactor-prd` — the phase cut's risk, and outcomes as numbers            |
+| `backlog-analyst`                                               | `prd` and `pre-issues` — criteria that cannot fail, and traceability both ways             |
+| `backend-reviewer` · `frontend-reviewer` · `fullstack-reviewer` | `research` and `build-phase` — one layer's mechanisms and defects, or the seam between two |
+| `docs-writer`                                                   | `build-phase` and `close-feature` — the lines a change still owes                          |
+
+They are an optimisation, never a dependency. **Delegating a step** in `PIPELINE.md` sets the ladder: the project's own habit first, the plugin's agent second, the step run inline third — so a project with no agents, or a session where the Agent tool is refused, runs the pipeline exactly as it always did, and the run's report says which of the three happened.
+
+None of them can write. `Write`, `Edit` and `NotebookEdit` are removed from every one, no agent mints an identifier, and the repository is changed only by the session running the skill. `tools` is deliberately left unset, so everything else the session offers — MCP servers, practice skills, the web — is available to them for reading. Each takes the stack from the host project's own `CLAUDE.md`, which a subagent receives automatically.
+
+**To override one**, put an agent of the same name in the project's own `.claude/agents/`; the skills name the bare role, so yours is what resolves. **To switch them all off**, deny the Agent tool — every step falls to the inline level and nothing breaks.
+
 ## What the skills assume about a project
 
 The stages are project-agnostic: commands, layers, stacks and conventions are **read from the project's own docs** (`CLAUDE.md`, `README.md`, module docs) at run time, and the concrete names inside the skills are examples, not requirements. What a project has to provide:
@@ -85,4 +109,5 @@ The stages are project-agnostic: commands, layers, stacks and conventions are **
 - `docs/` as the documents' home — `docs/<slug>/` per work item, `docs/INDEX.md`, `docs/archive/`, `docs/Features.md` / `docs/Refactor.md`; the skills create each of these on first use.
 - `gh` authenticated against the repo, for `issues`, `build-phase` and `close-feature`.
 - Project docs that actually state its conventions — how to run tests, lint and build, where module docs live, **and how each layer is written and verified** — since the skills read them instead of assuming a stack. That last one is what `plan-phase` copies into every phase's **Verified by** and `build-phase` writes code to; a project silent about it gets a pipeline silent about it.
+- Nothing for the subagents: delegation adds no requirement, and a project that offers no agents runs every step inline.
 - The labels its backlog uses (e.g. layer labels plus `security`, `test`, `refactor`, `performance`); `issues` applies only labels the repo has and asks before creating a missing one.

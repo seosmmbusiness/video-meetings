@@ -68,6 +68,11 @@ Each decision also gets:
 - **Replaceability** — an interface plus configuration, so swapping the implementation later leaves calling code untouched.
 - **Testability** — how it is proven in this repo's style, as its docs prescribe per layer (e.g. test-first on the API, e2e specs on the web app).
 
+**Delegate** — `architecture-scout`, one call per decision point and all of them in a single round, since the points are independent (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)). Where a decision belongs to one layer, that layer's reviewer — `backend-reviewer` or `frontend-reviewer` — instead:
+
+- **Hand it**: the decision point as step 3 stated it, the absolute paths of the plan and the PRD, what step 2 found in the repo, and this step's order — repo first, then platform, then a dependency.
+- **Expect back**: the costed options, one recommendation with what it costs as well as what it buys, where it lands, and a cited source for every version and limit, marked `not verified` where it could not be checked. The `D-<n>` is minted here, and anything paid, external or scope-moving comes back as a question for step 5 rather than as a decision.
+
 Done when every decision point from step 3 has a named winner, its rejected alternatives, and a source behind every version and limit claimed.
 
 ### 5. Ask what only the user can decide

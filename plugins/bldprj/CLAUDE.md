@@ -23,6 +23,7 @@ bldprj/
 ├── PIPELINE.md                  # the shared contract: identity, artifacts, versions, asking, reporting
 ├── REFACTOR-TRACK.md            # the refactor track's overrides, per skill
 ├── README.md                    # install, validator, what a host project must provide
+├── agents/<name>.md             # read-only subagents; the steps that only read hand over to these
 ├── skills/<name>/SKILL.md       # one skill per stage — frontmatter `name` + `description`, then steps
 └── scripts/
     ├── docs-lint.mjs            # the validator: enforces what PIPELINE.md makes mechanical
@@ -55,6 +56,8 @@ Break one of these and the chain stops resolving. The linter enforces the mechan
 - **The plan is revised in place; FINAL is versioned.** A `-PLAN-v<N>.md` is a contract violation the linter reports.
 - **A skill writes documents, not code.** Only `build-phase` touches the host project's source, installs anything or edits its manifest.
 - **Every skill reads `PIPELINE.md` before its step 1**, and the refactor track's file when the argument carries the `-REFACTOR-` infix. Rules are stated once, there, not copied into skills.
+- **Delegation is never load-bearing.** A step may hand its reading to an agent, and every **Done when** stays reachable inline. A skill that cannot be run without a subagent is a broken skill.
+- **No shipped agent writes.** Agents read and report: `Write`, `Edit` and `NotebookEdit` are removed from every one, and none mints an identifier. Only `build-phase` touches the host project's source, and only in the session running it.
 - **Every run ends with the next command in the chain**, so the user never has to remember the order.
 
 ## Working on the plugin
@@ -63,6 +66,7 @@ Break one of these and the chain stops resolving. The linter enforces the mechan
 - **A rule belongs in one place.** New shared behaviour goes in `PIPELINE.md`; a track difference in `REFACTOR-TRACK.md`; only the steps themselves in a `SKILL.md`. A rule stated twice will drift.
 - **Changing an artifact name, a heading a later stage parses, or an id shape is a breaking change** — grep the whole plugin for it, update `docs-lint.mjs`, and add a case to `docs-lint.test.mjs`.
 - **Nothing project-specific.** No stack, script name, framework or repo of a host project in the text except as an explicitly marked example (`e.g. …`). The skills read the host's `CLAUDE.md` / `README.md` / module docs instead.
+- **An agent's `description` routes it, and its `## Report` is consumed by a named step** — both are interfaces. Changing either means grepping the skills for the agent's name and updating the `Expect back` line that reads it.
 - **Keep the tables in sync**: the stage table appears in `PIPELINE.md`, `README.md` and this file, and the pipeline chain line appears in every `SKILL.md`. Adding or renaming a stage means touching all of them.
 
 ### Before committing a change
@@ -76,18 +80,22 @@ npx prettier --check <the files you touched>              # the host repo format
 
 `claude plugin validate` reports one **expected warning**: "CLAUDE.md at the plugin root is not loaded as project context." That is correct and deliberate — this file is for whoever edits the plugin, in the repo that hosts it, where it loads as ordinary nested project context. It is not meant to reach an installed copy, and the fix the warning suggests (turn it into a skill) would put plugin-maintenance instructions into the user's skill list. Run `--strict` only when you want that warning to fail the command.
 
-Then bump `version` in `.claude-plugin/plugin.json` — for a marketplace install it is the only signal that an update exists. Commit subject: `bldprj: <what changed>`.
+Then bump `version` in `.claude-plugin/plugin.json` — for a marketplace install it is the only signal that an update exists — and name that same version in this file's **Status** section, since a release recorded in the manifest and nowhere else is exactly how 2.3.0 and 2.3.1 drifted apart. Commit subject: `bldprj: <what changed>`.
 
 ### Installed two ways
 
-- **Skills directory** (this repo): `.claude/skills/bldprj` → `../../plugins/bldprj`. Loads in place; edits take effect next session. This is what makes the plugin editable while it is in use.
+- **Skills directory** (this repo): `.claude/skills/bldprj` → `../../plugins/bldprj`. Loads in place; edits take effect next session. This is what makes the plugin editable while it is in use. It loads **skills only** — a plugin's `agents/` folder is scanned for installed plugins — so link the agents too, `.claude/agents/<name>.md` → `../../plugins/bldprj/agents/<name>.md`, or every delegation falls silently to the inline level. `/agents` says which happened.
 - **Marketplace**: `.claude-plugin/marketplace.json` at the repo root lists it; installing **copies** it into `~/.claude/plugins/cache`, so edits reach that copy only after `claude plugin marketplace update` + `claude plugin update`.
 
 Never both in one project — the pipeline would load twice.
 
 ## Status
 
-Version 2.3.0. Ten skills, both tracks, the validator and its suite are in place, and the plugin is decoupled from the repo that hosts it (no host-project names in the pipeline text). The skills are invoked namespaced: `/bldprj:prd`, `/bldprj:plan-phase`, …
+Version 2.4.0. Ten skills, ten agents, both tracks, the validator and its suite are in place, and the plugin is decoupled from the repo that hosts it (no host-project names in the pipeline text). The skills are invoked namespaced: `/bldprj:prd`, `/bldprj:plan-phase`, …; an agent is `bldprj:<name>` on a plugin install, and `<name>` where `agents/` has been linked into an agents directory.
+
+2.4.0 gave the pipeline somewhere to put its reading. Every stage ran as one thread, so a step that was an analysis pass over material already written down — a surface walked through a checklist, a diff read for defects, options costed, criteria evidenced — spent the same context that then had to write the artifact. `agents/` now ships ten read-only subagents, and `PIPELINE.md` gained **Delegating a step**: a three-level ladder — the project's own habit first, the plugin's agent second, the step inline third — so **no step depends on delegation being possible** and a run without agents behaves exactly as it did before. Twelve steps across eight skills name one; `issues` and `status` name none, because one writes to GitHub and the other has to stay the cheapest skill here. What the agents add over a generic role prompt is the contract: a fixed report shape the calling step consumes, a refusal to mint any identifier or take any disposition, and doctrine handed over as a path rather than restated — `security-analyst` states no checklist of its own and reads `security-analyse`'s, because a rule stated twice will drift. `tools` is left unset on every agent so the whole remaining pool, MCP servers and practice skills included, is available for reading, and `disallowedTools` takes the writes away. The same release added the `## build-phase on a refactor` heading that `REFACTOR-TRACK.md` had always been referred to by `build-phase` step 5 and never actually had.
+
+2.3.1 pointed the module-docs example at `docs/modules`.
 
 2.3.0 closed the gap between a project's stated workflow and the commits built under it. A workflow a project mandates — an API developed test-first, a screen proven by an e2e spec — used to be readable only in the host's own `CLAUDE.md`: `plan-phase` had nowhere in its template to record it, `pre-issues` had nothing to carry, `issues` published bodies that never mentioned it, and only `build-phase` could recover it, by rediscovering it at run time. Every phase block now carries **Verified by** (`PIPELINE.md`, **The project's workflow**), written by `plan-phase` out of the project's docs, hardened and carried by `pre-issues`, rendered into every issue body by `issues`, and worked to by `build-phase`. A task whose whole output is test code opens its description with `tests:`: `issues` takes the `test` label from that marker, and the five-tasks-per-phase ceiling counts only the tasks that **build**, so writing the specs down never costs a phase a split. `pre-issues` gained a tenth conflict class, **Workflow** (parity is the refactor track's eleventh), and `build-phase` made one-commit-per-task a floor rather than a preference — a commit never carries two tasks, and on a test-first layer a task lands as a red `test(...)` commit plus the `feat(...)` that greens it, so Red→Green is legible in `git log` instead of taken on trust. `docs-lint.mjs` warns on a phase with no **Verified by**, counts the ceiling around `tests:` tasks, and exempts `docs/archive/` from both — a field the contract gained after a feature shipped is not a finding against it.
 
@@ -100,6 +108,7 @@ Known gaps:
 - **`checkMap` matches the map heading anywhere in the file**, so a document merely mentioning "Decision map" passes the check that it has one.
 - **`checkCitations` reads ids from a document's text**, so an id inside a fenced code block or an illustrative example counts as a citation. Harmless today, since neither research nor threats documents ship examples of foreign ids.
 - **Nothing checks the `## Revisions` sections against each other** — a research round recorded with no corresponding threats round is invisible to the linter, and only `pre-issues` would notice.
+- **Nothing checks a delegation against the agents that exist.** A `**Delegate**` line naming an agent this plugin does not ship, or a shipped agent no step ever names, is invisible: `claude plugin validate .` parses agent frontmatter, but the wiring between a step and its agent lives only in prose.
 - **`build-phase`, `issues` and `close-feature` are unlinted**: they act on GitHub, and their invariants live only in prose.
 - **Nothing checks a `**Verified by**` line against the project docs it cites** — only that a phase has one. A line that has drifted from the host's `CLAUDE.md` is `pre-issues`' conflict class 10 to catch, by reading, and nothing mechanical backs it up.
 - **The `tests:` marker is matched at the head of a task's description**, so a building task whose description happens to open by discussing tests would read as test-only and slip the ceiling. The marker is a contract, not a heuristic, and the linter treats it as one.

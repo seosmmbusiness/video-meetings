@@ -43,6 +43,11 @@ Done when you can name, for every phase you are about to write, the existing mod
 
 Apply the phasing rules below to the acceptance criteria from step 1, in order, starting from the tracer bullet.
 
+**Delegate** — `architecture-scout` and `delivery-lead`, in one round (**Delegating a step** in [`PIPELINE.md`](../../PIPELINE.md)):
+
+- **Hand it**: the draft cut — each phase's goal, layer and tasks — the absolute path of the PRD, and what step 2 found in the repo.
+- **Expect back**: from the scout, the ordering the code forces and what a phase would otherwise build twice; from the lead, the phases that end half-built, where the risk is stacked, and what this plan is most likely wrong about. The cut stays this skill's, and step 4 still puts it to the user.
+
 Done when every acceptance criterion in the PRD is covered by at least one phase, no phase carries more than five building tasks, and each phase's **Done when** is something a person can run or observe.
 
 ### 4. Put the cut to the user
