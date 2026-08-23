@@ -327,13 +327,14 @@
       "phase": 5,
       "title": "Password change and session revocation",
       "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-15", "AC-18", "AC-20"],
-      "status": "in-review",
+      "status": "completed",
       "branch": "feature/user-profile-phase-5",
       "milestone": {
         "number": 28,
         "title": "UP 5 · Password change and session revocation",
         "url": "https://github.com/seosmmbusiness/video-meetings/milestone/28",
-        "state": "open"
+        "state": "closed",
+        "completedAt": "2026-08-23"
       },
       "issues": [
         {
@@ -342,7 +343,8 @@
           "title": "UP 5.1 — Cover the password change and session revocation",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/158",
           "labels": ["backend", "security", "test"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "5.2",
@@ -350,7 +352,8 @@
           "title": "UP 5.2 — Change the password behind the current one",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/159",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "5.3",
@@ -358,7 +361,8 @@
           "title": "UP 5.3 — Hold the new password to the registration rules",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/160",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "5.4",
@@ -366,7 +370,8 @@
           "title": "UP 5.4 — Make a session revocable per account",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/161",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "5.5",
@@ -374,7 +379,8 @@
           "title": "UP 5.5 — Issue every token through one handler",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/162",
           "labels": ["backend", "security"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         },
         {
           "task": "5.6",
@@ -382,13 +388,14 @@
           "title": "UP 5.6 — Document the revocation and the password route",
           "url": "https://github.com/seosmmbusiness/video-meetings/issues/163",
           "labels": ["backend", "documentation"],
-          "state": "OPEN"
+          "state": "CLOSED",
+          "closedAt": "2026-08-23"
         }
       ],
       "pr": {
         "number": 185,
         "url": "https://github.com/seosmmbusiness/video-meetings/pull/185",
-        "state": "open"
+        "state": "merged"
       }
     },
     {
@@ -448,8 +455,8 @@
   ],
   "progress": {
     "updatedAt": "2026-08-23",
-    "completedPhases": [1, 2, 3, 4],
-    "currentPhase": 5,
+    "completedPhases": [1, 2, 3, 4, 5],
+    "currentPhase": 6,
     "nextPhase": {
       "phase": 6,
       "milestone": 29,

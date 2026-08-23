@@ -328,7 +328,7 @@ credential check on a route a signed-in caller can hammer. E2e proves the revoca
 HTTP with two tokens (`apps/api/test/profile.e2e-spec.ts`); the guard's own decision is a unit spec
 (`src/auth/strategies/jwt.strategy.spec.ts`). Suites: `npm run test:api`, `npm run test:int:api`,
 `npm run test:e2e:api`.
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/185
+**Status**: complete — 2026-08-23, branch feature/user-profile-phase-5, PR https://github.com/seosmmbusiness/video-meetings/pull/185
 **Tasks**:
 
 - [x] **5.1** Cover the password change and session revocation — tests: `profile.e2e-spec.ts` for
