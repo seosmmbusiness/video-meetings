@@ -25,6 +25,7 @@ import {
   ApiOperation,
   ApiPayloadTooLargeResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
@@ -252,6 +253,9 @@ export class ProfileController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiForbiddenResponse({ description: 'The current password is incorrect' })
   @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many password-change attempts',
+  })
   changePassword(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePasswordDto,
