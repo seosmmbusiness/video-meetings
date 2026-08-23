@@ -172,11 +172,14 @@ raised from Node's 300 s default so a genuinely slow link isn't refused outright
   `1` makes busboy emit its `partsLimit` event on that single upload and multer answers `400`.
   Measured directly against this repo's busboy version; re-check if multer/busboy are upgraded.
 - **The throttler is tracked by credential, not socket** (`app.module.ts`'s
-  `ThrottlerModule.forRoot({ getTracker, throttlers: [...] })`): `sha256(Authorization header)` when
-  present, else `req.ip`. Without it, every caller behind `apps/web`'s server-to-server proxy shares
-  one IP-keyed bucket — a single multi-file upload batch would trip the shared limit for the whole
-  installation. `APP_GUARD` guards run before controller guards, so `req.user` isn't set yet at
-  throttle time; hashing the raw header also keeps the token itself out of throttler storage/logs.
+  `getTracker: trackerFromRequest`, in `src/config/throttler.config.ts`): `sha256(the bearer token)`
+  when present, else `req.ip`. Without it, every caller behind `apps/web`'s server-to-server proxy
+  shares one IP-keyed bucket — a single multi-file upload batch would trip the shared limit for the
+  whole installation. `APP_GUARD` guards run before controller guards, so `req.user` isn't set yet
+  at throttle time; hashing keeps the token itself out of throttler storage/logs. It keys on the
+  **token**, not the raw header: `passport-jwt` matches the scheme case-insensitively out of an
+  unanchored `/(\S+)\s+(\S+)/`, so `bearer <tok>` and `Bearer  <tok>` authenticate the same session
+  and must not get a bucket each.
 - **`QuotaReservationService.reserve` serializes per owner, not globally.** A plain
   `await persistedTotal()` then `Map.set()` leaves a TOCTOU window: two concurrent reservations for
   the _same_ owner could both read the persisted total before either records its own declared
