@@ -29,6 +29,21 @@ function positiveIntOr(raw: string | undefined, fallback: number): number {
   return value;
 }
 
+/** The minimum a throttled request has to carry for {@link trackerFromRequest}. */
+export interface TrackedRequest {
+  headers: { authorization?: string };
+  ip?: string;
+}
+
+/**
+ * Keys a request's rate-limit bucket by the credential it carries.
+ * @param req - The incoming request, read for its `Authorization` header.
+ * @returns The bucket key: a hash of the caller's credential, or its address.
+ */
+export function trackerFromRequest(req: TrackedRequest): string {
+  throw new Error(`Not implemented: ${String(req.ip)}`);
+}
+
 /**
  * Reads the global throttle window and ceiling from the environment.
  * @param env - The environment to read `THROTTLE_TTL_MS` and `THROTTLE_LIMIT` from.
