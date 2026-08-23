@@ -396,7 +396,7 @@ the two-session behaviour through Playwright with a second browser context in
 source, the client bundle or any browser-visible response, and the protected page against a revoked
 session. UI reviewed with `web-design-guidelines` then `ui-ux-pro-max`. Suites: `npm run test:web`,
 `npm run test:e2e:web`.
-**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/187
+**Status**: complete — 2026-08-23, branch feature/user-profile-phase-6, PR https://github.com/seosmmbusiness/video-meetings/pull/187
 **Tasks**:
 
 - [x] **6.1** Cover the password form and the revoked session — tests: `apps/web/e2e/profile.spec.ts`
