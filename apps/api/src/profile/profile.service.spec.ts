@@ -1,12 +1,16 @@
 import {
+  ForbiddenException,
   InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { HashPasswordCommand } from '../credentials/commands/hash-password.command';
+import { VerifyPasswordQuery } from '../credentials/queries/verify-password.query';
 import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from '../users/commands/update-user-name.command';
+import { UpdateUserPasswordCommand } from '../users/commands/update-user-password.command';
 import { FindUserByIdQuery } from '../users/queries/find-user-by-id.query';
 import { ProfileService } from './profile.service';
 
@@ -472,6 +476,121 @@ describe('ProfileService', () => {
       await expect(service.getAvatarFile('user-1')).rejects.toBeInstanceOf(
         InternalServerErrorException,
       );
+    });
+  });
+
+  describe('changePassword', () => {
+    /** A change whose current password is the account's own. */
+    const CHANGE = {
+      currentPassword: 'Str0ngPass',
+      newPassword: 'N3wStrongPass',
+    };
+
+    beforeEach(() => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(true)
+          : Promise.resolve(userRow()),
+      );
+      commandBus.execute.mockImplementation((command: unknown) =>
+        command instanceof HashPasswordCommand
+          ? Promise.resolve('$2b$12$newhash')
+          : Promise.resolve(userRow({ passwordHash: '$2b$12$newhash' })),
+      );
+    });
+
+    it("verifies the current password against the caller's own stored hash (D-11)", async () => {
+      await service.changePassword('user-1', CHANGE);
+
+      const [verify] = queryBus.execute.mock.calls
+        .map(([query]: [unknown]) => query)
+        .filter(
+          (query: unknown): query is VerifyPasswordQuery =>
+            query instanceof VerifyPasswordQuery,
+        );
+      expect(verify.password).toBe('Str0ngPass');
+      expect(verify.storedHash).toBe('$2b$10$hash');
+    });
+
+    it('hashes the new password through the credentials module (D-11)', async () => {
+      await service.changePassword('user-1', CHANGE);
+
+      const [hash] = commandBus.execute.mock.calls
+        .map(([command]: [unknown]) => command)
+        .filter(
+          (command: unknown): command is HashPasswordCommand =>
+            command instanceof HashPasswordCommand,
+        );
+      expect(hash.password).toBe('N3wStrongPass');
+    });
+
+    it('writes the new hash through the users module (D-3)', async () => {
+      await service.changePassword('user-1', CHANGE);
+
+      const [write] = commandBus.execute.mock.calls
+        .map(([command]: [unknown]) => command)
+        .filter(
+          (command: unknown): command is UpdateUserPasswordCommand =>
+            command instanceof UpdateUserPasswordCommand,
+        );
+      expect(write.userId).toBe('user-1');
+      expect(write.passwordHash).toBe('$2b$12$newhash');
+    });
+
+    it('refuses a wrong current password with 403, never 401 (AC-11, D-11)', async () => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(false)
+          : Promise.resolve(userRow()),
+      );
+
+      await expect(
+        service.changePassword('user-1', CHANGE),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('names the refusal in the words the web form shows verbatim (AC-11)', async () => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(false)
+          : Promise.resolve(userRow()),
+      );
+
+      await expect(service.changePassword('user-1', CHANGE)).rejects.toThrow(
+        'Current password is incorrect.',
+      );
+    });
+
+    it('changes nothing when the current password is wrong (AC-11)', async () => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(false)
+          : Promise.resolve(userRow()),
+      );
+
+      await expect(service.changePassword('user-1', CHANGE)).rejects.toThrow();
+
+      // Neither the hashing cost nor the write is reached: a refused attempt
+      // leaves the stored credential exactly as it was.
+      expect(commandBus.execute).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when the token names a row that is gone', async () => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(true)
+          : Promise.resolve(null),
+      );
+
+      await expect(
+        service.changePassword('user-1', CHANGE),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('never returns the row it was built from (S-1, AC-18)', async () => {
+      const result = await service.changePassword('user-1', CHANGE);
+
+      expect(JSON.stringify(result ?? null)).not.toContain('$2b$');
     });
   });
 });

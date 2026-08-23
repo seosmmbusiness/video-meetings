@@ -19,6 +19,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -34,6 +35,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { buildAvatarMulterOptions } from './avatar-multer.config';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AvatarMulterExceptionFilter } from './filters/avatar-multer-exception.filter';
@@ -220,5 +222,29 @@ export class ProfileController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProfileResponseDto> {
     return this.profileService.removeAvatar(user.userId);
+  }
+
+  /**
+   * Changes the caller's own password behind the current one.
+   *
+   * Unimplemented shell — it ships with the failing specs so the typed lint
+   * gate can resolve the names they use; the commit after this one is what
+   * makes it behave.
+   * @param user - The authenticated user, extracted from the JWT.
+   * @param dto - The current password and the one to store in its place.
+   */
+  @Patch('password')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: "Change the authenticated caller's own password" })
+  @ApiOkResponse({ description: 'The password was changed' })
+  @ApiBadRequestResponse({ description: 'Invalid password payload' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  @ApiForbiddenResponse({ description: 'The current password is incorrect' })
+  @ApiNotFoundResponse({ description: 'The account no longer exists' })
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
+    return this.profileService.changePassword(user.userId, dto);
   }
 }

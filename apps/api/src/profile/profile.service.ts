@@ -11,6 +11,7 @@ import { FileStorage } from '../storage/file-storage';
 import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
 import { UpdateUserNameCommand } from '../users/commands/update-user-name.command';
 import { FindUserByIdQuery } from '../users/queries/find-user-by-id.query';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ProfileResponseDto } from './dto/profile-response.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -177,6 +178,21 @@ export class ProfileService {
       // produces rather than a type the caller gets to influence.
       mimeType: user.avatarMimeType ?? 'application/octet-stream',
     };
+  }
+
+  /**
+   * Changes the caller's own password behind the current one.
+   *
+   * Unimplemented shell — it ships with the failing specs so the typed lint
+   * gate can resolve the names they use; the commit after this one is what
+   * makes it behave.
+   * @param userId - The caller's id, taken from the verified token.
+   * @param dto - The current password and the one to store in its place.
+   */
+  changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    void userId;
+    void dto;
+    return Promise.reject(new Error('Not implemented'));
   }
 
   /**
