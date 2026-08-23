@@ -157,6 +157,25 @@ describe('PasswordForm', () => {
     expect(screen.getByLabelText('Confirm new password')).toHaveValue('');
   });
 
+  it('withdraws the confirmation once the fields are typed into again', async () => {
+    action.mockResolvedValue({ ok: true });
+    render(<PasswordForm />);
+
+    await changePassword();
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Password changed.',
+    );
+
+    // The confirmation is about the change that landed. Starting another one
+    // makes it stale, exactly as a refusal is withdrawn on the first keystroke.
+    await userEvent.type(
+      screen.getByLabelText('Current password'),
+      NEW_PASSWORD,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+
   it('masks every field and describes it in words rather than in bullet characters', () => {
     render(<PasswordForm />);
 
