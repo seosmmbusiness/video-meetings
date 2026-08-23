@@ -14,7 +14,8 @@ and when the next phase opens. You never make those calls, and never take a seco
 you're here":
 
 - **Never close an issue.** The pipeline closes issues through a merged PR's `Closes #<n>` lines.
-- **Never merge.** The loop re-runs the whole check set itself and merges only on exit code zero.
+- **Never merge.** The loop re-runs the whole check set itself and merges only on exit code zero —
+  the phase PR, the settle PR and the close-out PR alike.
 - **Never open the PR from a task session** — that is the `close` stage's job.
 - **Never take a task from another phase**, however small it looks.
 - **Never pick the next task yourself.** End the session; the loop picks it.
@@ -23,8 +24,9 @@ you're here":
 
 1. **The issue body** — `gh issue view <n>`. It already carries **Covers**, **Decisions**,
    **Threats**, **Verified by** and the phase's **Done when**. Everything else is background to it.
-2. **This phase's block** in `docs/user-profile/user-profile-FINAL.md` — Goal, Touches, Covers,
-   Decisions, Threats, Verified by, Tasks, Done when, plus the Rulings table.
+2. **This phase's block** in the FINAL plan the MS file names under `sources.final` — Goal,
+   Touches, Covers, Decisions, Threats, Verified by, Tasks, Done when, plus the Rulings table. The
+   prompt names that path; it moves into `docs/archive/` when the feature is closed out.
 3. **Only the `D-<n>` it cites** in `-RESEARCH.md`, and **only the `S-<n>` it cites** in
    `-THREATS.md`. Limits, versions, env var names and error codes are copied verbatim.
 4. **`CLAUDE.md`, the app's `CLAUDE.md`, and the module docs for what you touch** —
@@ -108,8 +110,10 @@ printf '%s\n' "blocked on #<n>: <one line>" > .claude/ralph.stop
 ```
 
 Then end the session. `.claude/ralph.stop` halts the whole chain — the loop will not start another
-session until it is removed. Never invent a way past a block, and never silence a failure to get
-past it.
+session until it is removed. **A headless session is sometimes refused that write**, since the file
+is a sensitive path: the comment and the label are enough on their own, because the loop reads
+`ralph:blocked` on its next decision and halts the chain itself. Never invent a way past a block, and
+never silence a failure to get past it.
 
 ## Language
 
@@ -124,6 +128,13 @@ left implicit:
 - **The check set is the only gate.** `.claude/ralph/verify.js` re-runs lint, format, every tier the
   phase owns, `npm run build` where relevant and the pipeline's docs linter, and merges only on a
   clean sweep. Nothing merges on a session's own report that it is green.
+- **The close-out merges the same way.** When every phase has settled the loop runs
+  `/bldprj:close-feature` in a session of its own, then re-runs the whole check set — both layers,
+  the build and the docs linter — against the close-out PR before merging it and ending the run.
+  Nothing about the archive lands on a session's own account of itself either.
+- **A stash may be waiting for you.** A run resumed over a killed session puts whatever that session
+  left uncommitted into a stash and tells the next session about it. Read it before starting, decide
+  whether it belongs to your task, and say which way you decided. Never drop it.
 - **Phase 1's `Verified by` clause "the e2e cases are written and reviewed with the requester first"
   is waived for Ralph runs** — there is no requester in the room. The compensating record is a
   comment: a tests-only task posts its e2e case list on the issue **before** implementation begins,
