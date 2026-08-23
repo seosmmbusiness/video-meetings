@@ -138,6 +138,56 @@ function docsLint() {
 }
 
 /**
+ * What to do about the branch the checks would run on.
+ *
+ * The chain is normally already standing on the branch it is about to merge — the close, settle and
+ * close-out sessions all end there. A run resumed by hand can be anywhere, and a check set that
+ * passes on another branch says nothing about the PR it would merge.
+ *
+ * @param {string} current The branch the working tree is on.
+ * @param {string|null} head The PR's head branch, when GitHub reported one.
+ * @param {boolean} dirty Whether the tree has uncommitted changes.
+ * @returns {{ action: string, why: string }} `none`, `checkout` or `refuse`, and why.
+ */
+function branchPlan(current, head, dirty) {
+  if (!head || current === head) return { action: 'none', why: '' };
+  if (dirty) {
+    return {
+      action: 'refuse',
+      why: `the checks would run on ${current}, not on the PR's ${head}, and the tree is dirty`,
+    };
+  }
+  return { action: 'checkout', why: `switching from ${current} to ${head}` };
+}
+
+/**
+ * Puts the working tree on the PR's own branch, when it is not there already.
+ *
+ * @param {object} pr What `prView` reported about the PR.
+ * @returns {{ ok: boolean, why: string }} Whether the checks may run.
+ */
+function alignToPr(pr) {
+  const current = lib
+    .run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
+    .stdout.trim();
+  const dirty = Boolean(
+    lib.run('git', ['status', '--porcelain']).stdout.trim(),
+  );
+  const plan = branchPlan(current, pr && pr.headRefName, dirty);
+  if (plan.action === 'none') return { ok: true, why: '' };
+  if (plan.action === 'refuse') return { ok: false, why: plan.why };
+  process.stdout.write(`\n=== ${plan.why} ===\n`);
+  const out = lib.run('git', ['checkout', pr.headRefName]);
+  if (out.code !== 0)
+    return {
+      ok: false,
+      why: `git checkout ${pr.headRefName}: ${out.stderr.trim()}`,
+    };
+  lib.run('git', ['pull', '--ff-only']);
+  return { ok: true, why: plan.why };
+}
+
+/**
  * The scripts a scope has to run, in the order they run.
  *
  * A phase PR is gated on its own layer. A settle PR moves documents only. A close-out PR is the last
@@ -270,6 +320,12 @@ async function main() {
     return;
   }
 
+  const aligned = alignToPr(lib.prView(opts.pr));
+  if (!aligned.ok) {
+    lib.halt(`${aligned.why} — PR ${opts.pr} left open`, state);
+    return;
+  }
+
   const results = await runChecks(config, opts.phaseIndex, opts.scope);
 
   // Being killed is not a red check set. The monitor's Stop and Rollback write the stop or pause
@@ -351,7 +407,7 @@ async function main() {
   lib.advance();
 }
 
-module.exports = { abandoned, checkScripts, needsDb, parseArgs };
+module.exports = { abandoned, branchPlan, checkScripts, needsDb, parseArgs };
 
 // Only when run as a step of the chain: requiring this file — a suite does — must not merge a PR.
 if (require.main === module) {

@@ -562,7 +562,8 @@ function issueHasLabel(number, label) {
  * The state of a pull request.
  *
  * @param {string} ref A PR URL or number.
- * @returns {{ state: string, mergedAt: string|null, mergeable: string }} What GitHub reports.
+ * @returns {{ state: string, mergedAt: string|null, mergeable: string, headRefName: string }} What
+ *   GitHub reports.
  */
 function prView(ref) {
   return gh([
@@ -570,7 +571,7 @@ function prView(ref) {
     'view',
     ref,
     '--json',
-    'state,mergedAt,mergeable,url,number',
+    'state,mergedAt,mergeable,url,number,headRefName',
   ]);
 }
 

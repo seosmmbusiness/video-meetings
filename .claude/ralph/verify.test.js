@@ -110,3 +110,31 @@ test('the close-out gate stands up its own infrastructure, whatever the phase sa
   );
   assert.equal(verify.needsDb(CONFIG, 0, 'docs'), false);
 });
+
+test('the gate checks the PR’s own branch, and switches to it when it is not there', () => {
+  // The chain is normally already on the branch it is about to merge — the close stage left it
+  // there. A run resumed by hand can be anywhere, and checks that pass on another branch say
+  // nothing at all about the PR they would merge.
+  assert.deepEqual(
+    verify.branchPlan('feature/x-phase-1', 'feature/x-phase-1', false),
+    {
+      action: 'none',
+      why: '',
+    },
+  );
+  assert.equal(
+    verify.branchPlan('main', 'chore/x-closeout', false).action,
+    'checkout',
+  );
+});
+
+test('the gate refuses to switch over work somebody left in the tree', () => {
+  const plan = verify.branchPlan('main', 'chore/x-closeout', true);
+  assert.equal(plan.action, 'refuse');
+  assert.match(plan.why, /chore\/x-closeout/);
+});
+
+test('a PR whose branch cannot be read is checked where the chain stands', () => {
+  assert.equal(verify.branchPlan('main', null, false).action, 'none');
+  assert.equal(verify.branchPlan('main', '', true).action, 'none');
+});
