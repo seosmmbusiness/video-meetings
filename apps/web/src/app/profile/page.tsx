@@ -32,10 +32,12 @@ export default async function ProfilePage() {
     profile = await getProfile(session.token);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      // The cookie is present but apps/api rejects the token itself (expired
-      // or tampered) — signed out, not an error to render. Nothing of the
-      // profile has been produced at this point, so nothing leaks with the
-      // redirect (AC-14).
+      // The cookie is present but apps/api rejects the token itself (expired,
+      // tampered, or revoked by a password change elsewhere) — signed out, not
+      // an error to render. Nothing of the profile has been produced at this
+      // point, so nothing leaks with the redirect (AC-13, AC-14). A `403` is
+      // the opposite case and never lands here: it is a refusal to render in
+      // place, not a session that is gone (D-11).
       redirect('/login');
     }
     loadError =

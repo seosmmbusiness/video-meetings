@@ -135,6 +135,34 @@ function loginViaApi(
 }
 
 /**
+ * Creates a meeting directly through apps/api, so a case can visit
+ * `/meetings/[id]` as a page the account really owns rather than one that
+ * would answer not-found whatever the session was.
+ * @param request - Playwright's API request context.
+ * @param token - The owner's JWT access token.
+ * @returns The created meeting's id.
+ * @throws {Error} When the fixture meeting creation itself fails.
+ */
+async function createMeetingViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<string> {
+  const response = await request.post(`${API_BASE_URL}/meetings`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      title: 'Revoked session check',
+      date: '2030-01-01T10:00:00.000Z',
+      participants: [],
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`Fixture meeting creation failed: ${response.status()}`);
+  }
+  const { id } = (await response.json()) as { id: string };
+  return id;
+}
+
+/**
  * Drives the profile page's password form: fills the three fields and
  * submits. Each field is filled rather than typed into, so a case can submit
  * twice on one page without carrying the first attempt's values into the
@@ -795,6 +823,10 @@ test("sends the account's other session to login on its next action (AC-13)", as
   const account = await registerViaApi(request);
   await signInAs(context, account.token);
 
+  // A meeting the account really owns, so the revoked context's visit to
+  // `/meetings/[id]` is decided by the session rather than by not-found.
+  const meetingId = await createMeetingViaApi(request, account.token);
+
   // A second browser context holding the same session, the way a second
   // device or a second browser would.
   const otherContext = await browser.newContext();
@@ -803,6 +835,8 @@ test("sends the account's other session to login on its next action (AC-13)", as
     const otherPage = await otherContext.newPage();
     await otherPage.goto('/profile');
     await expect(otherPage).toHaveURL('/profile');
+    await otherPage.goto(`/meetings/${meetingId}`);
+    await expect(otherPage).toHaveURL(`/meetings/${meetingId}`);
 
     await page.goto('/profile');
     await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
@@ -812,11 +846,16 @@ test("sends the account's other session to login on its next action (AC-13)", as
     await page.goto('/');
     await expect(page).toHaveURL('/');
 
-    // The other one is refused on its very next action, wherever it goes.
+    // The other one is refused on its very next action, wherever it goes:
+    // every page that can meet a `401` from apps/api treats it as signed out
+    // and redirects before rendering anything of its own (AC-14).
     await otherPage.goto('/profile');
     await expect(otherPage).toHaveURL('/login');
     await otherPage.goto('/');
     await expect(otherPage).toHaveURL('/login');
+    await otherPage.goto(`/meetings/${meetingId}`);
+    await expect(otherPage).toHaveURL('/login');
+    expect(await otherPage.content()).not.toContain('Revoked session check');
   } finally {
     await otherContext.close();
   }
