@@ -402,7 +402,8 @@
       "phase": 6,
       "title": "Password change on the profile page",
       "covers": ["AC-10", "AC-11", "AC-12", "AC-13", "AC-14", "AC-17", "AC-19"],
-      "status": "pending",
+      "status": "in-progress",
+      "branch": "feature/user-profile-phase-6",
       "milestone": {
         "number": 29,
         "title": "UP 6 · Password change on the profile page",
