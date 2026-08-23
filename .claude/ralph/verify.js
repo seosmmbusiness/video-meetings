@@ -395,6 +395,20 @@ async function main() {
       return;
     }
     lib.event(state, { type: 'merged', pr: opts.pr, strategy });
+    // Back to the base, which now holds what was just merged. The branch this step checked out to
+    // run the checks may not even exist any more, and everything after this — the next decision, the
+    // survey of what is open — should read the branch the work landed on.
+    const base = config.baseBranch || 'main';
+    if (
+      branchPlan(
+        lib.run('git', ['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim(),
+        base,
+        false,
+      ).action === 'checkout'
+    ) {
+      lib.run('git', ['checkout', base]);
+      lib.run('git', ['pull', '--ff-only']);
+    }
     if (opts.scope === 'closeout') {
       // What tells the chain the track is over. Without it the next decision would find no phase
       // left, no open close-out PR, and start close-feature all over again.

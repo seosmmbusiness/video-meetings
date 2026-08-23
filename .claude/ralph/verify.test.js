@@ -138,3 +138,13 @@ test('a PR whose branch cannot be read is checked where the chain stands', () =>
   assert.equal(verify.branchPlan('main', null, false).action, 'none');
   assert.equal(verify.branchPlan('main', '', true).action, 'none');
 });
+
+test('after a merge the tree goes back to the base branch it merged into', () => {
+  // The gate checks out the PR's branch to run the checks. Left there, the next decision — and the
+  // survey of what is open — would read a branch that has just been merged and deleted.
+  assert.equal(
+    verify.branchPlan('chore/x-closeout', 'main', false).action,
+    'checkout',
+  );
+  assert.equal(verify.branchPlan('main', 'main', false).action, 'none');
+});
