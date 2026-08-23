@@ -2,7 +2,8 @@
 
 **Key**: UP
 **Date**: 2026-08-17
-**Status**: draft
+**Status**: done
+**Completed**: 2026-08-23
 
 ## 1. Goal
 
@@ -110,58 +111,58 @@ by someone with database access.
 
 ## 5. Acceptance criteria
 
-- [ ] **AC-1** A signed-in user opening the profile page sees, in the server's first response, their
+- [x] **AC-1** A signed-in user opening the profile page sees, in the server's first response, their
       email, their current name (blank when never set) and their current avatar (the default
       placeholder when none is set) — no session state that flips after the page hydrates. Clarified
       by T-1's sibling ruling **T-2** (2026-08-17): this is the project's no-flash rule about
       signed-in state; the avatar image painting after its own markup is an ordinary resource load,
       not a state flip.
-- [ ] **AC-2** Saving a name of 1–80 characters stores it with leading and trailing whitespace
+- [x] **AC-2** Saving a name of 1–80 characters stores it with leading and trailing whitespace
       removed; reloading the profile page and the dashboard both show the stored value.
-- [ ] **AC-3** Saving a name longer than 80 characters after trimming is refused with a message
+- [x] **AC-3** Saving a name longer than 80 characters after trimming is refused with a message
       naming the 80-character limit, and the previously stored name is unchanged.
-- [ ] **AC-4** Submitting an empty name clears it, and the dashboard shows the email again.
-- [ ] **AC-5** The dashboard shows the user's name when one is set and their email when none is,
+- [x] **AC-4** Submitting an empty name clears it, and the dashboard shows the email again.
+- [x] **AC-5** The dashboard shows the user's name when one is set and their email when none is,
       next to their avatar, in the server-rendered HTML.
-- [ ] **AC-6** Uploading a PNG, JPEG or WebP of at most 5 MB replaces the avatar: the profile page
+- [x] **AC-6** Uploading a PNG, JPEG or WebP of at most 5 MB replaces the avatar: the profile page
       and the dashboard show the new image on their next render, and the replaced image's bytes are
       no longer served to anyone.
-- [ ] **AC-7** Uploading an image larger than 5 MB is refused with a message naming the 5 MB limit,
+- [x] **AC-7** Uploading an image larger than 5 MB is refused with a message naming the 5 MB limit,
       stores no bytes, and leaves the current avatar (or its absence) exactly as it was.
-- [ ] **AC-8** Uploading a file whose **content** is not PNG, JPEG or WebP is refused with a message
+- [x] **AC-8** Uploading a file whose **content** is not PNG, JPEG or WebP is refused with a message
       naming the three accepted formats, and stores nothing — including a file renamed to `.png`
       whose content is something else.
-- [ ] **AC-9** Removing the avatar returns the profile page and the dashboard to the default
+- [x] **AC-9** Removing the avatar returns the profile page and the dashboard to the default
       placeholder, and the removed image's bytes are no longer served by the server. Amended by
       **T-1** (2026-08-17): the owner's own browser may still paint its cached copy for up to 60
       seconds if it re-requests the exact previous URL — nobody else can, and every change to the
       avatar moves that URL.
-- [ ] **AC-10** A password change submitted with the correct current password succeeds and says so;
+- [x] **AC-10** A password change submitted with the correct current password succeeds and says so;
       the new password then works at `/login` and the old one is refused there.
-- [ ] **AC-11** A password change submitted with a wrong current password is refused with a message
+- [x] **AC-11** A password change submitted with a wrong current password is refused with a message
       saying the current password is wrong; the stored password is unchanged and no session is
       ended.
-- [ ] **AC-12** A new password that breaks the registration rules (≥8 characters, at least one
+- [x] **AC-12** A new password that breaks the registration rules (≥8 characters, at least one
       uppercase, one lowercase and one digit, at most 72) or that differs from its confirmation
       field is refused with the failed rule stated, and nothing is changed.
-- [ ] **AC-13** After a successful password change, every **other** session of that account is
+- [x] **AC-13** After a successful password change, every **other** session of that account is
       refused on its next request and lands on `/login`, while the session that performed the change
       continues working without signing in again.
-- [ ] **AC-14** A visitor with no session, or with an invalid or expired one, is redirected from the
+- [x] **AC-14** A visitor with no session, or with an invalid or expired one, is redirected from the
       profile page to `/login`, and the response carries no name, email or avatar.
-- [ ] **AC-15** Signed-in user B cannot read or change user A's name, avatar or password: no route
+- [x] **AC-15** Signed-in user B cannot read or change user A's name, avatar or password: no route
       accepts another account's identifier as the subject of the change, and a request for A's
       avatar bytes made as B answers with a refusal, never the image.
-- [ ] **AC-16** A name containing HTML or script markup is shown verbatim as text on the profile
+- [x] **AC-16** A name containing HTML or script markup is shown verbatim as text on the profile
       page and the dashboard and executes nothing.
-- [ ] **AC-17** Neither the session token nor any password — current or new — appears in the profile
+- [x] **AC-17** Neither the session token nor any password — current or new — appears in the profile
       page's HTML source, its client bundle, or any browser-visible response it makes.
-- [ ] **AC-18** No response from any profile route carries the account's password hash, its
+- [x] **AC-18** No response from any profile route carries the account's password hash, its
       session-revocation counter or its avatar storage key: each response body holds exactly the
       fields the profile shows, and nothing else.
-- [ ] **AC-19** A profile Server Action invoked without a valid session — by a direct request rather
+- [x] **AC-19** A profile Server Action invoked without a valid session — by a direct request rather
       than through the rendered form — changes nothing and makes no call on the user's behalf.
-- [ ] **AC-20** The password-change route refuses more than 10 attempts per minute from one caller,
+- [x] **AC-20** The password-change route refuses more than 10 attempts per minute from one caller,
       answering the refusal rather than checking the password an 11th time.
 
 ## Asked & assumed
