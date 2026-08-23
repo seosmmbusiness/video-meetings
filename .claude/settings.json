@@ -56,6 +56,30 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.js",
             "timeout": 10
+          },
+          {
+            "type": "agent",
+            "if": "Bash(git commit*)",
+            "model": "claude-sonnet-5",
+            "timeout": 180,
+            "statusMessage": "Security review of the staged change",
+            "prompt": "A `git commit` is about to run in this repository. Review what it would commit, as a senior security analyst, and decide whether it is safe to land.\n\nRead `.claude/agents/security-analyst.md` first and work to its doctrine and to its mode `diff` report contract. Take the change with `git diff --cached`, and additionally `git diff HEAD` when the command carries `-a` or `--all`. An empty diff passes immediately.\n\nBlock only on a vulnerability a caller can actually reach: name the caller, the input and the asset it ends at, with file and line. Hardening wishes, style, and \"could be stronger\" are not blocking. When nothing is reachable, pass and say in one line what you read.\n\n$ARGUMENTS"
+          },
+          {
+            "type": "agent",
+            "if": "Bash(git commit*)",
+            "model": "claude-sonnet-5",
+            "timeout": 180,
+            "statusMessage": "Code-quality review of the staged change",
+            "prompt": "A `git commit` is about to run in this repository. Review what it would commit for correctness, and decide whether it is safe to land.\n\nRead `.claude/agents/code-reviewer.md` first and work to its mode `diff` report contract. Take the change with `git diff --cached`, and additionally `git diff HEAD` when the command carries `-a` or `--all`. An empty diff passes immediately. The conventions the project's own `CLAUDE.md` files state outrank any general best practice, and you say so where they disagree.\n\nBlock only on a defect that yields a wrong result, reaches another party's data, or crashes — named with its file and line and the smallest change that fixes it. Preferences, naming and refactor ideas are not blocking.\n\n$ARGUMENTS"
+          },
+          {
+            "type": "agent",
+            "if": "Bash(git commit*)",
+            "model": "claude-sonnet-5",
+            "timeout": 180,
+            "statusMessage": "Test-coverage review of the staged change",
+            "prompt": "A `git commit` is about to run in this repository. Check what it would commit against the project's own testing policy.\n\nRead `.claude/agents/test-designer.md` and the testing section of the project's `CLAUDE.md` files first — the tiers, their file patterns and what each tier may touch are the project's to define, never yours to assume. Take the change with `git diff --cached`, and additionally `git diff HEAD` when the command carries `-a` or `--all`. An empty diff passes immediately.\n\nBlock only when a behaviour change lands with no spec at the tier that could prove it, or when an existing test was weakened or deleted to make something pass — naming the file, the behaviour and the tier the missing case belongs at. A docs-only, config-only or test-only commit passes. A deliberately red spec committed on its own also passes: this project commits red states on purpose, so a failing test with no implementation beside it is the workflow working, not a defect.\n\n$ARGUMENTS"
           }
         ]
       }
