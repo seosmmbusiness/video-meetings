@@ -63,12 +63,13 @@ export function PasswordForm() {
     setFields(EMPTY_FIELDS);
   }
 
-  // The refusal is about the values that were submitted, so editing any field
+  // The outcome is about the values that were submitted, so editing any field
   // withdraws it rather than leaving a stale message under a form that has
-  // since changed.
+  // since changed — the confirmation as much as the refusal, since a second
+  // change being typed is not the first one still landing.
   const [isEdited, setIsEdited] = useState(false);
   const refusal = isEdited ? undefined : state?.error;
-  const isChanged = Boolean(state?.ok) && state === clearedFor;
+  const isChanged = !isEdited && Boolean(state?.ok) && state === clearedFor;
 
   /**
    * Updates one field and withdraws the refusal the previous submission came
