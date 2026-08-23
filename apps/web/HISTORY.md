@@ -10,6 +10,20 @@ Repo-wide changes (tooling, conventions, cross-app features) live in the root [`
 
 ## 2026-08
 
+### 2026-08-23 — Password change on `/profile`, and what a `401` now means (`user-profile` phase 6)
+
+`/profile` grew a password form — current, new, confirmation — behind `changePasswordAction`. The three things worth remembering are all about what happens to _sessions_ when it succeeds.
+
+**The change kills the caller's own token, so the action re-writes the cookie.** `PATCH /profile/password` increments the account's `tokenVersion`, and the JWT guard refuses anything carrying an older `ver` on its next request — that is how AC-13 revokes the other devices. It revokes the token that made the request too, which is why the API answers with a freshly signed one. `changePasswordAction` passes it straight to `setSessionCookie`; without that line the change would look successful and then sign the user out on their very next navigation.
+
+**The token is written, never returned.** An action's return value is serialised into the page payload, where `httpOnly` protects nothing, so `ChangePasswordState` is `{ ok, error? }` and nothing else. Spreading the API's response into the state — the natural way to write it — would have published an hour-long credential to the browser. That is also why the e2e case reads every text/JS/JSON response the browser is handed during a change and asserts no JWT-shaped string and neither password appears in any of them.
+
+**`401` and `403` had to stay apart, and that reached beyond this page.** A wrong current password answers `403` precisely so it cannot be read as a dead session; `profile-api.ts` preserves the upstream status, the form shows the `403` in place, and nobody is signed out for a typo. The other half is that a `401` mid-session went from rare to ordinary — a revocation hits every open page at once — so `/profile` and `/meetings/[id]` gained the `redirect('/login')` that `/` already had. The stale cookie is left where it is: a Server Component cannot delete one, and the next real login overwrites it. Any page added later that calls `apps/api` with the session token needs the same branch.
+
+Two smaller decisions. The **confirmation match runs in the action**, not in the browser, so the gate still holds with JavaScript disabled and the form posting straight to it; and for the same reason the new-password field carries no `pattern` and no `maxLength` — a client-side rule would swallow the value before `apps/api` could name the rule it broke. The fields are controlled, as `NameForm`'s is, and are emptied on success so neither password lingers in the DOM.
+
+Architecture and the full function reference: `docs/modules/module-web-profile.md`.
+
 ### 2026-08-21 — Avatar upload in the browser, behind a byte proxy (`user-profile` phase 4)
 
 The avatar can now be uploaded, replaced and removed on `/profile`, and the resulting image renders beside the greeting on `/` as well. Its bytes take a different path from the name, which is the decision worth remembering: a **Route Handler proxy** at `app/api/profile/avatar/route.ts`, not a Server Action, because Next caps an action's request body at 1 MB by default and the avatar limit is 5 MB. Raising `serverActions.bodySizeLimit` would have lifted the ceiling for every action in the app to fix one route. The proxy is the shape both meeting-file proxies already use — `getSession()` first, `401` with no body before any upstream call, then `proxyToApi` with an upstream path that is a module constant, so nothing the caller appends to the URL can steer where the request goes.
