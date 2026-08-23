@@ -4,11 +4,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { JwtService } from '@nestjs/jwt';
 import { HashPasswordCommand } from '../credentials/commands/hash-password.command';
 import { VerifyPasswordQuery } from '../credentials/queries/verify-password.query';
 import { CreateUserCommand } from '../users/commands/create-user.command';
 import { FindUserByEmailQuery } from '../users/queries/find-user-by-email.query';
+import { IssueAccessTokenCommand } from './commands/issue-access-token.command';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -18,12 +18,12 @@ const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
 /**
  * Orchestrates registration and login: delegates user lookup/creation to the
  * users module and password hashing/verification to the credentials module
- * (both via CQRS commands/queries), and issues JWTs on success.
+ * (both via CQRS commands/queries), and mints the JWT through the auth
+ * module's own IssueAccessTokenCommand on success (D-10).
  */
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly jwtService: JwtService,
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
@@ -53,7 +53,9 @@ export class AuthService {
       new CreateUserCommand(dto.email, passwordHash, dto.consentToTerms),
     );
 
-    return { accessToken: await this.signToken(user.id, user.email) };
+    return {
+      accessToken: await this.signToken(user.id, user.email, user.tokenVersion),
+    };
   }
 
   /**
@@ -78,16 +80,28 @@ export class AuthService {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    return { accessToken: await this.signToken(user.id, user.email) };
+    return {
+      accessToken: await this.signToken(user.id, user.email, user.tokenVersion),
+    };
   }
 
   /**
-   * Signs a JWT access token carrying the user's id and email.
+   * Mints an access token through the module's one token handler, so the
+   * claim set — `ver` included — is written in exactly one place (D-10). A
+   * flow signing without `ver` would be refused on its next request by any
+   * account that has ever changed its password (D-9).
    * @param userId - The user's database id.
    * @param email - The user's email address.
+   * @param tokenVersion - The account's current revocation counter.
    * @returns The signed JWT string.
    */
-  private signToken(userId: string, email: string): Promise<string> {
-    return this.jwtService.signAsync({ sub: userId, email });
+  private signToken(
+    userId: string,
+    email: string,
+    tokenVersion: number,
+  ): Promise<string> {
+    return this.commandBus.execute<IssueAccessTokenCommand, string>(
+      new IssueAccessTokenCommand(userId, email, tokenVersion),
+    );
   }
 }

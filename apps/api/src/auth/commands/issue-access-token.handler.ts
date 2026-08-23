@@ -14,11 +14,17 @@ export class IssueAccessTokenHandler implements ICommandHandler<IssueAccessToken
   constructor(private readonly jwtService: JwtService) {}
 
   /**
-   * Signs an access token for one account.
+   * Signs an access token for one account. Register, login and the password
+   * change all arrive here, so `ver` cannot be omitted on one path and read
+   * as `0` by the guard on the next request (D-9, D-10).
    * @param command - The account's id, email and revocation counter.
    * @returns The signed JWT string.
    */
   execute(command: IssueAccessTokenCommand): Promise<string> {
-    throw new Error(`Not implemented: ${command.userId}`);
+    return this.jwtService.signAsync({
+      sub: command.userId,
+      email: command.email,
+      ver: command.tokenVersion,
+    });
   }
 }

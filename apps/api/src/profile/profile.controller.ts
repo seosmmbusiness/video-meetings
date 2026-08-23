@@ -32,6 +32,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { basename, dirname } from 'path';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AuthResponseDto } from '../auth/dto/auth-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { buildAvatarMulterOptions } from './avatar-multer.config';
@@ -233,13 +234,20 @@ export class ProfileController {
    * answers whether a supplied password is the account's, which makes it a
    * password oracle behind one stolen session, so it must not inherit the
    * global 20 requests a minute (S-4, AC-20).
+   * The change ends every other session of the account, so the response
+   * carries the token this one continues with — and nothing else, since the
+   * row it was built from carries the new hash (AC-13, AC-18, S-1).
    * @param user - The authenticated user, extracted from the JWT.
    * @param dto - The current password and the one to store in its place.
+   * @returns The access token the caller continues with.
    */
   @Patch('password')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: "Change the authenticated caller's own password" })
-  @ApiOkResponse({ description: 'The password was changed' })
+  @ApiOkResponse({
+    description: 'The password was changed; every other session is revoked',
+    type: AuthResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'Invalid password payload' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   @ApiForbiddenResponse({ description: 'The current password is incorrect' })
@@ -247,7 +255,7 @@ export class ProfileController {
   changePassword(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: ChangePasswordDto,
-  ): Promise<void> {
+  ): Promise<AuthResponseDto> {
     return this.profileService.changePassword(user.userId, dto);
   }
 }

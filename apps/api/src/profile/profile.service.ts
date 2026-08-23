@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { IssueAccessTokenCommand } from '../auth/commands/issue-access-token.command';
+import { AuthResponseDto } from '../auth/dto/auth-response.dto';
 import { HashPasswordCommand } from '../credentials/commands/hash-password.command';
 import { VerifyPasswordQuery } from '../credentials/queries/verify-password.query';
 import { FileStorage } from '../storage/file-storage';
@@ -201,12 +203,23 @@ export class ProfileService {
    * typo would be indistinguishable from a revoked token (D-11, AC-11). The
    * refusal happens before anything is hashed or written, so a refused
    * attempt leaves the account exactly as it was.
+   * The write bumps the account's revocation counter, so every token minted
+   * before it — including the one this request arrived with — is refused from
+   * here on (D-9, AC-13). The fresh token is therefore minted **after** the
+   * write and from the counter the write returned, which is what lets the
+   * caller carry on without signing in again. Only that token is answered:
+   * the row it was built from carries the new hash and never reaches the wire
+   * (S-1, AC-18).
    * @param userId - The caller's id, taken from the verified token.
    * @param dto - The current password and the one to store in its place.
+   * @returns The access token the caller continues with.
    * @throws NotFoundException if the token names a row that no longer exists.
    * @throws ForbiddenException if the current password is not the account's.
    */
-  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<AuthResponseDto> {
     const user = await this.findUser(userId);
 
     const currentMatches = await this.queryBus.execute<
@@ -222,9 +235,23 @@ export class ProfileService {
       string
     >(new HashPasswordCommand(dto.newPassword));
 
-    await this.commandBus.execute<UpdateUserPasswordCommand, User>(
-      new UpdateUserPasswordCommand(userId, passwordHash),
-    );
+    const updated = await this.commandBus.execute<
+      UpdateUserPasswordCommand,
+      User
+    >(new UpdateUserPasswordCommand(userId, passwordHash));
+
+    return {
+      accessToken: await this.commandBus.execute<
+        IssueAccessTokenCommand,
+        string
+      >(
+        new IssueAccessTokenCommand(
+          updated.id,
+          updated.email,
+          updated.tokenVersion,
+        ),
+      ),
+    };
   }
 
   /**
