@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ApiError,
+  changeProfilePassword,
   displayName,
   getProfile,
   updateProfileName,
@@ -151,6 +152,43 @@ describe('profile-api', () => {
       expect((error as ApiError).message).toContain(
         'Name must be 80 characters or fewer.',
       );
+    });
+  });
+
+  describe('changeProfilePassword', () => {
+    it('keeps a wrong current password as a 403, so the caller is refused rather than signed out (D-11, AC-14)', async () => {
+      mockUpstream(
+        { message: 'Current password is incorrect.', statusCode: 403 },
+        { status: 403 },
+      );
+
+      const error = await changeProfilePassword(
+        SESSION_TOKEN,
+        'wrong-password',
+        'N3wStrongPass',
+      ).catch((thrown) => thrown);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(403);
+      expect((error as ApiError).message).toBe(
+        'Current password is incorrect.',
+      );
+    });
+
+    it('keeps a revoked session as a 401, which is what sends a page to /login (D-11, AC-13)', async () => {
+      mockUpstream(
+        { message: 'Unauthorized', statusCode: 401 },
+        { status: 401 },
+      );
+
+      const error = await changeProfilePassword(
+        SESSION_TOKEN,
+        'Str0ngPass!',
+        'N3wStrongPass',
+      ).catch((thrown) => thrown);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(401);
     });
   });
 

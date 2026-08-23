@@ -16,6 +16,16 @@ Per-app detail lives next to the app it belongs to: [`apps/api/HISTORY.md`](apps
 
 ## 2026-08
 
+### 2026-08-23 — `user-profile`: an account page, and a session model that can be ended
+
+The feature that landed across six phases gave an account a page of its own — email, display name, avatar, password — but the part that changed the repo rather than adding to it is the **session model**.
+
+Until now a JWT was valid until its own `exp` and nothing could shorten that: not a password change, not deleting the user. `User` gained a `tokenVersion` column, `apps/api` signs it into the token as `ver`, and `JwtStrategy.validate` reads the user on every guarded request and refuses anything whose `ver` has fallen behind. That is a primary-key read added to the authentication path of every request — accepted deliberately, because AC-13's promise is that the other sessions are refused **on their next request**, and nothing that avoids a per-request read can make that promise. A `passwordChangedAt`-vs-`iat` comparison was rejected for its one-second window; a Redis denylist was rejected because the repo treats Redis as optional infrastructure and a revocation list that may be unreachable is not a control. A missing `ver` reads as `0`, so nothing minted before this shipped was forcibly signed out.
+
+Two consequences reach across both apps. **Token minting moved behind one command** (`IssueAccessTokenCommand`), used by register, login and the password route alike, so the claim set cannot drift from what the guard checks — the precise failure that would silently break revocation. And **`403`, not `401`, answers a wrong current password**: `apps/web` reads a `401` as "the session is gone" and redirects to `/login`, which is now also how a revoked token surfaces, so reusing `401` for a typo would sign a user out for mistyping. That split had to be carried all the way through the web client, the Server Action and every page that calls `apps/api` with the session token.
+
+The rest of the feature is per-app and recorded there: the profile module, the avatar's storage and limits and the password route in [`apps/api/HISTORY.md`](apps/api/HISTORY.md); the profile page, the byte proxy, the avatar mark and the password form in [`apps/web/HISTORY.md`](apps/web/HISTORY.md). The one repo-wide caveat worth repeating is that there is still no shared package between the apps, so every DTO the web app talks to — profile fields, avatar limits and their refusal wording, the password response — is a hand-copy kept in sync by hand.
+
 ### 2026-08-20 — The loop can be stopped at a boundary, and a resume grants its ceilings again
 
 Pause and Stop have always acted at the **next link boundary** — the right behaviour when something

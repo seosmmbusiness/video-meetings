@@ -4,6 +4,7 @@ import { Alert, Card } from '@heroui/react';
 import { linkVariants } from '@heroui/styles';
 import { AvatarUploader } from '@/components/profile/avatar-uploader';
 import { NameForm } from '@/components/profile/name-form';
+import { PasswordForm } from '@/components/profile/password-form';
 import { UserAvatar } from '@/components/profile/user-avatar';
 import { ApiError, getProfile, type Profile } from '@/lib/profile-api';
 import { getSession } from '@/lib/session';
@@ -31,10 +32,12 @@ export default async function ProfilePage() {
     profile = await getProfile(session.token);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      // The cookie is present but apps/api rejects the token itself (expired
-      // or tampered) — signed out, not an error to render. Nothing of the
-      // profile has been produced at this point, so nothing leaks with the
-      // redirect (AC-14).
+      // The cookie is present but apps/api rejects the token itself (expired,
+      // tampered, or revoked by a password change elsewhere) — signed out, not
+      // an error to render. Nothing of the profile has been produced at this
+      // point, so nothing leaks with the redirect (AC-13, AC-14). A `403` is
+      // the opposite case and never lands here: it is a refusal to render in
+      // place, not a session that is gone (D-11).
       redirect('/login');
     }
     loadError =
@@ -69,6 +72,23 @@ export default async function ProfilePage() {
               </div>
               <AvatarUploader hasAvatar={profile.hasAvatar} />
               <NameForm name={profile.name} />
+              <section
+                aria-labelledby="password-heading"
+                className="flex flex-col gap-4 border-t border-default pt-6"
+              >
+                <div>
+                  {/* `h4`, because HeroUI's `Card.Title` above renders an
+                      `h3` — this is a section within that card, not beside it. */}
+                  <h4 className="text-lg font-medium" id="password-heading">
+                    Password
+                  </h4>
+                  <p className="text-sm text-muted">
+                    Changing it signs out every other device this account is
+                    signed in on.
+                  </p>
+                </div>
+                <PasswordForm />
+              </section>
             </div>
           ) : (
             <Alert status="danger">

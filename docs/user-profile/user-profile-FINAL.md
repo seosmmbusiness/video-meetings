@@ -396,33 +396,34 @@ the two-session behaviour through Playwright with a second browser context in
 source, the client bundle or any browser-visible response, and the protected page against a revoked
 session. UI reviewed with `web-design-guidelines` then `ui-ux-pro-max`. Suites: `npm run test:web`,
 `npm run test:e2e:web`.
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/187
 **Tasks**:
 
-- [ ] **6.1** Cover the password form and the revoked session — tests: `apps/web/e2e/profile.spec.ts`
+- [x] **6.1** Cover the password form and the revoked session — tests: `apps/web/e2e/profile.spec.ts`
       for AC-10, AC-11 (the `403` shows in place and the user stays signed in), AC-12 and AC-13 (a
       second browser context signed in as the same account is sent to `/login` on its next action
       after the first changes the password), plus AC-17; `actions/profile.int-spec.ts` for AC-19 (no
       cookie → nothing called, S-3) and for S-6 — the action's returned state, serialised, holds no
       JWT-shaped string; RTL for the confirmation mismatch. Red before 6.2 starts.
-- [ ] **6.2** Change the password from the profile page — a form taking the current password, the new
+- [x] **6.2** Change the password from the profile page — a form taking the current password, the new
       one and its confirmation, submitting through `changePasswordAction` (D-12), showing a
       confirmation on success and the API's refusal verbatim on failure; a **`403` is a form error
       shown in place, never a sign-out** (D-11); the confirmation-mismatch gate runs server-side in
       the action so it still holds with JavaScript disabled (AC-10, AC-11, AC-12). Like 2.4, it reads
       `getSession()` as its first statement and changes nothing without one (S-3, AC-19). Password
       inputs carry descriptive placeholders, never bullet characters.
-- [ ] **6.3** Keep the caller signed in after the change — the action passes the `accessToken` phase
+- [x] **6.3** Keep the caller signed in after the change — the action passes the `accessToken` phase
       5 returned straight to `setSessionCookie`, whose expiry follows the new token's own `exp`
       (D-10, AC-13). Its **returned state** is `{ ok: true }` or `{ error }` and never the token or
       the API's response object — an action's return value is serialised into the page payload,
       where `httpOnly` protects nothing (S-6, AC-17).
-- [ ] **6.4** Land a revoked session on `/login` — a `401` from `apps/api` is treated as signed-out
+- [x] **6.4** Land a revoked session on `/login` — a `401` from `apps/api` is treated as signed-out
       on every page that can now meet one: `/` (already does, via `listMeetings`), `/profile` and
       `/meetings/[id]`, each redirecting before render the way `docs/modules/module-web-auth.md`
       describes; the stale cookie is left to be overwritten at the next real login, since a Server
       Component cannot delete a cookie. `profile-api.ts` keeps `401` (signed out) and `403` (refused,
       stay put) apart (D-11, AC-13, AC-14).
-- [ ] **6.5** Document the password flow and close the feature's docs —
+- [x] **6.5** Document the password flow and close the feature's docs —
       `docs/modules/module-web-profile.md` (the form, the cookie rewrite, the 401/403 split),
       `apps/web/CLAUDE.md`'s Status, JSDoc on every function added, and the entries in
       `apps/web/HISTORY.md` and the root `HISTORY.md` for the feature as a whole.

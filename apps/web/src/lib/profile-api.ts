@@ -30,19 +30,30 @@ export function displayName(name: string | null, email: string): string {
 }
 
 /**
+ * What apps/api answers a successful `PATCH /profile/password` with: the
+ * re-issued access token for the session that made the change, since the
+ * change revokes every token the account holds (D-9, D-10).
+ */
+export interface ChangedPassword {
+  accessToken: string;
+}
+
+/**
  * Calls a `/profile` endpoint on apps/api with the caller's bearer token and
  * parses the JSON response, keeping the upstream status on the thrown error so
  * a `401` (session gone) stays distinguishable from a `403` (refused) (D-11).
+ * @param path - The path under `/profile`, empty for `/profile` itself.
  * @param token - The caller's JWT access token, sent as a bearer token.
  * @param init - Method, headers and body to merge into the request.
- * @returns The parsed profile the API answered with.
+ * @returns The parsed body the API answered with.
  * @throws {ApiError} When the response status is not in the 2xx range.
  */
-async function requestProfile(
+async function requestProfileEndpoint<T>(
+  path: string,
   token: string,
   init: RequestInit = {},
-): Promise<Profile> {
-  const response = await fetch(`${getApiBaseUrl()}/profile`, {
+): Promise<T> {
+  const response = await fetch(`${getApiBaseUrl()}/profile${path}`, {
     ...init,
     headers: { ...init.headers, Authorization: `Bearer ${token}` },
     cache: 'no-store',
@@ -56,7 +67,7 @@ async function requestProfile(
     );
   }
 
-  return data as Profile;
+  return data as T;
 }
 
 /**
@@ -67,7 +78,7 @@ async function requestProfile(
  * `403` when it is refused.
  */
 export function getProfile(token: string): Promise<Profile> {
-  return requestProfile(token);
+  return requestProfileEndpoint<Profile>('', token);
 }
 
 /**
@@ -83,9 +94,46 @@ export function updateProfileName(
   token: string,
   name: string,
 ): Promise<Profile> {
-  return requestProfile(token, {
+  return requestProfileEndpoint<Profile>('', token, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
+}
+
+/**
+ * Changes the caller's password via `PATCH /profile/password`, which answers
+ * with a freshly signed token because the change revokes every token the
+ * account holds, this one included (D-9).
+ *
+ * Only `currentPassword` and `newPassword` are sent: the confirmation is a
+ * web-side concern and apps/api's `ChangePasswordDto` has no field for it, so
+ * sending one would be refused as an unknown property (D-11). Every rule about
+ * what the new password may be stays apps/api's, and its refusal is thrown
+ * verbatim so the form can show it (AC-12).
+ * @param token - The caller's JWT access token, sent as a bearer token.
+ * @param currentPassword - The password the account holds today.
+ * @param newPassword - The password to store in its place.
+ * @returns The re-issued access token, which is the only session the account
+ * has left once this resolves.
+ * @throws {ApiError} When the request fails — `400` carries apps/api's own
+ * rule refusal, `403` a wrong current password (refused, still signed in) and
+ * `401` a session that is already gone (D-11).
+ */
+export async function changeProfilePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<string> {
+  const changed = await requestProfileEndpoint<ChangedPassword>(
+    '/password',
+    token,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    },
+  );
+
+  return changed.accessToken;
 }

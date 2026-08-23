@@ -14,6 +14,21 @@ import {
 const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3001';
 const STRONG_PASSWORD = 'Str0ngPass!';
 
+// What the password cases change to. Every one of them registers its own
+// account, so this is only ever the second password that account holds.
+const NEW_PASSWORD = 'N3wStrongPass';
+
+// apps/api's own refusals (`profile.service.ts` and `ChangePasswordDto`),
+// which the form has to show verbatim rather than paraphrase (AC-11, AC-12).
+const WRONG_CURRENT_PASSWORD_MESSAGE = 'Current password is incorrect.';
+const WEAK_NEW_PASSWORD_MESSAGE =
+  'newPassword must contain an uppercase letter, a lowercase letter, and a digit';
+
+// The confirmation is the web's own rule — apps/api has no field for it — so
+// this wording belongs to the Server Action (AC-12).
+const CONFIRMATION_MISMATCH_MESSAGE =
+  'New password and its confirmation do not match.';
+
 // A name that is markup rather than a name (AC-16). The `onerror` payload
 // would rename the document if the markup were ever parsed as HTML, and the
 // `<img>` would exist in the DOM — neither may happen.
@@ -50,7 +65,12 @@ const UNSUPPORTED_AVATAR_TYPE_MESSAGE =
 // document. Two rather than one because the *authenticated* routes are
 // throttled per-credential: one account carries the cases that only read the
 // profile, the other the cases that rewrite the name, so neither credential's
-// own budget is anywhere near the limit either.
+// own budget is anywhere near the limit either. The password cases are the
+// exception and register one account each: a password change revokes every
+// token the account holds, so a shared fixture would leave every later case
+// signed out. That is affordable because registration rides the *global*
+// baseline, which `npm run dev:api:e2e` raises — unlike `/auth/login`, whose
+// 10-per-minute override stays put, so only one case calls it.
 test.describe.configure({ mode: 'serial' });
 
 /** The account the read-only cases use, and its address; its name is never set. */
@@ -91,6 +111,82 @@ async function registerViaApi(
   }
   const { accessToken } = (await response.json()) as { accessToken: string };
   return { email, token: accessToken };
+}
+
+/**
+ * Signs in directly against apps/api, so a case can check which password the
+ * account now holds without driving the login page. `/auth/login` keeps its
+ * own 10-per-minute limit whatever `THROTTLE_LIMIT` is raised to, so only the
+ * case that is about the login outcome may call this.
+ * @param request - Playwright's API request context.
+ * @param email - The account's email address.
+ * @param password - The password to try.
+ * @returns The API's own response, so the caller can assert on its status.
+ */
+function loginViaApi(
+  request: APIRequestContext,
+  email: string,
+  password: string,
+) {
+  return request.post(`${API_BASE_URL}/auth/login`, {
+    data: { email, password },
+    failOnStatusCode: false,
+  });
+}
+
+/**
+ * Creates a meeting directly through apps/api, so a case can visit
+ * `/meetings/[id]` as a page the account really owns rather than one that
+ * would answer not-found whatever the session was.
+ * @param request - Playwright's API request context.
+ * @param token - The owner's JWT access token.
+ * @returns The created meeting's id.
+ * @throws {Error} When the fixture meeting creation itself fails.
+ */
+async function createMeetingViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<string> {
+  const response = await request.post(`${API_BASE_URL}/meetings`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      title: 'Revoked session check',
+      date: '2030-01-01T10:00:00.000Z',
+      participants: [],
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`Fixture meeting creation failed: ${response.status()}`);
+  }
+  const { id } = (await response.json()) as { id: string };
+  return id;
+}
+
+/**
+ * Drives the profile page's password form: fills the three fields and
+ * submits. Each field is filled rather than typed into, so a case can submit
+ * twice on one page without carrying the first attempt's values into the
+ * second.
+ * @param page - The page showing `/profile`.
+ * @param currentPassword - The current password as typed.
+ * @param newPassword - The new password as typed.
+ * @param confirmation - The re-typed new password; the new one by default.
+ */
+async function changePasswordOnPage(
+  page: Page,
+  currentPassword: string,
+  newPassword: string,
+  confirmation: string = newPassword,
+): Promise<void> {
+  // Exact, so "New password" can't also match "Confirm new password".
+  await page
+    .getByLabel('Current password', { exact: true })
+    .fill(currentPassword);
+  await page.getByLabel('New password', { exact: true }).fill(newPassword);
+  await page
+    .getByLabel('Confirm new password', { exact: true })
+    .fill(confirmation);
+  await page.getByRole('button', { name: 'Change password' }).click();
 }
 
 /**
@@ -628,4 +724,175 @@ test('never lets the session token reach the browser on the avatar path (AC-17)'
   // it (D-12).
   expect(leaks).toEqual([]);
   expect(await page.content()).not.toContain(writerToken);
+});
+
+test('changes the password and keeps the caller signed in, with the new password working at login (AC-10, AC-13)', async ({
+  page,
+  context,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  await page.goto('/profile');
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+
+  await expect(page.getByText('Password changed.')).toBeVisible();
+
+  // The change revoked every token of this account, including the one this
+  // context arrived with — so staying on `/profile` across a reload is only
+  // possible because the action wrote the re-issued one into the cookie.
+  await page.reload();
+  await expect(page).toHaveURL('/profile');
+
+  expect(
+    (await loginViaApi(request, account.email, STRONG_PASSWORD)).status(),
+  ).toBe(401);
+  expect(
+    (await loginViaApi(request, account.email, NEW_PASSWORD)).status(),
+  ).toBe(200);
+});
+
+test('refuses a wrong current password in place, signing nobody out and changing nothing (AC-11)', async ({
+  page,
+  context,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  await page.goto('/profile');
+  await changePasswordOnPage(page, 'WrongPass1', NEW_PASSWORD);
+
+  // A 403, not a 401: the refusal is shown on the form and the session is
+  // untouched (D-11).
+  await expect(page.getByText(WRONG_CURRENT_PASSWORD_MESSAGE)).toBeVisible();
+  await expect(page).toHaveURL('/profile');
+  await page.reload();
+  await expect(page).toHaveURL('/profile');
+
+  // And the stored password is the one it always was — which is what the
+  // correct current password still being accepted proves.
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+  await expect(page.getByText('Password changed.')).toBeVisible();
+});
+
+test('refuses a new password that breaks the registration rules, naming the rule (AC-12)', async ({
+  page,
+  context,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  await page.goto('/profile');
+  await changePasswordOnPage(page, STRONG_PASSWORD, 'weakweak');
+
+  await expect(page.getByText(WEAK_NEW_PASSWORD_MESSAGE)).toBeVisible();
+  await expect(page).toHaveURL('/profile');
+
+  // Nothing was changed: the original password still opens the change.
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+  await expect(page.getByText('Password changed.')).toBeVisible();
+});
+
+test('refuses a new password that differs from its confirmation, changing nothing (AC-12)', async ({
+  page,
+  context,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  await page.goto('/profile');
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD, 'N3wOther');
+
+  await expect(page.getByText(CONFIRMATION_MISMATCH_MESSAGE)).toBeVisible();
+  await expect(page).toHaveURL('/profile');
+
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+  await expect(page.getByText('Password changed.')).toBeVisible();
+});
+
+test("sends the account's other session to login on its next action (AC-13)", async ({
+  page,
+  context,
+  browser,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  // A meeting the account really owns, so the revoked context's visit to
+  // `/meetings/[id]` is decided by the session rather than by not-found.
+  const meetingId = await createMeetingViaApi(request, account.token);
+
+  // A second browser context holding the same session, the way a second
+  // device or a second browser would.
+  const otherContext = await browser.newContext();
+  try {
+    await signInAs(otherContext, account.token);
+    const otherPage = await otherContext.newPage();
+    await otherPage.goto('/profile');
+    await expect(otherPage).toHaveURL('/profile');
+    await otherPage.goto(`/meetings/${meetingId}`);
+    await expect(otherPage).toHaveURL(`/meetings/${meetingId}`);
+
+    await page.goto('/profile');
+    await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+    await expect(page.getByText('Password changed.')).toBeVisible();
+
+    // The context that made the change carries on without signing in again.
+    await page.goto('/');
+    await expect(page).toHaveURL('/');
+
+    // The other one is refused on its very next action, wherever it goes:
+    // every page that can meet a `401` from apps/api treats it as signed out
+    // and redirects before rendering anything of its own (AC-14).
+    await otherPage.goto('/profile');
+    await expect(otherPage).toHaveURL('/login');
+    await otherPage.goto('/');
+    await expect(otherPage).toHaveURL('/login');
+    await otherPage.goto(`/meetings/${meetingId}`);
+    await expect(otherPage).toHaveURL('/login');
+    expect(await otherPage.content()).not.toContain('Revoked session check');
+  } finally {
+    await otherContext.close();
+  }
+});
+
+test('never carries a password or the session token into a browser-visible response during a change (AC-17)', async ({
+  page,
+  context,
+  request,
+}) => {
+  const account = await registerViaApi(request);
+  await signInAs(context, account.token);
+
+  // Everything the browser is handed while the change happens: the HTML, the
+  // action's own RSC payload, and the client bundle it loads.
+  const bodies: Promise<string>[] = [];
+  page.on('response', (response) => {
+    const contentType = response.headers()['content-type'] ?? '';
+    if (!/text|javascript|json/.test(contentType)) return;
+    bodies.push(response.text().catch(() => ''));
+  });
+
+  await page.goto('/profile');
+  await changePasswordOnPage(page, STRONG_PASSWORD, NEW_PASSWORD);
+  await expect(page.getByText('Password changed.')).toBeVisible();
+
+  const texts = await Promise.all(bodies);
+  expect(texts.length).toBeGreaterThan(0);
+  for (const text of texts) {
+    expect(text).not.toContain(account.token);
+    expect(text).not.toContain(STRONG_PASSWORD);
+    expect(text).not.toContain(NEW_PASSWORD);
+  }
+
+  // Including the re-issued token the change answered with, which the action
+  // must put in the cookie rather than return to the page (S-6).
+  const rendered = await page.content();
+  expect(rendered).not.toContain(NEW_PASSWORD);
+  expect(rendered).not.toMatch(/eyJ[\w-]+\.[\w-]+\.[\w-]+/);
 });

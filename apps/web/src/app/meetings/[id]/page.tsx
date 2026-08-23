@@ -294,9 +294,11 @@ export default async function MeetingPage({
     deletedFiles = await listDeletedFiles(session.token, id);
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
-      // The cookie is present but apps/api rejects the token itself
-      // (expired or tampered) — treat that as signed-out, same as the home
-      // page does.
+      // The cookie is present but apps/api rejects the token itself (expired,
+      // tampered, or revoked by a password change) — treat that as signed-out,
+      // same as the home page and the profile page do. The stale cookie stays
+      // where it is: a Server Component cannot delete a cookie, so it is
+      // overwritten at the next real login (D-11, AC-14).
       redirect('/login');
     }
     if (error instanceof ApiError && error.status === 404) {
