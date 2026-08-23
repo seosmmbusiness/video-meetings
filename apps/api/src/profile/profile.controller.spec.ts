@@ -211,6 +211,16 @@ describe('ProfileController', () => {
       expect(service.changePassword).toHaveBeenCalledWith('user-1', CHANGE);
     });
 
+    it('answers the fresh token the service issued, alone (AC-13, AC-18)', async () => {
+      service.changePassword.mockResolvedValue({
+        accessToken: 'signed.jwt.token',
+      });
+
+      const response = await controller.changePassword(CALLER, CHANGE);
+
+      expect(response).toEqual({ accessToken: 'signed.jwt.token' });
+    });
+
     it('carries the same throttle override /auth/login does (S-4, AC-20)', () => {
       // The route answers whether a supplied password is the account's, so
       // one stolen session must not buy the global 20 guesses a minute.

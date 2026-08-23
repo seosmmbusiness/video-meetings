@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import type { User } from '../../generated/prisma/client';
+import { IssueAccessTokenCommand } from '../auth/commands/issue-access-token.command';
 import { HashPasswordCommand } from '../credentials/commands/hash-password.command';
 import { VerifyPasswordQuery } from '../credentials/queries/verify-password.query';
 import { UpdateUserAvatarCommand } from '../users/commands/update-user-avatar.command';
@@ -492,11 +493,19 @@ describe('ProfileService', () => {
           ? Promise.resolve(true)
           : Promise.resolve(userRow()),
       );
-      commandBus.execute.mockImplementation((command: unknown) =>
-        command instanceof HashPasswordCommand
-          ? Promise.resolve('$2b$12$newhash')
-          : Promise.resolve(userRow({ passwordHash: '$2b$12$newhash' })),
-      );
+      commandBus.execute.mockImplementation((command: unknown) => {
+        if (command instanceof HashPasswordCommand) {
+          return Promise.resolve('$2b$12$newhash');
+        }
+        if (command instanceof IssueAccessTokenCommand) {
+          return Promise.resolve('signed.jwt.token');
+        }
+        // The write answers the row as it is after the increment, which is
+        // the only place the fresh token's `ver` may come from (D-9, D-10).
+        return Promise.resolve(
+          userRow({ passwordHash: '$2b$12$newhash', tokenVersion: 1 }),
+        );
+      });
     });
 
     it("verifies the current password against the caller's own stored hash (D-11)", async () => {
@@ -591,6 +600,63 @@ describe('ProfileService', () => {
       const result = await service.changePassword('user-1', CHANGE);
 
       expect(JSON.stringify(result ?? null)).not.toContain('$2b$');
+    });
+
+    it('answers exactly { accessToken } and nothing else (AC-18, S-1)', async () => {
+      const result = await service.changePassword('user-1', CHANGE);
+
+      expect(Object.keys(result)).toEqual(['accessToken']);
+      expect(result.accessToken).toBe('signed.jwt.token');
+    });
+
+    it("mints through the auth module's one token handler (D-10)", async () => {
+      await service.changePassword('user-1', CHANGE);
+
+      const [issue] = commandBus.execute.mock.calls
+        .map(([command]: [unknown]) => command)
+        .filter(
+          (command: unknown): command is IssueAccessTokenCommand =>
+            command instanceof IssueAccessTokenCommand,
+        );
+      expect(issue.userId).toBe('user-1');
+      expect(issue.email).toBe('alice@example.com');
+    });
+
+    it('signs after the increment, so the fresh token survives it (AC-13)', async () => {
+      await service.changePassword('user-1', CHANGE);
+
+      const commands = commandBus.execute.mock.calls.map(
+        ([command]: [unknown]) => command,
+      );
+      const writeIndex = commands.findIndex(
+        (command: unknown) => command instanceof UpdateUserPasswordCommand,
+      );
+      const issueIndex = commands.findIndex(
+        (command: unknown) => command instanceof IssueAccessTokenCommand,
+      );
+      expect(issueIndex).toBeGreaterThan(writeIndex);
+
+      // ...and it carries the counter the write returned, not the one the
+      // row had before it: a token minted at the old version would be
+      // refused by the caller's very next request.
+      const issued = commands[issueIndex] as IssueAccessTokenCommand;
+      expect(issued.tokenVersion).toBe(1);
+    });
+
+    it('mints nothing when the current password is wrong (AC-11)', async () => {
+      queryBus.execute.mockImplementation((query: unknown) =>
+        query instanceof VerifyPasswordQuery
+          ? Promise.resolve(false)
+          : Promise.resolve(userRow()),
+      );
+
+      await expect(service.changePassword('user-1', CHANGE)).rejects.toThrow();
+
+      expect(
+        commandBus.execute.mock.calls.some(
+          ([command]: [unknown]) => command instanceof IssueAccessTokenCommand,
+        ),
+      ).toBe(false);
     });
   });
 });
