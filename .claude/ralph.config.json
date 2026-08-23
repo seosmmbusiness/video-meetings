@@ -1,6 +1,6 @@
 {
   "feature": "user-profile",
-  "ms": "docs/user-profile/user-profile-MS.json",
+  "ms": "docs/archive/user-profile/user-profile-MS.json",
   "baseBranch": "main",
   "model": "opus",
   "fallbackModel": "sonnet",
