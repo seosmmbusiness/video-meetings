@@ -7,12 +7,13 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_COMPLEXITY_REGEX,
+} from './password-rules';
 import { normalizeEmail } from './transforms';
 
-const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
-// bcrypt only uses the first 72 bytes of its input; anything past that is a
-// wasted (and, for arbitrarily long input, DoS-able) hashing cost.
-const MAX_PASSWORD_LENGTH = 72;
 const MAX_EMAIL_LENGTH = 254;
 
 /**
@@ -29,12 +30,14 @@ export class RegisterDto {
 
   @ApiProperty({
     example: 'Str0ngPass!',
-    minLength: 8,
+    minLength: MIN_PASSWORD_LENGTH,
     maxLength: MAX_PASSWORD_LENGTH,
     description:
       'At least 8 characters, including an uppercase letter, a lowercase letter, and a digit',
   })
-  @MinLength(8, { message: 'password must be at least 8 characters long' })
+  @MinLength(MIN_PASSWORD_LENGTH, {
+    message: `password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+  })
   @MaxLength(MAX_PASSWORD_LENGTH, {
     message: `password must not exceed ${MAX_PASSWORD_LENGTH} characters`,
   })

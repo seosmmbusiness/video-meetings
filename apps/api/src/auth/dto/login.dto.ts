@@ -1,11 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { MAX_PASSWORD_LENGTH } from './password-rules';
 import { normalizeEmail } from './transforms';
 
-// bcrypt only uses the first 72 bytes of its input; anything past that is a
-// wasted (and, for arbitrarily long input, DoS-able) hashing cost.
-const MAX_PASSWORD_LENGTH = 72;
 const MAX_EMAIL_LENGTH = 254;
 
 /**
