@@ -1,6 +1,8 @@
 # video-meetings
 
-npm-workspaces monorepo with two independent apps. See @README.md for the full script table and setup instructions — don't duplicate it here.
+npm-workspaces monorepo with two independent apps: `apps/web` (Next.js 16, App Router) and `apps/api` (NestJS 11, Prisma on Postgres). Setup, requirements and environment: [`README.md`](README.md) and `.env.example`, read on demand. Scripts: the `scripts` block of `package.json` (cross-app wrappers — `<script>:api`, `<script>:web`, `dev`, `db:up`) and of `apps/*/package.json`; `npm run` prints them, and nothing in these files repeats them.
+
+**The rules in this file outrank the style of the existing code. If you see a contradiction, follow the rules** — in the code you write or touch; bring old code into line only when you are already changing it (see Refactoring), never as a drive-by.
 
 Feature and refactor documents — PRD, plan, research, threats, final plan — are indexed in [`docs/INDEX.md`](docs/INDEX.md).
 
@@ -10,17 +12,57 @@ Why anything is the way it is: [`HISTORY.md`](HISTORY.md), with per-app logs in 
 
 - `apps/web` — Next.js 16 frontend (App Router, TypeScript). See `apps/web/CLAUDE.md`.
 - `apps/api` — NestJS 11 backend (TypeScript). See `apps/api/CLAUDE.md`.
-- `docker-compose.yml` — local Postgres 18 + Redis 8 (`npm run db:up` / `db:down`). See the README's Database section. **Redis is optional infra** — no service depends on it; any code that uses it must degrade gracefully if it's unavailable.
+- `docker-compose.yml` — local Postgres 18 + Redis 8 (`db:up` / `db:down`).
+- `plugins/bldprj` — the feature pipeline, a Claude Code plugin developed in this repo (its own `CLAUDE.md` is for editing it); `.agents/skills/` — practice skills. Both are linked into `.claude/skills/` and `.claude/agents/`, and both are optional — see Optional tooling.
 
 The two apps are independent (no shared package yet) — each has its own `package.json`, `tsconfig.json` and ESLint config, because `eslint-config-next` and the NestJS ESLint setup use different rule sets and can't be merged. Dependencies themselves are hoisted into the root `node_modules` by npm workspaces; `apps/*/node_modules` holds only what couldn't hoist (a version conflict between the two apps), so a package being absent there doesn't mean it isn't installed.
 
+## Working with context
+
+Context is a budget: everything read or printed stays in the session to its end, and every later turn pays for it again.
+
+- **Locate, then read the range.** Glob/Grep for the symbol, then `Read` the lines around it (`offset`/`limit`); a whole file only when it is small or you are about to change most of it. No `cat`, `find` or `ls -R` over trees, no `git log -p`.
+- **Never load generated, vendored or runtime content**: `node_modules/`, `apps/api/generated/`, `.next/`, `dist/`, lockfiles, `.claude/ralph-logs/`, `.claude/ralph.state.json`, `screenshots/`. For a library fact, grep the package for the one section you need; a Next.js guide lives under `node_modules/next/dist/docs/` — read the one guide for the API you touch.
+- **Docs on demand.** `docs/modules/INDEX.md`, then only the docs of the modules you touch; `HISTORY.md` only before changing something that looks arbitrary; `docs/archive/` only when a task points there.
+- **Don't re-read what is already in context**, and don't re-run a command whose output you already have.
+- **Delegate wide reads.** A search across many files, a review of a whole module or diff, an audit → a subagent (Explore, or a project agent when one is loaded) that returns conclusions; the file contents never enter this context.
+- **Quiet commands.** The narrowest check that proves the change first — one spec file (`npm run test:api -- src/files/files.service.spec.ts`; `npx vitest run src/lib/session.spec.ts` from `apps/web`) — the tier's suite after, e2e only for e2e changes. Pipe long output through `tail -n 40` or `grep` for the failure; `git --no-pager`; no watch modes, no `--verbose`.
+- **Edit, don't rewrite.** `Edit` for changes to existing files, `Write` only for new ones. Report with `path:line`, not by quoting code back.
+- **Keep instruction files short.** A `CLAUDE.md` states a rule once and points elsewhere for detail — no command lists (`package.json`), no history (`HISTORY.md`), no architecture write-ups (`docs/modules/`). Under 200 lines each, 150 as the target.
+
 ## Conventions
 
-- Node `24.x` (`.nvmrc`), npm `>=10`.
-- TypeScript everywhere.
-- Formatting is centralized: the root `.prettierrc` / `.prettierignore` applies to both apps (`npm run format` / `format:check` from root). Linting is per-app (`npm run lint:web`, `npm run lint:api`).
-- Run app-scoped commands via the root `dev:web` / `dev:api` / `build:web` / `build:api` scripts, or `cd` into the app and use its own scripts directly — both work. `npm run dev` runs both apps together (via `concurrently`, apps/api started first): apps/api on port `3001`, apps/web on `3000`.
+- Node `24.x` (`.nvmrc`), npm `>=10`. TypeScript everywhere.
+- Formatting is centralized: the root `.prettierrc` / `.prettierignore` applies to both apps (`format` / `format:check`). Linting is per app (`lint:web`, `lint:api`; `lint` runs both).
 - Every function (exported or not, including React components, Nest providers/controllers/handlers, and utilities) gets a JSDoc comment: a one-line summary, `@param` for each parameter, `@returns` when it returns a value, and `@throws` when it can throw. Skip only trivial one-line arrow functions passed inline (e.g. `.map((x) => x.id)`).
+- **Redis is optional infrastructure, not a dependency.** It is provisioned for future caching/session/pub-sub use; nothing depends on it today, and nothing may hard-depend on it: code written against Redis degrades gracefully when it is absent or unreachable (connection refused, timeout) — fall back to the direct, uncached path and log, never fail the request or block startup. A best-effort accelerator, not a source of truth.
+
+### Naming
+
+- Files: `<feature>.<type>.ts` in `apps/api` — `meetings.service.ts`, `create-meeting.dto.ts`, `jwt-auth.guard.ts`, `files.constants.ts`. `apps/web` keeps kebab-case with the role as the last token (`file-uploader.tsx`, `meetings-api.ts`, `avatar-limits.ts`); Next.js's reserved names (`page.tsx`, `layout.tsx`, `route.ts`, `icon.tsx`) are the framework's. Tests: `*.spec.ts`, `*.int-spec.ts`, `*.e2e-spec.ts` (see Testing).
+- Methods name the action: `createMeetingWithFiles`, `findFileForOwner` — not `process`, `handle`, `run`.
+- Variables name the meaning: `meetingId`, `deletedFiles` — not `id`, `x`, `data`, `tmp`, `res`.
+- A set of states is an enum: `MeetingStatus.PENDING`, never `'pnd'` — a Prisma `enum` for persisted states, a TS `enum` or `as const` object in memory.
+- A limit is a named constant: `MAX_FILE_SIZE_MB`, in the feature's `*.constants.ts` (`apps/api`) or `src/lib/*-limits.ts` (`apps/web`), never a literal at the call site.
+
+### Size
+
+- A source file over 200 lines is decomposed before code is added to it.
+- A function or method over 30 lines is split into private methods or helpers whose names read as steps.
+- Nesting deeper than 3 levels is refactored — early returns, extracted helpers.
+- Spec files (`*.spec.ts`, `*.int-spec.ts`, `*.e2e-spec.ts`, `e2e/`) are exempt from the file ceiling; split them by scenario when that helps a reader.
+
+### Dependencies
+
+- A feature reaches another only through its public surface. `apps/api`: the Nest module — `imports: [ThatModule]` and what it `exports` — or its CQRS command/query classes where `apps/api/CLAUDE.md` makes that the boundary; never a provider imported from another feature's folder and listed as your own. `apps/web`: through the `@/` alias, not `../../` chains.
+- No circular dependencies. Before committing, follow the imports of every module you touched and make sure none lead back to it; in Nest a `forwardRef` is a cycle to remove, not to paper over.
+- Types shared by both apps come from `@app/shared/types` once that package exists. Until it does, the browser-side copy is JSDoc-marked `hand-duplicated from apps/api's <symbol>` (as `apps/web/src/lib/file-limits.ts` is) and changed in the same commit as the original.
+
+### Refactoring
+
+- Decompose a file that is over the ceiling before adding to it, in its own commit ahead of the change that needed it; an existing over-limit file is decomposed the first time it is changed.
+- Only from a green baseline, in small steps, the touched tier re-run after every step; a red step is fixed before the next.
+- No speculative refactors — only what a rule above or an explicit request demands. `apps/web` adds a visual baseline: see its CLAUDE.md.
 
 ## Testing
 
@@ -32,77 +74,52 @@ Both apps are developed test-first, and **e2e coverage alone is not enough**: ev
 | **Integration** | `*.int-spec.ts` / `.tsx`                                | Several real units across one real boundary — module wiring, the database, the filesystem, a route handler. No full app. | Postgres (`db:up`)   |
 | **E2E**         | `apps/api/test/*.e2e-spec.ts`, `apps/web/e2e/*.spec.ts` | The whole system through its public surface: HTTP for the API, a real browser for the web app.                           | Both apps + Postgres |
 
-**Order — outside in, one commit per red state.** The outer loop is e2e: before implementing, write or extend the e2e spec covering the scenario end to end, review its cases with the requester, and commit it red on its own (`test(<app>): …`). The inner loop is unit/integration: for each unit the scenario needs, write its `*.spec.ts` (or `*.int-spec.ts`) red first, then implement the minimum that turns it green, and repeat until the outer e2e spec goes green too. Refactoring only ever starts from a fully green baseline and re-runs the suites after every step.
+**Order — outside in, one commit per red state.** The outer loop is e2e: before implementing, write or extend the e2e spec covering the scenario end to end, review its cases with the requester, and commit it red on its own (`test(<app>): …`). The inner loop is unit/integration: for each unit the scenario needs, write its `*.spec.ts` (or `*.int-spec.ts`) red first, then implement the minimum that turns it green, and repeat until the outer e2e spec goes green too. Refactoring only ever starts from a fully green baseline and re-runs the suites after every step. An existing test that has to change because requirements changed is flagged and confirmed with the requester first — never edited silently.
 
-**Which tier a test belongs to is decided by what it touches, not by what it's about.** A spec that needs Postgres is not a unit test — it's `*.int-spec.ts`. A spec that drives real HTTP or a browser is e2e. Keeping that line sharp is the point of the split: the unit suites stay fast enough to gate every push, and a failure names its own layer.
+**Which tier a test belongs to is decided by what it touches, not by what it's about.** A spec that needs Postgres is `*.int-spec.ts`, not a unit test; a spec that drives real HTTP or a browser is e2e. Keeping that line sharp is the point of the split: the unit suites stay fast enough to gate every push, and a failure names its own layer.
 
-**Security cases are mandatory at every tier**, not an afterthought bolted onto e2e — see each app's CLAUDE.md for its own list.
+**Security cases are mandatory at every tier**, not an afterthought bolted onto e2e — each app's CLAUDE.md lists its own.
 
-Commands, all from the repo root:
+Scripts: `test*` in the root `package.json` — the name says the tier and the app; `test:api` / `test:web` forward extra arguments after `--`. Integration and e2e need `db:up`; the web e2e also needs the API started with `dev:api:e2e`, which widens the throttle baseline: the whole Playwright suite registers its fixtures unauthenticated (one shared bucket) inside a single 60 s window, and the production baseline of 20 requests per 60 s leaves no headroom. Don't work around a `429` by trimming assertions — raise the baseline for the run.
 
-| Command                | Runs                                                                          |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| `npm test`             | Both apps' unit suites (what `pre-push` gates on)                             |
-| `npm run test:api`     | apps/api unit                                                                 |
-| `npm run test:web`     | apps/web unit **and** integration (both are hermetic)                         |
-| `npm run test:int:api` | apps/api integration — needs `npm run db:up`                                  |
-| `npm run test:e2e:api` | apps/api e2e — needs `npm run db:up`                                          |
-| `npm run test:e2e:web` | apps/web e2e — needs `npm run db:up` and the API up via `npm run dev:api:e2e` |
+**Gates.** `pre-commit` runs `lint`; when the `bldprj` agents are linked into `.claude/agents/`, `.claude/settings.json` also runs three review agents (security, correctness, test coverage) before every `git commit`, any of which can block it. `pre-push` runs `test` (both unit suites). A red spec may be committed on a branch; the tip must be green to push. Integration and e2e stay manual — run them before opening a PR.
 
-**Why the browser suite needs its own API command.** Every Playwright fixture registers its account through `POST /auth/register`, which is unauthenticated — so the throttler tracks it by IP and the entire suite shares one bucket, while the suite itself finishes inside a single 60-second window. Against the production baseline of 20 requests per 60 s there is no headroom left for a new spec, and the cases that tip over answer `429` no matter which file added them. `npm run dev:api:e2e` starts the API with `THROTTLE_LIMIT` raised; the per-route overrides that model the real controls are unaffected, so nothing a spec asserts is weakened. Don't work around a `429` by trimming assertions — raise the baseline for the run.
+Per-app mechanics — how each tier is written there, and what genuinely can't be tested below e2e — are in `apps/api/CLAUDE.md` and `apps/web/CLAUDE.md`.
 
-The git hooks gate only what runs anywhere with no infrastructure: `pre-commit` runs `npm run lint`, `pre-push` runs `npm test` (both unit suites). Integration and e2e need Postgres and, for the browser suite, both apps up, so they stay manual — run them yourself before opening a PR.
+## Optional tooling
 
-Per-app specifics — how each tier is written, which tools it uses, and what genuinely can't be tested below e2e — live in `apps/api/CLAUDE.md` and `apps/web/CLAUDE.md`.
+Everything here may be missing in a session — a plugin not installed, a symlink gone, an MCP server not configured, the Agent tool disallowed. Check what the session lists; when something is absent, do the step yourself inline to the same standard and say so in the report. Never stall on it, never ask to install it, never pretend it ran.
+
+- **bldprj pipeline** (`/bldprj:*`) — linked as `.claude/skills/bldprj` → `plugins/bldprj`, its agents as `.claude/agents/*.md`. Absent: read `plugins/bldprj/skills/<name>/SKILL.md` directly and follow it; without that directory, plain branch → PR work.
+- **Project agents** (`.claude/agents/*.md`) — absent: do the reading inline (`plugins/bldprj/PIPELINE.md`, "Delegating a step", level 3).
+- **Practice skills** (`nestjs-best-practices`, `vercel-react-best-practices`, `web-design-guidelines`, `ui-ux-pro-max`, `heroui-react`) — absent: read `.agents/skills/<name>/SKILL.md` (tracked); if that is gone too, apply the framework's own docs and say the pass was manual.
+- **Playwright MCP** (user-level) — absent: `npx playwright screenshot <url> <file>` or a Playwright spec; if no browser is reachable, say the visual check did not run.
 
 ## Autonomous builds — the Ralph loop
 
-`node .claude/ralph-start.js` works a feature's backlog unattended, one fresh session per task, through to the close-out. It does not replace `/bldprj:build-phase` — it runs the same contract, cut into sessions, and settles each phase through the skill itself; the last phase hands off to `/bldprj:close-feature`, whose PR the loop gates on both layers' suites and merges like any other. When there is nothing left to do it surveys what is open on GitHub and in the plans — milestones first, then phases, then features waiting to be closed out — and `--pick` starts the one you choose. **How to run one: [`docs/ralph-loop.md`](docs/ralph-loop.md)** — commands, configuration, what to do when it stops. The contract every session reads is [`.claude/ralph.md`](.claude/ralph.md); the chain and its ceilings are `.claude/ralph.config.json` and `.claude/ralph/`. **How to size those ceilings — and how to recover a session that hit one: [`Ralph-Instruction.md`](Ralph-Instruction.md).**
-
-The loop merges its own PRs, so the gate is mechanical rather than human: `.claude/ralph/verify.js` re-runs the phase's whole check set and the docs linter, and merges only on exit code zero. `.claude/hooks/guard-bash.js` refuses the commands no unattended run may reach for (`--no-verify`, force pushes, pushes to `main`, `reset --hard`, `git clean`, `gh pr merge`, `migrate reset`). Halt any run with `touch .claude/ralph.stop`; see where it got to with `node .claude/ralph-start.js --status`. Why it is built this way is in [`HISTORY.md`](HISTORY.md).
-
-**Watching one:** `--watch` (terminal) or `--ui` (dashboard on `127.0.0.1`) attach a live view to the chain — phase and task progress, what the running session is doing right now, the model, effort and ceilings the next link will use, and buttons for pause, stopping (when the link ends or right now), three kinds of rollback, a standing hold that pauses or stops the run at the end of the task or phase it is on, and the open-work list with a button to start any of it. `node .claude/ralph-watch.js` attaches to a run already going; closing a view never touches the run. The view's own suites are `node --test .claude/ralph/*.test.js` (also `npm run test:tools`).
+`node .claude/ralph-start.js` works a feature's backlog unattended — one fresh session per task under the `/bldprj:build-phase` contract, merging a phase only after re-running its whole check set, and handing the last phase to `/bldprj:close-feature`. It needs the plugin, the pipeline's documents and the GitHub backlog. How to run, watch and recover one: [`docs/ralph-loop.md`](docs/ralph-loop.md); ceilings and their sizing: [`Ralph-Instruction.md`](Ralph-Instruction.md); the contract every session reads: [`.claude/ralph.md`](.claude/ralph.md). Halt a run with `touch .claude/ralph.stop`. Why it is built this way: [`HISTORY.md`](HISTORY.md).
 
 ## Module documentation
 
-CLAUDE.md files stay brief on purpose — one line per module, not full architecture write-ups. Detailed per-module docs (architecture + function-by-function reference) live in this repo under `docs/modules/`, named `module-<app>-<name>.md` (e.g. `module-api-auth.md`), indexed in `docs/modules/INDEX.md`. These are committed like any other file, so any teammate cloning the repo (or CI) can read them.
+CLAUDE.md files stay brief on purpose. Detailed per-module docs (architecture + function-by-function reference) live under `docs/modules/`, named `module-<app>-<name>.md` (e.g. `module-api-auth.md`) and indexed in `docs/modules/INDEX.md` — committed like any other file, so a teammate or CI can read them.
 
-Workflow:
-
-- To work on a module: read its one-line pointer in the relevant CLAUDE.md, then read _only that module's_ doc under `docs/modules/` — don't preload every module's doc into context.
-- Before writing a new module: scan `docs/modules/INDEX.md` for existing modules that already cover, or partially cover, the needed functionality. Prefer extending/reusing a close match over writing a duplicate — only start a new module when nothing existing fits.
-- After changing a module's implementation (new functions, changed behavior, new gotchas): update its doc under `docs/modules/` to match, in the same change — don't let it drift out of sync with the code. Keep it synced together with the other doc sources that cover the same code: JSDoc on the changed functions (root Conventions) and, for `apps/api`, Swagger annotations on any changed controller/route/DTO (`apps/api/CLAUDE.md`'s Swagger convention). Only touch the CLAUDE.md one-liner if the summary itself changed (new module, renamed module, changed one-line purpose).
-- Scope doc updates to what actually changed: update the `docs/modules/` doc, JSDoc, and Swagger annotations only for the functions/endpoints/DTOs you touched. Don't rewrite documentation for other, untouched parts of the module just because the file changed — that's wasted work and noise in the diff.
-- New module: create `docs/modules/module-<app>-<name>.md`, add a line to `docs/modules/INDEX.md`, and add a one-line pointer in the owning app's CLAUDE.md.
+- To work on a module: find it in `docs/modules/INDEX.md`, then read _only that module's_ doc — don't preload every module's doc into context.
+- Before writing a new module: scan the index for existing modules that already cover, or partially cover, the needed functionality. Prefer extending a close match over writing a duplicate — only start a new module when nothing existing fits.
+- After changing a module (new functions, changed behavior, new gotchas): update its doc in the same change, together with the JSDoc on the changed functions and, for `apps/api`, the Swagger annotations on any changed controller/route/DTO — and only for what you touched. Don't rewrite documentation for untouched parts of the module because the file changed.
+- New module: create `docs/modules/module-<app>-<name>.md` and add its line to `docs/modules/INDEX.md`.
 
 ## Documentation maintenance
 
-When a change affects project architecture (new app/package, new shared library, new service/database, changed layout, new CI/deployment pipeline, etc.), update the relevant docs in the same change:
+When a change affects project architecture (new app/package, new shared library, new service/database, changed layout, new CI/deployment pipeline, …), update the relevant docs in the same change: this file (layout, conventions, status), the app's `CLAUDE.md` when the change is app-specific, `README.md` when scripts, setup steps or requirements change. Doc updates are part of the task, not a follow-up.
 
-- This root `CLAUDE.md` — layout, conventions, status.
-- `apps/web/CLAUDE.md` / `apps/api/CLAUDE.md` — when the change is app-specific.
-- `README.md` — when scripts, setup steps, or requirements change.
-
-Don't let docs drift from the code; treat doc updates as part of the task, not a follow-up.
-
-**History goes in `HISTORY.md`, not in a Status section.** Every CLAUDE.md has a `HISTORY.md` beside it — [`HISTORY.md`](HISTORY.md), [`apps/api/HISTORY.md`](apps/api/HISTORY.md), [`apps/web/HISTORY.md`](apps/web/HISTORY.md) — and each keeps the same shape: newest first, one `### YYYY-MM-DD — <short title>` entry per change under a `## YYYY-MM` heading. When a change lands that's worth remembering:
-
-- Add an entry at the **top** of the log that owns it — repo-wide tooling, conventions and cross-app features at the root, app-specific decisions in the app's own file. Don't write the same entry in two places; link instead.
-- Record **why**, not just what: the constraint that forced it, the alternative rejected, the thing that broke. An entry that only restates the diff is noise — `git log` already has the diff.
-- Date the entry by when it landed on the base branch (`git log --date=short`), and leave older entries alone. They describe what was true then; a newer entry supersedes them.
-- Then touch the CLAUDE.md `Status` section **only if the current state changed**, and keep it a description of the present. Status sections used to accumulate every change ever made until they were unreadable — that's what this split exists to prevent.
+**History goes in `HISTORY.md`, not in a Status section.** Every CLAUDE.md has a `HISTORY.md` beside it; a change worth remembering gets an entry at the top of the log that owns it — repo-wide at the root, app-specific in the app's own — recording **why**, not just what. Never the same entry in two logs; link instead. The entry shape is in `HISTORY.md`'s own header. Touch a Status section only if the current state changed, and keep it a description of the present — that split is what keeps these files from turning into changelogs again.
 
 ## Status
 
-Where things stand now. **How they got here — and why — is in [`HISTORY.md`](HISTORY.md)**; read it before changing something that looks arbitrary, since most of it isn't.
+Where things stand now. **How they got here — and why — is in [`HISTORY.md`](HISTORY.md)**.
 
-npm-workspaces monorepo, two independent apps, no shared package yet. Local Postgres 18 and Redis 8 via `docker-compose.yml`. **Redis is provisioned but still unused**, and is treated project-wide as best-effort infrastructure nothing may hard-depend on.
-
-- `apps/api` — Prisma on Postgres; email/password auth split across `auth`/`users`/`credentials` over CQRS; a JWT guard that checks the token's `ver` against the account's `tokenVersion` on every guarded request, so a password change ends every other session on its next one; the caller's own profile (name, avatar, password); meetings; and files (owner-scoped storage behind a `FileStorage` boundary, every upload limit enforced at the route, soft delete/restore, scheduled purge). See `apps/api/CLAUDE.md`.
-- `apps/web` — auth-gated dashboard plus `/register`, `/login`, `/profile` (name, avatar, password change) and `/meetings/[id]` with upload, download, in-page preview and delete/restore, all on an `httpOnly` session cookie read server-side. Byte traffic goes through same-origin proxy Route Handlers so the session token never reaches the browser, and every protected page treats a `401` from `apps/api` as a session that is gone, redirecting to `/login` before render. See `apps/web/CLAUDE.md`.
-
-Both apps run three test tiers (see the Testing section). Dependencies are current within their supported majors; ESLint 10, TypeScript 7 and `@types/node` 26 are deliberately held back — reasons and re-check conditions in `HISTORY.md`.
-
-`meeting-file-upload` is feature-complete and archived under `docs/archive/`. Still absent: shared libs, CI, and deployment config.
-
-Keep this section to the current state and put the change itself in `HISTORY.md` — that's what stops it growing into a changelog again.
+- npm-workspaces monorepo, two independent apps, no shared package yet; local Postgres 18 and Redis 8 via `docker-compose.yml`, Redis provisioned but still unused.
+- `apps/api` — Prisma on Postgres; email/password auth over CQRS, with every other session revoked on a password change; the caller's own profile; meetings; owner-scoped files with every upload limit enforced at the route. Current state: `apps/api/CLAUDE.md`.
+- `apps/web` — auth-gated dashboard, `/register`, `/login`, `/profile` and `/meetings/[id]` on an `httpOnly` session cookie read server-side, byte traffic through same-origin proxies so the token never reaches the browser. Current state: `apps/web/CLAUDE.md`.
+- Dependencies are current within their supported majors; ESLint 10, TypeScript 7 and `@types/node` 26 are deliberately held back — reasons and re-check conditions in `HISTORY.md`.
+- Still absent: shared libs, CI, and deployment config.
