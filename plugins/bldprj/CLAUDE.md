@@ -2,7 +2,7 @@
 
 A Claude Code plugin: the document pipeline a feature or refactor is built through. Eight stages, nine skills, one artifact per stage, from a PRD to a shipped and archived feature — plus `status`, a tenth skill that only reports on the chain.
 
-This file is for working **on the plugin**. What the pipeline _is_ lives in [`PIPELINE.md`](PIPELINE.md) (the contract every skill shares) and [`REFACTOR-TRACK.md`](REFACTOR-TRACK.md) (what the refactor track does differently) — don't restate either here. [`README.md`](README.md) is the user-facing install and validator doc.
+This file is for working **on the plugin**. What the pipeline _is_ lives in [`PIPELINE.md`](PIPELINE.md) (the contract every skill shares — the stage table, the artifacts, and **Delegating a step**) and [`REFACTOR-TRACK.md`](REFACTOR-TRACK.md) (what the refactor track does differently) — don't restate either here. [`README.md`](README.md) is the user-facing doc: the layout, both install routes, the validator. [`CHANGELOG.md`](CHANGELOG.md) is the release log, one entry per version.
 
 ## Goal
 
@@ -16,36 +16,7 @@ Three properties everything else is subordinate to:
 
 ## Layout
 
-```text
-bldprj/
-├── .claude-plugin/plugin.json   # manifest — `version` is the update signal for marketplace installs
-├── CLAUDE.md                    # this file
-├── PIPELINE.md                  # the shared contract: identity, artifacts, versions, asking, reporting
-├── REFACTOR-TRACK.md            # the refactor track's overrides, per skill
-├── README.md                    # install, validator, what a host project must provide
-├── agents/<name>.md             # read-only subagents; the steps that only read hand over to these
-├── skills/<name>/SKILL.md       # one skill per stage — frontmatter `name` + `description`, then steps
-└── scripts/
-    ├── docs-lint.mjs            # the validator: enforces what PIPELINE.md makes mechanical
-    └── docs-lint.test.mjs       # its node:test suite
-```
-
-`PIPELINE.md` and `REFACTOR-TRACK.md` sit at the plugin root because every skill reads them; each `SKILL.md` reaches them as `../../PIPELINE.md`.
-
-| Skill              | Writes                        | Owns                                                    |
-| ------------------ | ----------------------------- | ------------------------------------------------------- |
-| `prd`              | `-PRD.md`, `docs/INDEX.md`    | what the user gets, and how it is proven done           |
-| `refactor-prd`     | `-REFACTOR-PRD.md`, the index | what stays identical, and what improves behind it       |
-| `plan-phase`       | `-PLAN.md`                    | the preliminary cut into phases, and every task number  |
-| `research`         | `-RESEARCH.md`                | the mechanism: library, storage, schema, limits         |
-| `security-analyse` | `-THREATS.md`                 | the reachable risk and the control that closes it       |
-| `pre-issues`       | `-FINAL.md`                   | drift against the PRD, and the ruling on every conflict |
-| `issues`           | GitHub, `-MS.json`            | the mirror of the final plan on GitHub                  |
-| `build-phase`      | code, PR, progress            | one phase, from branch to green PR to closed milestone  |
-| `close-feature`    | archive, logs, PRD status     | the proof of every criterion, and the archive           |
-| `status`           | nothing                       | where each work item stopped, and its next command      |
-
-`status` is the one skill that is not a stage: it reads `docs/`, writes no file, makes no network call, and runs no postflight. Keep it that way — the moment it corrects something it becomes a stage with no artifact to own.
+The tree is in `README.md`. Two things about it matter when editing: `PIPELINE.md` and `REFACTOR-TRACK.md` sit at the plugin root because every skill reads them (each `SKILL.md` reaches them as `../../PIPELINE.md`), and `status` is the one skill that is not a stage — it reads `docs/`, writes no file, makes no network call, and runs no postflight. Keep it that way: the moment it corrects something it becomes a stage with no artifact to own.
 
 ## Invariants
 
@@ -67,7 +38,7 @@ Break one of these and the chain stops resolving. The linter enforces the mechan
 - **Changing an artifact name, a heading a later stage parses, or an id shape is a breaking change** — grep the whole plugin for it, update `docs-lint.mjs`, and add a case to `docs-lint.test.mjs`.
 - **Nothing project-specific.** No stack, script name, framework or repo of a host project in the text except as an explicitly marked example (`e.g. …`). The skills read the host's `CLAUDE.md` / `README.md` / module docs instead.
 - **An agent's `description` routes it, and its `## Report` is consumed by a named step** — both are interfaces. Changing either means grepping the skills for the agent's name and updating the `Expect back` line that reads it.
-- **Keep the tables in sync**: the stage table appears in `PIPELINE.md`, `README.md` and this file, and the pipeline chain line appears in every `SKILL.md`. Adding or renaming a stage means touching all of them.
+- **Keep the tables in sync**: the stage table appears in `PIPELINE.md` and `README.md`, and the pipeline chain line appears in every `SKILL.md`. Adding or renaming a stage means touching all of them.
 
 ### Before committing a change
 
@@ -80,30 +51,13 @@ npx prettier --check <the files you touched>              # the host repo format
 
 `claude plugin validate` reports one **expected warning**: "CLAUDE.md at the plugin root is not loaded as project context." That is correct and deliberate — this file is for whoever edits the plugin, in the repo that hosts it, where it loads as ordinary nested project context. It is not meant to reach an installed copy, and the fix the warning suggests (turn it into a skill) would put plugin-maintenance instructions into the user's skill list. Run `--strict` only when you want that warning to fail the command.
 
-Then bump `version` in `.claude-plugin/plugin.json` — for a marketplace install it is the only signal that an update exists — and name that same version in this file's **Status** section, since a release recorded in the manifest and nowhere else is exactly how 2.3.0 and 2.3.1 drifted apart. Commit subject: `bldprj: <what changed>`.
+Then bump `version` in `.claude-plugin/plugin.json` and add the entry at the top of `CHANGELOG.md` under the same number — the manifest and the changelog are the only two places a version is named, and one without the other is exactly how 2.3.0 and 2.3.1 drifted apart. Commit subject: `bldprj: <what changed>`.
 
 ### Installed two ways
 
-- **Skills directory** (this repo): `.claude/skills/bldprj` → `../../plugins/bldprj`. Loads in place; edits take effect next session. This is what makes the plugin editable while it is in use. It loads **skills only** — a plugin's `agents/` folder is scanned for installed plugins — so link the agents too, `.claude/agents/<name>.md` → `../../plugins/bldprj/agents/<name>.md`, or every delegation falls silently to the inline level. `/agents` says which happened.
-- **Marketplace**: `.claude-plugin/marketplace.json` at the repo root lists it; installing **copies** it into `~/.claude/plugins/cache`, so edits reach that copy only after `claude plugin marketplace update` + `claude plugin update`.
+Both routes — marketplace and skills directory — are in `README.md`, Installing. The one thing the host repo has to do itself on the skills-directory route: link the agents too, `.claude/agents/<name>.md` → `../../plugins/bldprj/agents/<name>.md`, because a skills directory loads **skills only** and a plugin's `agents/` folder is scanned for installed plugins alone — otherwise every delegation falls silently to the inline level; `/agents` says which happened. Never both routes in one project — the pipeline would load twice.
 
-Never both in one project — the pipeline would load twice.
-
-## Status
-
-Version 2.4.0. Ten skills, ten agents, both tracks, the validator and its suite are in place, and the plugin is decoupled from the repo that hosts it (no host-project names in the pipeline text). The skills are invoked namespaced: `/bldprj:prd`, `/bldprj:plan-phase`, …; an agent is `bldprj:<name>` on a plugin install, and `<name>` where `agents/` has been linked into an agents directory.
-
-2.4.0 gave the pipeline somewhere to put its reading. Every stage ran as one thread, so a step that was an analysis pass over material already written down — a surface walked through a checklist, a diff read for defects, options costed, criteria evidenced — spent the same context that then had to write the artifact. `agents/` now ships ten read-only subagents, and `PIPELINE.md` gained **Delegating a step**: a three-level ladder — the project's own habit first, the plugin's agent second, the step inline third — so **no step depends on delegation being possible** and a run without agents behaves exactly as it did before. Twelve steps across eight skills name one; `issues` and `status` name none, because one writes to GitHub and the other has to stay the cheapest skill here. What the agents add over a generic role prompt is the contract: a fixed report shape the calling step consumes, a refusal to mint any identifier or take any disposition, and doctrine handed over as a path rather than restated — `security-analyst` states no checklist of its own and reads `security-analyse`'s, because a rule stated twice will drift. `tools` is left unset on every agent so the whole remaining pool, MCP servers and practice skills included, is available for reading, and `disallowedTools` takes the writes away. The same release added the `## build-phase on a refactor` heading that `REFACTOR-TRACK.md` had always been referred to by `build-phase` step 5 and never actually had.
-
-2.3.1 pointed the module-docs example at `docs/modules`.
-
-2.3.0 closed the gap between a project's stated workflow and the commits built under it. A workflow a project mandates — an API developed test-first, a screen proven by an e2e spec — used to be readable only in the host's own `CLAUDE.md`: `plan-phase` had nowhere in its template to record it, `pre-issues` had nothing to carry, `issues` published bodies that never mentioned it, and only `build-phase` could recover it, by rediscovering it at run time. Every phase block now carries **Verified by** (`PIPELINE.md`, **The project's workflow**), written by `plan-phase` out of the project's docs, hardened and carried by `pre-issues`, rendered into every issue body by `issues`, and worked to by `build-phase`. A task whose whole output is test code opens its description with `tests:`: `issues` takes the `test` label from that marker, and the five-tasks-per-phase ceiling counts only the tasks that **build**, so writing the specs down never costs a phase a split. `pre-issues` gained a tenth conflict class, **Workflow** (parity is the refactor track's eleventh), and `build-phase` made one-commit-per-task a floor rather than a preference — a commit never carries two tasks, and on a test-first layer a task lands as a red `test(...)` commit plus the `feat(...)` that greens it, so Red→Green is legible in `git log` instead of taken on trust. `docs-lint.mjs` warns on a phase with no **Verified by**, counts the ceiling around `tests:` tasks, and exempts `docs/archive/` from both — a field the contract gained after a feature shipped is not a finding against it.
-
-2.2.0 closed the linter and contract gaps 2.1.0 left open. `docs-lint.mjs` now checks citations **both ways** — a cited id must resolve to a live block anywhere it appears, a `**Decisions**:` / `**Threats**:` line may not cite a superseded one, and a `D-<n>` or `S-<n>` that a FINAL cites nowhere is a warning (the check is gated on FINAL, because only there is every phase required to carry its ids; `## Revisions` is history and grants no citation). `checkLinks` resolves every relative link rather than only `.`-prefixed ones, skipping schemes and root-relative paths. `basename` replaced `split('/')`, so the linter is no longer POSIX-only. The Key may now grow to six letters, matching `PIPELINE.md`'s instruction to lengthen it on a collision. `build-phase` step 2 names the settle-commit risk and its recovery, and the postflight rule no longer assumes npm. New skill: `status`.
-
-2.1.0 added the **revision pass** (`PIPELINE.md`, Re-running a stage): `research` and `security-analyse` can now run round-trips against each other. Each detects its own re-run, reads backwards before forwards, changes only what its closed **Revision triggers** list fires on, records the round in its own `## Revisions`, and reports "converged" when nothing fired. A reversed decision or a retired finding keeps its heading and gains `**Superseded by**`, so citations still resolve. The budget is two rounds, after which each skill recommends `pre-issues` as the arbiter — a further round asked for by hand still runs, and says the budget is past. The single forward pass is unchanged and remains the default. The same release made an approved **Promise** land complete — criterion, phase **Covers**, and the task that keeps it — which is what stopped it failing the run's own postflight.
-
-Known gaps:
+## Known gaps
 
 - **`checkMap` matches the map heading anywhere in the file**, so a document merely mentioning "Decision map" passes the check that it has one.
 - **`checkCitations` reads ids from a document's text**, so an id inside a fenced code block or an illustrative example counts as a citation. Harmless today, since neither research nor threats documents ship examples of foreign ids.
@@ -113,4 +67,4 @@ Known gaps:
 - **Nothing checks a `**Verified by**` line against the project docs it cites** — only that a phase has one. A line that has drifted from the host's `CLAUDE.md` is `pre-issues`' conflict class 10 to catch, by reading, and nothing mechanical backs it up.
 - **The `tests:` marker is matched at the head of a task's description**, so a building task whose description happens to open by discussing tests would read as test-only and slip the ceiling. The marker is a contract, not a heuristic, and the linter treats it as one.
 
-Update this file when a stage, an artifact name or an invariant moves — not for wording changes inside a skill.
+Update this file when a stage, an artifact name or an invariant moves — not for wording changes inside a skill. A release is recorded in `CHANGELOG.md`, not here.
