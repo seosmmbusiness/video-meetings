@@ -28,6 +28,7 @@ The chain runs forward once, and that pass is complete on its own. `research` an
 bldprj/
 ├── .claude-plugin/plugin.json   # manifest
 ├── CLAUDE.md                    # for whoever edits the plugin: goals, invariants, workflow
+├── CHANGELOG.md                 # the release log, one entry per version
 ├── PIPELINE.md                  # the contract all stages share: identity, versions, asking
 ├── REFACTOR-TRACK.md            # everything the refactor track does differently
 ├── agents/<name>.md             # the read-only subagents the skills delegate their reading to
@@ -46,7 +47,7 @@ claude plugin marketplace add <path or URL of that repo>
 claude plugin install bldprj@<marketplace name> --scope project
 ```
 
-A marketplace install **copies** the plugin into `~/.claude/plugins/cache`; edits to the source reach that copy only after `claude plugin marketplace update` + `claude plugin update`, and the `version` in `plugin.json` is the update signal — bump it when a skill changes.
+A marketplace install **copies** the plugin into `~/.claude/plugins/cache`; edits to the source reach that copy only after `claude plugin marketplace update` + `claude plugin update`, and the `version` in `plugin.json` is the update signal — it is bumped with every change, with a matching entry at the top of `CHANGELOG.md`.
 
 The zero-install alternative: symlink this folder into a **skills directory** — `.claude/skills/bldprj` for one project, `~/.claude/skills/bldprj` for every project — and it loads in place, edits taking effect the next session. Don't combine both in one project: the pipeline would load twice.
 
