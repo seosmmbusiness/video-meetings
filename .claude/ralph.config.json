@@ -1,6 +1,6 @@
 {
-  "feature": "user-profile",
-  "ms": "docs/archive/user-profile/user-profile-MS.json",
+  "feature": "meeting-transcription",
+  "ms": "docs/meeting-transcription/meeting-transcription-MS.json",
   "baseBranch": "main",
   "model": "opus",
   "fallbackModel": "sonnet",
@@ -17,10 +17,10 @@
   },
   "phases": [
     { "phase": 1, "layer": "api", "needsDb": true },
-    { "phase": 2, "layer": "web", "needsDb": true },
+    { "phase": 2, "layer": "api", "needsDb": true },
     { "phase": 3, "layer": "api", "needsDb": true },
     { "phase": 4, "layer": "web", "needsDb": true },
-    { "phase": 5, "layer": "api", "needsDb": true },
+    { "phase": 5, "layer": "web", "needsDb": true },
     { "phase": 6, "layer": "web", "needsDb": true }
   ]
 }
