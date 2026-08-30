@@ -1,0 +1,507 @@
+{
+  "feature": "meeting-transcription",
+  "key": "MT",
+  "track": "feature",
+  "repo": "seosmmbusiness/video-meetings",
+  "createdAt": "2026-08-30",
+  "sources": {
+    "prd": "docs/meeting-transcription/meeting-transcription-PRD.md",
+    "plan": "docs/meeting-transcription/meeting-transcription-PLAN.md",
+    "research": "docs/meeting-transcription/meeting-transcription-RESEARCH.md",
+    "threats": "docs/meeting-transcription/meeting-transcription-THREATS.md",
+    "final": "docs/meeting-transcription/meeting-transcription-FINAL.md",
+    "finalVersion": 1
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "title": "Transcribe one recording end to end in the API",
+      "covers": [
+        "AC-4",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-19"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 30,
+        "title": "MT 1 · Transcribe one recording end to end in the API",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/30",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "1.1",
+          "number": 194,
+          "title": "MT 1.1 — Cover one transcription end to end with failing specs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/194",
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.2",
+          "number": 195,
+          "title": "MT 1.2 — Turn a stored recording into text on this machine",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/195",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.3",
+          "number": 196,
+          "title": "MT 1.3 — Store a run and its transcript",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/196",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.4",
+          "number": 197,
+          "title": "MT 1.4 — Start a run and read it back",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/197",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.5",
+          "number": 198,
+          "title": "MT 1.5 — Document the transcription module",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/198",
+          "labels": [
+            "backend",
+            "documentation"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "1.6",
+          "number": 199,
+          "title": "MT 1.6 — Provision the engine's weights and the offline profile",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/199",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "One run at a time, and every refusal",
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-6",
+        "AC-7",
+        "AC-8",
+        "AC-17",
+        "AC-18",
+        "AC-20"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 31,
+        "title": "MT 2 · One run at a time, and every refusal",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/31",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "2.1",
+          "number": 200,
+          "title": "MT 2.1 — Cover the queue and every refusal with failing specs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/200",
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.2",
+          "number": 201,
+          "title": "MT 2.2 — Let only one of an account's runs work at a time",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/201",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.3",
+          "number": 202,
+          "title": "MT 2.3 — Refuse a run that may not start",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/202",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.4",
+          "number": 203,
+          "title": "MT 2.4 — Refuse a recording longer than 60 minutes",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/203",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.5",
+          "number": 204,
+          "title": "MT 2.5 — Recover a run that a restart interrupted",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/204",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "2.6",
+          "number": 205,
+          "title": "MT 2.6 — Hold the machine to one run at a time",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/205",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "title": "Transcript lifecycle, download and settings",
+      "covers": [
+        "AC-5",
+        "AC-9",
+        "AC-10",
+        "AC-11",
+        "AC-14",
+        "AC-15",
+        "AC-16"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 32,
+        "title": "MT 3 · Transcript lifecycle, download and settings",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/32",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "3.1",
+          "number": 206,
+          "title": "MT 3.1 — Cover the lifecycle, download and settings with specs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/206",
+          "labels": [
+            "backend",
+            "security",
+            "test"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.2",
+          "number": 207,
+          "title": "MT 3.2 — Carry a transcript through delete, restore and purge",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/207",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.3",
+          "number": 208,
+          "title": "MT 3.3 — Replace a transcript only when the new run succeeds",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/208",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.4",
+          "number": 209,
+          "title": "MT 3.4 — Serve a transcript as a `.txt` download",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/209",
+          "labels": [
+            "backend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.5",
+          "number": 210,
+          "title": "MT 3.5 — Answer the transcription settings on the profile route",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/210",
+          "labels": [
+            "backend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "3.6",
+          "number": 211,
+          "title": "MT 3.6 — Update the module docs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/211",
+          "labels": [
+            "backend",
+            "documentation"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "title": "Decompose the meeting page",
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-3"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 33,
+        "title": "MT 4 · Decompose the meeting page",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/33",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "4.1",
+          "number": 212,
+          "title": "MT 4.1 — Take the green baseline before moving anything",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/212",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.2",
+          "number": 213,
+          "title": "MT 4.2 — Split the meeting page under the 200-line ceiling",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/213",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.3",
+          "number": 214,
+          "title": "MT 4.3 — Make the file row a Client Component",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/214",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "4.4",
+          "number": 215,
+          "title": "MT 4.4 — Update the meeting-files module doc",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/215",
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "title": "Start, watch and read a transcription",
+      "covers": [
+        "AC-1",
+        "AC-2",
+        "AC-3",
+        "AC-4",
+        "AC-8",
+        "AC-13",
+        "AC-15",
+        "AC-16"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 34,
+        "title": "MT 5 · Start, watch and read a transcription",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/34",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "5.1",
+          "number": 216,
+          "title": "MT 5.1 — Cover starting, watching and reading with failing specs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/216",
+          "labels": [
+            "frontend",
+            "security",
+            "test"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.2",
+          "number": 217,
+          "title": "MT 5.2 — Put a Transcribe control on speech-carrying rows",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/217",
+          "labels": [
+            "frontend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.3",
+          "number": 218,
+          "title": "MT 5.3 — Show the run's state on the row",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/218",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.4",
+          "number": 219,
+          "title": "MT 5.4 — Reach the final state without the owner acting",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/219",
+          "labels": [
+            "frontend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.5",
+          "number": 220,
+          "title": "MT 5.5 — Show the finished text and offer Retry",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/220",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "5.6",
+          "number": 221,
+          "title": "MT 5.6 — Update the meeting-files module doc",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/221",
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "title": "Copy, download and the profile section",
+      "covers": [
+        "AC-5",
+        "AC-11",
+        "AC-15",
+        "AC-16"
+      ],
+      "status": "pending",
+      "milestone": {
+        "number": 35,
+        "title": "MT 6 · Copy, download and the profile section",
+        "url": "https://github.com/seosmmbusiness/video-meetings/milestone/35",
+        "state": "open"
+      },
+      "issues": [
+        {
+          "task": "6.1",
+          "number": 222,
+          "title": "MT 6.1 — Cover copy, download and the profile section with specs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/222",
+          "labels": [
+            "frontend",
+            "security",
+            "test"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.2",
+          "number": 223,
+          "title": "MT 6.2 — Copy the transcript in one action",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/223",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.3",
+          "number": 224,
+          "title": "MT 6.3 — Download the transcript through a same-origin proxy",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/224",
+          "labels": [
+            "frontend",
+            "security"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.4",
+          "number": 225,
+          "title": "MT 6.4 — Render the Transcription section on `/profile`",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/225",
+          "labels": [
+            "frontend"
+          ],
+          "state": "OPEN"
+        },
+        {
+          "task": "6.5",
+          "number": 226,
+          "title": "MT 6.5 — Update the profile and meeting-files module docs",
+          "url": "https://github.com/seosmmbusiness/video-meetings/issues/226",
+          "labels": [
+            "frontend",
+            "documentation"
+          ],
+          "state": "OPEN"
+        }
+      ]
+    }
+  ],
+  "progress": {
+    "updatedAt": "2026-08-30",
+    "completedPhases": [],
+    "currentPhase": null,
+    "nextPhase": {
+      "phase": 1,
+      "milestone": 30,
+      "title": "MT 1 · Transcribe one recording end to end in the API",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/30"
+    }
+  }
+}
