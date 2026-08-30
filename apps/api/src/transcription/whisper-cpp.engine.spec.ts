@@ -1,10 +1,3 @@
-/*
- * Red-state lint relief: the modules under test land in the commit that greens
- * these cases, so until then every import here resolves to an error type and
- * the typed rules below fire on the whole file. That commit removes this
- * header — the cases underneath it are what stays.
- */
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import {
   IncomingMessage,
   Server,
