@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
-import * as dns from 'dns';
+import dns from 'dns';
 import * as net from 'net';
-import * as tls from 'tls';
+import tls from 'tls';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { NotFoundException } from '@nestjs/common';

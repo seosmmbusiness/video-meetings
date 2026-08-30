@@ -56,8 +56,13 @@ export const DEFAULT_WHISPER_MODEL = 'tiny';
 /** Engine endpoint used when `WHISPER_URL` is unset: the loopback-only port compose publishes. */
 export const DEFAULT_WHISPER_URL = 'http://127.0.0.1:9000';
 
-/** Ceiling on a single run's wire call (30 minutes), the same bound the slot hold uses. */
-export const DEFAULT_WHISPER_TIMEOUT_MS = 1_800_000;
+/**
+ * Ceiling on a single run's wire call (10 minutes). Measured, not D-3's
+ * estimate: a real 55-minute recording transcribed in 160.3 s on this
+ * machine (~20.6x realtime, `tiny` model) — a 60-minute recording
+ * extrapolates to ~175 s, and this bound gives that over 3x headroom.
+ */
+export const DEFAULT_WHISPER_TIMEOUT_MS = 600_000;
 
 /** The engine route that transcribes an uploaded recording. */
 export const ENGINE_INFERENCE_PATH = '/inference';

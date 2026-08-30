@@ -165,7 +165,7 @@ Redis sit at in this compose file. To be revisited if this ever runs anywhere bu
 | `WHISPER_URL`        | `http://127.0.0.1:9000`  | `apps/api` — must be `http:`, or the run fails     |
 | `WHISPER_PORT`       | `9000`                   | compose, which publishes `127.0.0.1:<port>:8080`   |
 | `WHISPER_MODEL`      | `tiny`                   | compose **and** `apps/api` — one source of truth   |
-| `WHISPER_TIMEOUT_MS` | `1_800_000` (30 min)     | `apps/api`; unusable values keep the shipped bound |
+| `WHISPER_TIMEOUT_MS` | `600_000` (10 min)       | `apps/api`; unusable values keep the shipped bound |
 | `WHISPER_MODELS_DIR` | `./.data/whisper-models` | compose **and** `scripts/whisper-models.js`        |
 | `WHISPER_MODEL_SHA1` | the model's pinned SHA1  | `scripts/whisper-models.js`                        |
 
@@ -176,6 +176,11 @@ recording which model produced its text; a model with no SHA1 pinned in the scri
 supplying `WHISPER_MODEL_SHA1`, so raising it never means skipping the check. The download writes a
 `.part` file and renames it only after it passes the gate, so an interrupted download can never be
 mistaken for a provisioned model, and a file already on disk is re-verified rather than trusted.
+
+`WHISPER_TIMEOUT_MS` is measured, not D-3's estimate: a real 55-minute recording (looped fixture
+audio, `tiny` model) transcribed in 160.3 s on the machine phase 1 was built on — about 20.6x
+realtime — which extrapolates to ~175 s for a 60-minute recording. The shipped bound gives that
+over 3x headroom for slower hardware or busier content.
 
 `WHISPER_MODELS_DIR` exists for one failure that looks like nothing: Docker Desktop bind-mounts only
 the directories listed in its settings and mounts anything outside them as an **empty** directory
