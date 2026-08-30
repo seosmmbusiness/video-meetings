@@ -24,7 +24,9 @@ npm run prisma:migrate:dev   # once, to create the schema
 npm run dev
 ```
 
-`npm run whisper:models` comes **before** the first `db:up`: `db:up` starts every compose service, and the `whisper` one mounts `.data/whisper-models/ggml-${WHISPER_MODEL}.bin` read-only — with the weights absent it restarts in a loop instead of serving. The download runs once and is skipped on later runs.
+`npm run whisper:models` comes **before** the first `db:up`: `db:up` starts every compose service, and the `whisper` one mounts `.data/whisper-models/ggml-${WHISPER_MODEL}.bin` read-only — with the weights absent it restarts in a loop instead of serving. The download runs once, is verified against the SHA1 whisper.cpp publishes, and is skipped on later runs.
+
+If the engine logs `failed to open '/models/ggml-<model>.bin'` after that, Docker cannot bind-mount this checkout: Docker Desktop shares only the directories listed in its settings (`/home` by default) and mounts anything outside them as an _empty_ directory rather than failing. Either add the checkout's path to Docker Desktop's file sharing, or set `WHISPER_MODELS_DIR` in `.env` to an absolute path Docker can share and re-run `npm run whisper:models` — both the script and the mount read it.
 
 ## Scripts
 

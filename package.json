@@ -37,6 +37,9 @@
     "prisma:migrate:dev": "npm run prisma:migrate:dev --workspace apps/api",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
+    "whisper:models": "node scripts/whisper-models.js",
+    "whisper:offline": "docker compose -f docker-compose.yml -f docker-compose.offline.yml run --rm whisper-offline-check",
+    "whisper:offline:down": "docker compose -f docker-compose.yml -f docker-compose.offline.yml down",
     "prepare": "husky"
   },
   "devDependencies": {

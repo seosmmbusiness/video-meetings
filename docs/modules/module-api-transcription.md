@@ -160,17 +160,44 @@ Redis sit at in this compose file. To be revisited if this ever runs anywhere bu
 
 ## Configuration
 
-| Variable             | Default                 | Read by                                            |
-| -------------------- | ----------------------- | -------------------------------------------------- |
-| `WHISPER_URL`        | `http://127.0.0.1:9000` | `apps/api` — must be `http:`, or the run fails     |
-| `WHISPER_PORT`       | `9000`                  | compose, which publishes `127.0.0.1:<port>:8080`   |
-| `WHISPER_MODEL`      | `tiny`                  | compose **and** `apps/api` — one source of truth   |
-| `WHISPER_TIMEOUT_MS` | `1_800_000` (30 min)    | `apps/api`; unusable values keep the shipped bound |
+| Variable             | Default                  | Read by                                            |
+| -------------------- | ------------------------ | -------------------------------------------------- |
+| `WHISPER_URL`        | `http://127.0.0.1:9000`  | `apps/api` — must be `http:`, or the run fails     |
+| `WHISPER_PORT`       | `9000`                   | compose, which publishes `127.0.0.1:<port>:8080`   |
+| `WHISPER_MODEL`      | `tiny`                   | compose **and** `apps/api` — one source of truth   |
+| `WHISPER_TIMEOUT_MS` | `1_800_000` (30 min)     | `apps/api`; unusable values keep the shipped bound |
+| `WHISPER_MODELS_DIR` | `./.data/whisper-models` | compose **and** `scripts/whisper-models.js`        |
+| `WHISPER_MODEL_SHA1` | the model's pinned SHA1  | `scripts/whisper-models.js`                        |
 
 The weights come from `npm run whisper:models` into the gitignored `.data/whisper-models/`, verified
 against the SHA1 whisper.cpp publishes and mounted read-only, so nothing is fetched during a run
 (D-10). Raising the model is one env var and a re-pull — no code, no migration — and each row keeps
-recording which model produced its text.
+recording which model produced its text; a model with no SHA1 pinned in the script is provisioned by
+supplying `WHISPER_MODEL_SHA1`, so raising it never means skipping the check. The download writes a
+`.part` file and renames it only after it passes the gate, so an interrupted download can never be
+mistaken for a provisioned model, and a file already on disk is re-verified rather than trusted.
+
+`WHISPER_MODELS_DIR` exists for one failure that looks like nothing: Docker Desktop bind-mounts only
+the directories listed in its settings and mounts anything outside them as an **empty** directory
+rather than refusing, which the engine reports as `failed to open '/models/ggml-<model>.bin'`. A
+checkout on a drive Docker does not share needs the weights somewhere it does; the variable moves the
+mount and the provisioning script together, and its default is the path the plan fixes.
+
+## The offline profile (`docker-compose.offline.yml`)
+
+AC-12's half A, and the one place this feature's proof leaves the three Jest suites. `npm run
+whisper:offline` overlays `docker-compose.offline.yml` on the base file, which declares `whisper_net`
+`internal: true` and posts `apps/api/test/fixtures/english-speech.wav` to
+`http://whisper:8080/inference` from a one-shot `curl` container on that same network, failing unless
+real text comes back. `npm run whisper:offline:down` puts the machine back.
+
+The overlay drops the published port (`ports: !reset null`) because it has to: a published port does
+**not** work on an internal network (moby#36174), so the topology that denies the engine egress is
+the same one that makes it unreachable from the host. That is why this cannot be the topology
+`apps/api` runs against, and why the denial is driven from inside the network rather than asserted
+from outside it. Half B — that `apps/api` itself attempts no lookup during a run — is the integration
+spec below; neither half closes AC-12 alone (D-8). The check needs the speech fixtures provisioned
+first (`apps/api/test/fixtures/README.md`).
 
 ## Testing
 

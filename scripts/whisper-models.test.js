@@ -98,6 +98,31 @@ test('the model names whisper.cpp publishes are accepted', () => {
   }
 });
 
+test('the weights land where docker-compose.yml mounts them from', () => {
+  const repoRoot = path.join(__dirname, '..');
+  assert.strictEqual(
+    whisperModels.resolveModelsDir({}),
+    path.join(repoRoot, '.data', 'whisper-models'),
+  );
+  assert.strictEqual(
+    whisperModels.resolveModelsDir({ WHISPER_MODELS_DIR: '' }),
+    path.join(repoRoot, '.data', 'whisper-models'),
+  );
+});
+
+test('WHISPER_MODELS_DIR moves them, resolved the way compose resolves it', () => {
+  assert.strictEqual(
+    whisperModels.resolveModelsDir({
+      WHISPER_MODELS_DIR: '/home/someone/whisper-models',
+    }),
+    '/home/someone/whisper-models',
+  );
+  assert.strictEqual(
+    whisperModels.resolveModelsDir({ WHISPER_MODELS_DIR: './elsewhere' }),
+    path.join(__dirname, '..', 'elsewhere'),
+  );
+});
+
 test('tiny verifies against the SHA1 whisper.cpp publishes', () => {
   assert.strictEqual(whisperModels.resolveExpectedSha1('tiny', {}), TINY_SHA1);
 });

@@ -92,7 +92,11 @@ services:
     cpus: 4.0
     pids_limit: 128
     volumes:
-      - ./.data/whisper-models:/models:ro
+      # Read-only so a compromised engine cannot rewrite its own model.
+      # WHISPER_MODELS_DIR moves this and `npm run whisper:models` together
+      # on a machine whose Docker cannot bind-mount the checkout — see
+      # .env.example.
+      - ${WHISPER_MODELS_DIR:-./.data/whisper-models}:/models:ro
     ports:
       - '127.0.0.1:${WHISPER_PORT:-9000}:8080'
     networks:
