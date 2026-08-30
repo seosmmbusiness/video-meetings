@@ -8,7 +8,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 
 - `PrismaModule` (`prisma.module.ts`) — `@Global()` module, provides and exports `PrismaService` only. Because it's global, any module can inject `PrismaService` without listing `PrismaModule` in its own `imports`.
 - `PrismaService` (`prisma.service.ts`) — `extends PrismaClient`, implements `OnModuleInit`/`OnModuleDestroy` to connect/disconnect in step with the Nest module lifecycle. Constructed with a `PrismaPg` driver adapter (`@prisma/adapter-pg`) pointed at `DATABASE_URL` (via `ConfigService.getOrThrow`, so a missing URL fails startup loudly, not at first query).
-- `prisma/schema.prisma` (repo root of `apps/api`, not under `src/`) — defines the `User`, `Meeting` and `MeetingFile` models. Generator is pinned to `prisma-client-js` (see Gotchas).
+- `prisma/schema.prisma` (repo root of `apps/api`, not under `src/`) — defines the `User`, `Meeting`, `MeetingFile` and `FileTranscription` models, plus the schema's only enum, `TranscriptionState`. Generator is pinned to `prisma-client-js` (see Gotchas).
 - `prisma.config.ts` (`apps/api` root) — supplies `DATABASE_URL` to the Prisma **CLI** (not the app itself), loading the monorepo-root `.env` two levels up since CLI commands run with cwd = `apps/api`.
 - Generated client output: `apps/api/generated/prisma` (gitignored; produced by `npm run prisma:generate`).
 
@@ -17,6 +17,7 @@ Changes here follow the Red/Green/Refactor TDD workflow in `apps/api/CLAUDE.md`:
 - **Generator choice**: schema pins `generator client { provider = "prisma-client-js" }`, the legacy CommonJS-friendly generator — deliberately _not_ Prisma 7's new default `prisma-client` generator, which emits ESM-only TypeScript (unconditional `import.meta.url`) that doesn't run under this app's CommonJS/`ts-jest`/Nest setup. Don't switch generators without re-validating `npm run test:e2e` and a real build/start.
 - **Driver adapter is required**: Prisma 7 requires an explicit driver adapter — `PrismaService` passes `new PrismaPg({ connectionString })` rather than relying on an implicit `DATABASE_URL` connection baked into the client.
 - **Build gotcha**: `prisma.config.ts` lives at the `apps/api` root, outside `src/`, and must stay excluded in `tsconfig.build.json` (along with `generated/`). Including it pulls the TypeScript build's inferred `rootDir` up from `src/` to `apps/api`, which breaks `PrismaService`'s relative import of the generated client at runtime.
+- **`FileTranscription` cascades on purpose**: every other relation in the schema is `onDelete: Restrict`, and `FileTranscription.file` deliberately is not. `FilesPurgeService.purgeExpired()` calls `meetingFile.delete()` per expired file, which a `Restrict` relation would make throw once a file has been transcribed; `Cascade` makes the transcript disappear with the file it belongs to instead of outliving it. Don't "make it consistent" with the others.
 - **Two different `.env` consumers**: the Nest app reads `DATABASE_URL` via `ConfigService` (standard Nest config loading); the Prisma CLI reads it via `prisma.config.ts`'s explicit two-levels-up `.env` load. Keep both in sync if the env-loading strategy ever changes.
 
 ## Function reference

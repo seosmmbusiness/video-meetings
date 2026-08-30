@@ -27,5 +27,11 @@ import { QuotaReservationService } from './quota-reservation.service';
     MeetingOwnerGuard,
     UploadSizeGuard,
   ],
+  // The module's public surface, kept as narrow as the routes that need it:
+  // `TranscriptionModule` resolves an owner's file through `FilesService` and
+  // scopes its routes with `MeetingOwnerGuard` rather than copying either
+  // rule — and never reaches `QuotaReservationService` or `FilesPurgeService`
+  // (D-9, S-1).
+  exports: [FilesService, MeetingOwnerGuard],
 })
 export class FilesModule {}

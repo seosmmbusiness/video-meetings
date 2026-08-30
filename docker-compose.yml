@@ -39,6 +39,72 @@ services:
       timeout: 5s
       retries: 10
 
+  # Speech-to-text engine for apps/api's transcription module. It carries both
+  # whisper-server and the ffmpeg that --convert needs, and it is reachable
+  # from this machine only: the port is published on 127.0.0.1 and the service
+  # sits on its own network rather than the default one db and redis share.
+  # Needs ./.data/whisper-models/ggml-${WHISPER_MODEL}.bin — run
+  # `npm run whisper:models` once before the first `db:up`.
+  whisper:
+    image: ghcr.io/ggml-org/whisper.cpp:main
+    restart: unless-stopped
+    # The image is ENTRYPOINT ["bash","-c"], which would word-split a string
+    # command: and silently discard every flag below — so the entrypoint is
+    # overridden and the command is an argv list.
+    entrypoint: ['whisper-server']
+    command:
+      [
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '8080',
+        '-m',
+        '/models/ggml-${WHISPER_MODEL:-tiny}.bin',
+        '--tmp-dir',
+        '/tmp',
+        '--convert',
+        '-t',
+        '4',
+        '-l',
+        'auto',
+        '-nt',
+        '-bo',
+        '1',
+        '-bs',
+        '-1',
+        '-nf',
+      ]
+    user: '1000:1000'
+    read_only: true
+    # Explicit size: an unset tmpfs defaults to half the host's RAM, which
+    # would let the scratch directory alone OOM the container.
+    tmpfs:
+      - /tmp:size=768m,mode=1777,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - 'no-new-privileges:true'
+    # Equal to mem_limit, which disables swap: an unset memswap_limit grants
+    # swap equal to memory and trades a clean OOM for thrashing.
+    mem_limit: 2560m
+    memswap_limit: 2560m
+    # Moves together with -t 4 above.
+    cpus: 4.0
+    pids_limit: 128
+    volumes:
+      # Read-only so a compromised engine cannot rewrite its own model.
+      # WHISPER_MODELS_DIR moves this and `npm run whisper:models` together
+      # on a machine whose Docker cannot bind-mount the checkout — see
+      # .env.example.
+      - ${WHISPER_MODELS_DIR:-./.data/whisper-models}:/models:ro
+    ports:
+      - '127.0.0.1:${WHISPER_PORT:-9000}:8080'
+    networks:
+      - whisper_net
+
+networks:
+  whisper_net:
+
 volumes:
   postgres_data:
   redis_data:

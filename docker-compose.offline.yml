@@ -1,0 +1,71 @@
+# AC-12, half A: the engine transcribes with no route off this machine.
+#
+# Overlay on docker-compose.yml, never used on its own:
+#
+#   npm run whisper:offline        # transcribes the fixture from inside the network
+#   npm run whisper:offline:down   # puts the machine back
+#
+# The topology this file makes cannot be the one apps/api runs against, and
+# that is the point rather than an oversight: a published port does not work on
+# a network declared `internal: true` (moby#36174, moby#27441), so the very
+# topology that denies the engine egress is the one that makes it unreachable
+# from the host. The denial therefore has to be driven from *inside* the
+# network, by a one-shot client container sitting on it — which is what
+# `whisper-offline-check` is. The other half of AC-12, that apps/api itself
+# attempts no lookup during a run, is an integration spec; neither half closes
+# the criterion alone (D-8).
+
+services:
+  whisper:
+    # Docker cannot publish a port from an internal network, and leaving the
+    # publish in place would fail the run rather than isolate it.
+    ports: !reset null
+
+  # Posts the English fixture to the engine over the isolated network and
+  # fails unless real text comes back. The engine has no healthcheck, so the
+  # retries are what wait for whisper-server to bind rather than a sleep.
+  whisper-offline-check:
+    image: curlimages/curl:latest
+    profiles: ['check']
+    restart: 'no'
+    depends_on:
+      - whisper
+    networks:
+      - whisper_net
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - 'no-new-privileges:true'
+    pids_limit: 64
+    volumes:
+      - ./apps/api/test/fixtures:/fixtures:ro
+    entrypoint: ['curl']
+    command:
+      [
+        '--fail',
+        '--show-error',
+        '--silent',
+        '--retry',
+        '60',
+        '--retry-delay',
+        '2',
+        '--retry-connrefused',
+        '--max-time',
+        '900',
+        '-F',
+        'file=@/fixtures/english-speech.wav',
+        '-F',
+        'response_format=verbose_json',
+        '-F',
+        'language=auto',
+        'http://whisper:8080/inference',
+      ]
+
+networks:
+  # Same network the engine already runs on, reconfigured: "Containers on an
+  # internal network may communicate between each other, but not with any
+  # other network, as no default route is configured and firewall rules are
+  # set up to drop all traffic to or from other networks."
+  whisper_net:
+    internal: true

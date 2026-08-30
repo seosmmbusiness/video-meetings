@@ -1,0 +1,3 @@
+# Provisioned recordings and their word lists — see README.md.
+*.wav
+*.wav.words.txt

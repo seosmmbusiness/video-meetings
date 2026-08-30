@@ -45,18 +45,55 @@ model Meeting {
 }
 
 model MeetingFile {
-  id         String    @id @default(uuid())
-  meetingId  String
-  meeting    Meeting   @relation(fields: [meetingId], references: [id], onDelete: Restrict)
-  name       String    @db.VarChar(255)
-  size       Int
-  mimeType   String    @db.VarChar(128)
-  storageKey String    @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime?
+  id            String             @id @default(uuid())
+  meetingId     String
+  meeting       Meeting            @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  name          String             @db.VarChar(255)
+  size          Int
+  mimeType      String             @db.VarChar(128)
+  storageKey    String             @unique
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+  transcription FileTranscription?
 
   @@index([meetingId, deletedAt])
   @@index([deletedAt])
   @@map("meeting_files")
+}
+
+/// The states one transcription run moves through, in order: it is queued
+/// when it is asked for, running while the engine holds it, and ends either
+/// with a transcript or with a reason it has none.
+enum TranscriptionState {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+/// One transcription per recording — the run and its text in the same row,
+/// because no history of earlier transcripts is kept (D-4). It follows its
+/// file: `onDelete: Cascade` is what lets `FilesPurgeService.purgeExpired()`
+/// delete an expired file without the transcript outliving it (AC-10).
+model FileTranscription {
+  id               String             @id @default(uuid())
+  fileId           String             @unique
+  file             MeetingFile        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  state            TranscriptionState
+  text             String?
+  failureReason    String?            @db.VarChar(200)
+  engine           String             @db.VarChar(32)
+  model            String             @db.VarChar(32)
+  effort           String             @db.VarChar(16)
+  languageMode     String             @db.VarChar(16)
+  detectedLanguage String?            @db.VarChar(64)
+  queuedAt         DateTime           @default(now())
+  startedAt        DateTime?
+  endedAt          DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([state, queuedAt])
+  @@map("file_transcriptions")
 }
