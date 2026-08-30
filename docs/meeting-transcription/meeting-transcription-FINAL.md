@@ -27,28 +27,28 @@ duration probe's timeout drops from 10 s to 1.5 s so the 2-second promise in AC-
 
 ## Trace
 
-| AC        | Phase       | Tasks              | Decisions            | Findings   | Proven by                                                                                                                             |
-| --------- | ----------- | ------------------ | -------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| AC-1      | 2 api · 5 web | 2.3, 5.2, 5.3      | D-7                  | —          | `transcription.e2e-spec.ts` — a `pdf` answers 415; `e2e/meeting-transcription.spec.ts` — the control on the six types and on nothing else, present on a >60-minute recording |
-| AC-2      | 2 api · 5 web | 2.3, 5.2           | D-11                 | S-7        | `transcription.e2e-spec.ts` — a second start for a file already `QUEUED`/`RUNNING` answers 409; `e2e/meeting-transcription.spec.ts` — the row shows waiting/running within 2 s, no reload |
-| AC-3      | 5           | 1.4, 5.4           | D-6                  | S-2        | `e2e/meeting-transcription.spec.ts` — the row reaches its final state ≤5 s after the run is recorded finished, unattended; a reload mid-run still shows it in flight |
-| AC-4      | 1 api · 5 web | 1.2, 1.3, 1.4, 1.6, 5.5 | D-1, D-2, D-3, D-4 | S-3     | `transcription.e2e-spec.ts` — the fixture's known words in the stored text; a fixed string, an empty transcript or the file's own name fails |
-| AC-5      | 3 api · 6 web | 3.4, 6.2, 6.3      | D-6                  | S-6        | `transcription.e2e-spec.ts` — the `.txt` body equals the stored text; `e2e/meeting-transcription.spec.ts` — copy and download |
-| AC-6      | 2           | 2.4                | D-7                  | —          | `transcription.e2e-spec.ts` — a 61-minute recording answers 422 with `AUDIO_DURATION_LIMIT_MESSAGE`, an unreadable one 422 with `DURATION_UNREADABLE_MESSAGE`, neither creating a row |
-| AC-7      | 2           | 2.2, 2.5, 2.6      | D-11                 | S-4, S-10  | `transcription.int-spec.ts` — two runs of one account, non-overlapping `startedAt`/`endedAt`                                          |
-| AC-8      | 2 api · 5 web | 1.2, 1.3, 2.5, 5.3, 5.5 | D-4             | S-3, S-10  | `transcription.e2e-spec.ts` — the stored reason is answered and no partial text is stored; `e2e/meeting-transcription.spec.ts` — failed state plus Retry |
-| AC-9      | 3           | 3.3                | D-4                  | —          | `transcription.int-spec.ts` — a successful re-run replaces `text`, a failed one leaves it                                             |
-| AC-10     | 3           | 1.3, 3.2           | D-4                  | —          | `transcription.int-spec.ts` — backdated `deletedAt` then `purgeExpired()` removes file and transcript together                        |
-| AC-11     | 3 api · 6 web | 1.3, 3.5, 6.4      | D-3                  | —          | `transcription.e2e-spec.ts` — `GET /profile` answers the four settings and follows `WHISPER_MODEL`; `e2e/profile.spec.ts` — the read-only section |
-| AC-12     | 1           | 1.1, 1.2, 1.6      | D-8, D-10            | —          | `transcription.int-spec.ts` recorder (half B) plus the scripted `docker compose -f docker-compose.offline.yml` run in phase 1's **Done when** (half A) |
-| AC-13     | 1 api · 5 web | 1.2, 1.3           | D-3                  | S-3        | `transcription.int-spec.ts` — a non-English fixture comes back in the language spoken; `e2e/meeting-transcription.spec.ts` — no language control anywhere |
-| AC-14     | 1 start/read · 3 download | 1.4, 3.4 | D-9                | S-1        | `transcription.e2e-spec.ts` — a second account gets the same 404 on start, read **and download** as for ids that never existed       |
-| AC-15     | 1/3 api · 5 state proxy · 6 download proxy | 1.4, 3.4, 5.4, 6.3 | D-6 | S-2 | `route.int-spec.ts` beside each handler — no session → 401 with `fetch` never called; `transcription.e2e-spec.ts` — no token → 401 |
-| AC-16     | 3 bytes · 5 page · 6 proxy | 3.4, 5.5, 6.3 | D-6              | S-6        | `e2e/meeting-transcription.spec.ts` — `<script>` shown as literal text, and the download reaches the browser with `text/plain`, `nosniff`, `attachment` |
-| AC-17     | 2           | 2.1 proves it; 1.4 and 2.3 keep the start route free of an override | — | —      | `transcription.e2e-spec.ts` — the 21st start inside 60 s answers 429 and creates no row                                               |
-| AC-18     | 2           | 2.5, 2.6           | D-11                 | S-4, S-10  | `transcription.int-spec.ts` — runs of two **different** accounts never overlap, from the recorded times                               |
-| AC-19     | 1           | 1.6                | D-1, D-8             | S-8, S-9   | `docker inspect` in phase 1's **Done when**, plus `transcription.int-spec.ts` — a fixture whose container carries an external reference ends `FAILED` with no transcript |
-| AC-20     | 2           | 2.3                | —                    | S-5        | `transcription.e2e-spec.ts` — with 10 waiting, the next start answers 409 with `WAITING_RUN_CAP_MESSAGE` and creates no row           |
+| AC    | Phase                                      | Tasks                                                               | Decisions          | Findings  | Proven by                                                                                                                                                                                 |
+| ----- | ------------------------------------------ | ------------------------------------------------------------------- | ------------------ | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-1  | 2 api · 5 web                              | 2.3, 5.2, 5.3                                                       | D-7                | —         | `transcription.e2e-spec.ts` — a `pdf` answers 415; `e2e/meeting-transcription.spec.ts` — the control on the six types and on nothing else, present on a >60-minute recording              |
+| AC-2  | 2 api · 5 web                              | 2.3, 5.2                                                            | D-11               | S-7       | `transcription.e2e-spec.ts` — a second start for a file already `QUEUED`/`RUNNING` answers 409; `e2e/meeting-transcription.spec.ts` — the row shows waiting/running within 2 s, no reload |
+| AC-3  | 5                                          | 1.4, 5.4                                                            | D-6                | S-2       | `e2e/meeting-transcription.spec.ts` — the row reaches its final state ≤5 s after the run is recorded finished, unattended; a reload mid-run still shows it in flight                      |
+| AC-4  | 1 api · 5 web                              | 1.2, 1.3, 1.4, 1.6, 5.5                                             | D-1, D-2, D-3, D-4 | S-3       | `transcription.e2e-spec.ts` — the fixture's known words in the stored text; a fixed string, an empty transcript or the file's own name fails                                              |
+| AC-5  | 3 api · 6 web                              | 3.4, 6.2, 6.3                                                       | D-6                | S-6       | `transcription.e2e-spec.ts` — the `.txt` body equals the stored text; `e2e/meeting-transcription.spec.ts` — copy and download                                                             |
+| AC-6  | 2                                          | 2.4                                                                 | D-7                | —         | `transcription.e2e-spec.ts` — a 61-minute recording answers 422 with `AUDIO_DURATION_LIMIT_MESSAGE`, an unreadable one 422 with `DURATION_UNREADABLE_MESSAGE`, neither creating a row     |
+| AC-7  | 2                                          | 2.2, 2.5, 2.6                                                       | D-11               | S-4, S-10 | `transcription.int-spec.ts` — two runs of one account, non-overlapping `startedAt`/`endedAt`                                                                                              |
+| AC-8  | 2 api · 5 web                              | 1.2, 1.3, 2.5, 5.3, 5.5                                             | D-4                | S-3, S-10 | `transcription.e2e-spec.ts` — the stored reason is answered and no partial text is stored; `e2e/meeting-transcription.spec.ts` — failed state plus Retry                                  |
+| AC-9  | 3                                          | 3.3                                                                 | D-4                | —         | `transcription.int-spec.ts` — a successful re-run replaces `text`, a failed one leaves it                                                                                                 |
+| AC-10 | 3                                          | 1.3, 3.2                                                            | D-4                | —         | `transcription.int-spec.ts` — backdated `deletedAt` then `purgeExpired()` removes file and transcript together                                                                            |
+| AC-11 | 3 api · 6 web                              | 1.3, 3.5, 6.4                                                       | D-3                | —         | `transcription.e2e-spec.ts` — `GET /profile` answers the four settings and follows `WHISPER_MODEL`; `e2e/profile.spec.ts` — the read-only section                                         |
+| AC-12 | 1                                          | 1.1, 1.2, 1.6                                                       | D-8, D-10          | —         | `transcription.int-spec.ts` recorder (half B) plus the scripted `docker compose -f docker-compose.offline.yml` run in phase 1's **Done when** (half A)                                    |
+| AC-13 | 1 api · 5 web                              | 1.2, 1.3                                                            | D-3                | S-3       | `transcription.int-spec.ts` — a non-English fixture comes back in the language spoken; `e2e/meeting-transcription.spec.ts` — no language control anywhere                                 |
+| AC-14 | 1 start/read · 3 download                  | 1.4, 3.4                                                            | D-9                | S-1       | `transcription.e2e-spec.ts` — a second account gets the same 404 on start, read **and download** as for ids that never existed                                                            |
+| AC-15 | 1/3 api · 5 state proxy · 6 download proxy | 1.4, 3.4, 5.4, 6.3                                                  | D-6                | S-2       | `route.int-spec.ts` beside each handler — no session → 401 with `fetch` never called; `transcription.e2e-spec.ts` — no token → 401                                                        |
+| AC-16 | 3 bytes · 5 page · 6 proxy                 | 3.4, 5.5, 6.3                                                       | D-6                | S-6       | `e2e/meeting-transcription.spec.ts` — `<script>` shown as literal text, and the download reaches the browser with `text/plain`, `nosniff`, `attachment`                                   |
+| AC-17 | 2                                          | 2.1 proves it; 1.4 and 2.3 keep the start route free of an override | —                  | —         | `transcription.e2e-spec.ts` — the 21st start inside 60 s answers 429 and creates no row                                                                                                   |
+| AC-18 | 2                                          | 2.5, 2.6                                                            | D-11               | S-4, S-10 | `transcription.int-spec.ts` — runs of two **different** accounts never overlap, from the recorded times                                                                                   |
+| AC-19 | 1                                          | 1.6                                                                 | D-1, D-8           | S-8, S-9  | `docker inspect` in phase 1's **Done when**, plus `transcription.int-spec.ts` — a fixture whose container carries an external reference ends `FAILED` with no transcript                  |
+| AC-20 | 2                                          | 2.3                                                                 | —                  | S-5       | `transcription.e2e-spec.ts` — with 10 waiting, the next start answers 409 with `WAITING_RUN_CAP_MESSAGE` and creates no row                                                               |
 
 Phase 4 produces no criterion. It carries `AC-1, AC-2, AC-3` as the prerequisite the project's own
 200-line rule puts in front of them; all three first become true in phase 5.
@@ -77,9 +77,10 @@ against the isolated profile task 1.6 adds, because published ports do not work 
 `internal: true` (moby#36174) and the denial therefore has to be driven from inside it; and the
 engine's real throughput has to be measured once, on this machine, before `WHISPER_TIMEOUT_MS` is
 worth anything. Both are evidenced in **Done when**.
+**Status**: in review — PR https://github.com/seosmmbusiness/video-meetings/pull/229
 **Tasks**:
 
-- [ ] **1.1** Cover one transcription end to end with failing specs — tests: the e2e cases for AC-4
+- [x] **1.1** Cover one transcription end to end with failing specs — tests: the e2e cases for AC-4
       (a fixture recording whose spoken words are known, asserted against the stored text — a fixed
       string, an empty transcript or the file's own name must fail) and AC-14 (another owner's file
       answers the same 404 as one that does not exist, on **start and read**), the int cases for
@@ -90,7 +91,7 @@ worth anything. Both are evidenced in **Done when**.
       around the run so it cannot leak into other specs) — and **AC-19's second half**: a fixture
       whose container format carries an external reference ends the run `FAILED` with no transcript
       and no trace of a read file (S-8's **Proven by**, which no task carried). Red before 1.2 starts.
-- [ ] **1.2** Turn a stored recording into text on this machine — an engine boundary that takes a
+- [x] **1.2** Turn a stored recording into text on this machine — an engine boundary that takes a
       storage key and answers with the text plus the detected language. It is `TranscriptionEngine`,
       an abstract class bound as its own Nest injection token exactly as `FileStorage` is, with
       `WhisperCppEngine` in `apps/api/src/transcription/whisper-cpp.engine.ts` the only
@@ -114,18 +115,18 @@ worth anything. Both are evidenced in **Done when**.
       engine dying under the memory limit 1.6 sets: a transport error and a non-2xx answer are
       treated identically, both ending the run as failed. The call is bounded by an `AbortSignal` at
       `WHISPER_TIMEOUT_MS` (`1_800_000`), the same bound 2.6's slot hold uses.
-- [ ] **1.3** Store a run and its transcript — one migration carrying `enum TranscriptionState
-      { QUEUED RUNNING SUCCEEDED FAILED }` (the schema's first enum) and `model FileTranscription`
+- [x] **1.3** Store a run and its transcript — one migration carrying `enum TranscriptionState
+{ QUEUED RUNNING SUCCEEDED FAILED }` (the schema's first enum) and `model FileTranscription`
       with `fileId @unique`, `text String?`, `failureReason String? @db.VarChar(200)`, `engine`,
       `model`, `effort`, `languageMode` (`@db.VarChar(32/32/16/16)`), `detectedLanguage String?
-      @db.VarChar(64)`, `queuedAt @default(now())`, `startedAt`, `endedAt`, `createdAt`, `updatedAt`
+@db.VarChar(64)`, `queuedAt @default(now())`, `startedAt`, `endedAt`, `createdAt`, `updatedAt`
       and `@@index([state, queuedAt])`, mapped `@@map("file_transcriptions")` (D-4). The relation to
       `MeetingFile` is **`onDelete: Cascade`** — the schema's only precedent is `onDelete: Restrict`,
       which would make `FilesPurgeService.purgeExpired()`'s `meetingFile.delete()` throw. The schema
       moves once here rather than being caught up by later phases; `text` is written once, at the
       end, in the same update that sets `SUCCEEDED`, so a swept row can never carry half a
       transcript (AC-8, AC-9, AC-10, AC-11).
-- [ ] **1.4** Start a run and read it back — a route that starts a transcription for one file
+- [x] **1.4** Start a run and read it back — a route that starts a transcription for one file
       (`POST /meetings/:meetingId/files/:fileId/transcription`), and the two read shapes D-6 needs
       rather than one: a **meeting-scoped** state list (`GET /meetings/:meetingId/transcriptions`)
       carrying every file's run state and no transcript text, which is what the page polls, and a
@@ -142,14 +143,14 @@ worth anything. Both are evidenced in **Done when**.
       `@Throttle` override at all, because AC-17 is a statement about the global 20 / 60 s baseline.
       Responses are built field by field — `storageKey`, `text` on the list route and every internal
       column stay off the wire.
-- [ ] **1.5** Document the transcription module — a new `docs/modules/module-api-transcription.md`
+- [x] **1.5** Document the transcription module — a new `docs/modules/module-api-transcription.md`
       per the root `CLAUDE.md`'s Module documentation section, its row in `docs/modules/INDEX.md`,
       the Status line in `apps/api/CLAUDE.md`, the entry in `apps/api/HISTORY.md`, and what the
       engine adds to `docker-compose.yml` (the `whisper` service itself), `.env.example`
       (`WHISPER_URL=http://127.0.0.1:9000`, `WHISPER_PORT=9000`, `WHISPER_MODEL=tiny`,
       `WHISPER_TIMEOUT_MS=1800000`) and `README.md` (the setup step that runs 1.6's provisioning
       script, and the requirement that Docker be running).
-- [ ] **1.6** Provision the engine's weights and the offline profile — a provisioning script wired
+- [x] **1.6** Provision the engine's weights and the offline profile — a provisioning script wired
       as an npm script beside `db:up` that downloads `ggml-${WHISPER_MODEL}.bin` once into a
       gitignored `.data/whisper-models/`, verified against the SHA1 whisper.cpp publishes
       (`tiny` = `bd577a113a864445d4c299885e0cb97d4ba92b5f`, 75 MiB) and mounted `:ro`, so nothing is
@@ -158,9 +159,9 @@ worth anything. Both are evidenced in **Done when**.
       AC-12 is driven (D-8). The service is also hardened here, because this is where it is defined
       and because ffmpeg inside it parses whatever an owner uploads (S-8, AC-19). Every value,
       verbatim from research §5: image `ghcr.io/ggml-org/whisper.cpp:main`; `entrypoint:
-      ["whisper-server"]` overriding the image's `ENTRYPOINT ["bash","-c"]`; an **argv-list**
+["whisper-server"]` overriding the image's `ENTRYPOINT ["bash","-c"]`; an **argv-list**
       `command:` of `--host 0.0.0.0 --port 8080 -m /models/ggml-${WHISPER_MODEL}.bin --tmp-dir /tmp
-      --convert -t 4 -l auto -nt -bo 1 -bs -1 -nf`; `user: "1000:1000"`; `read_only: true`;
+--convert -t 4 -l auto -nt -bo 1 -bs -1 -nf`; `user: "1000:1000"`; `read_only: true`;
       `tmpfs: /tmp:size=768m,mode=1777,noexec,nosuid,nodev`; `cap_drop: [ALL]`;
       `security_opt: ["no-new-privileges:true"]`; `mem_limit: 2560m` with `memswap_limit: 2560m`
       (equal, which disables swap); `cpus: 4.0` moving together with `-t 4`; `pids_limit: 128`;
@@ -239,7 +240,7 @@ gains. The cases go in `apps/api/test/transcription.e2e-spec.ts`,
       `apps/api/src/transcription/transcription.constants.ts`, a subset of `ACCEPTED_MIME_TYPES`),
       and a run that would push the account past `MAX_WAITING_RUNS_PER_ACCOUNT` = `10` waiting runs
       (`409`, raised on `>=`, with `WAITING_RUN_CAP_MESSAGE` = `You already have 10 transcriptions
-      waiting. Wait for one to finish before starting another.`) — each refused at the route with
+waiting. Wait for one to finish before starting another.`) — each refused at the route with
       nothing stored and no run created (S-5, AC-20). The constant and its message follow
       `MAX_LIVE_FILES_PER_MEETING` / `LIVE_FILE_CAP_MESSAGE` (`files.constants.ts:11,64`) exactly,
       and its JSDoc records that 10 is chosen rather than derived (T-4, research §5). Ownership
@@ -449,7 +450,7 @@ Suites: `npm run test:web`, `npm run test:e2e:web`.
       through a new same-origin proxy Route Handler at
       `apps/web/src/app/api/meetings/[meetingId]/transcriptions/route.ts` — the fourth of them, and
       it follows the three that exist exactly: `getSession()` first, `new Response(null, { status:
-      401 })` before any upstream call, ids `encodeURIComponent`-escaped, and only
+401 })` before any upstream call, ids `encodeURIComponent`-escaped, and only
       `lib/api-proxy.ts`'s allow-listed headers in either direction (S-2, AC-15). When a file turns
       `SUCCEEDED` the client fetches that one file's text once; text never travels in the polled
       payload.
@@ -572,12 +573,12 @@ and language mode with nothing to fill in.
 
 ## Rulings
 
-| Id  | Conflict                                                                                                   | Sides                          | Ruling                                                | Costs                                                                                                              | Recorded in                        |
-| --- | ---------------------------------------------------------------------------------------------------------- | ------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
-| T-1 | Phase 1 is at the five-task ceiling with S-1, S-3 and S-8 folded into tasks that build much else besides  | the phase cut vs. review grain | keep the cut as planned                               | three high-severity controls are reviewed inside large diffs instead of getting an issue and a review of their own | this file; THREATS §5 named it     |
-| T-2 | AC-2 promises the row moves within 2 s; the start path runs a probe bounded at 10 s (D-7)                 | AC-2 vs. `DURATION_PROBE_TIMEOUT_MS` | lower the probe's timeout to `1_500` ms         | a recording whose length needs more than 1.5 s of scanning is refused where 10 s would have accepted it            | task 2.4; research §5 is overruled |
-| T-3 | D-7 fails closed on an unreadable length; no criterion carried that refusal                                | the promise vs. the control    | keep the control, amend AC-6 to carry the refusal too | the PRD now states that some accepted recordings can never be transcribed                                          | PRD AC-6 (amended, number kept)    |
-| T-4 | `MAX_WAITING_RUNS_PER_ACCOUNT` = 10 refuses the 11th start; In scope said "the rest waiting", no AC held it | the promise vs. the control    | keep the control, raise it into **AC-20**             | one more criterion to prove at close-out, and the In scope line now states the cap                                  | PRD AC-20 (new) and In scope       |
+| Id  | Conflict                                                                                                    | Sides                                | Ruling                                                | Costs                                                                                                              | Recorded in                        |
+| --- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| T-1 | Phase 1 is at the five-task ceiling with S-1, S-3 and S-8 folded into tasks that build much else besides    | the phase cut vs. review grain       | keep the cut as planned                               | three high-severity controls are reviewed inside large diffs instead of getting an issue and a review of their own | this file; THREATS §5 named it     |
+| T-2 | AC-2 promises the row moves within 2 s; the start path runs a probe bounded at 10 s (D-7)                   | AC-2 vs. `DURATION_PROBE_TIMEOUT_MS` | lower the probe's timeout to `1_500` ms               | a recording whose length needs more than 1.5 s of scanning is refused where 10 s would have accepted it            | task 2.4; research §5 is overruled |
+| T-3 | D-7 fails closed on an unreadable length; no criterion carried that refusal                                 | the promise vs. the control          | keep the control, amend AC-6 to carry the refusal too | the PRD now states that some accepted recordings can never be transcribed                                          | PRD AC-6 (amended, number kept)    |
+| T-4 | `MAX_WAITING_RUNS_PER_ACCOUNT` = 10 refuses the 11th start; In scope said "the rest waiting", no AC held it | the promise vs. the control          | keep the control, raise it into **AC-20**             | one more criterion to prove at close-out, and the In scope line now states the cap                                 | PRD AC-20 (new) and In scope       |
 
 ## Deltas from the plan
 

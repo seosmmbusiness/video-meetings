@@ -17,8 +17,13 @@
       "phase": 1,
       "title": "Transcribe one recording end to end in the API",
       "covers": ["AC-4", "AC-12", "AC-13", "AC-14", "AC-19"],
-      "status": "in-progress",
+      "status": "in-review",
       "branch": "feature/meeting-transcription-phase-1",
+      "pr": {
+        "number": 229,
+        "url": "https://github.com/seosmmbusiness/video-meetings/pull/229",
+        "state": "open"
+      },
       "milestone": {
         "number": 30,
         "title": "MT 1 · Transcribe one recording end to end in the API",
@@ -386,10 +391,10 @@
     "completedPhases": [],
     "currentPhase": 1,
     "nextPhase": {
-      "phase": 1,
-      "milestone": 30,
-      "title": "MT 1 · Transcribe one recording end to end in the API",
-      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/30"
+      "phase": 2,
+      "milestone": 31,
+      "title": "MT 2 · One run at a time, and every refusal",
+      "url": "https://github.com/seosmmbusiness/video-meetings/milestone/31"
     }
   }
 }
