@@ -22,6 +22,25 @@ export const MAX_DETECTED_LANGUAGE_LENGTH = 64;
 /** Longest failure reason recorded, matching `failureReason @db.VarChar(200)`. */
 export const MAX_FAILURE_REASON_LENGTH = 200;
 
+/**
+ * Requests a minute either read route accepts, overriding the global
+ * baseline: the page polls the meeting-scoped state list every two seconds
+ * while a run is in flight, and must never throttle its own owner out (D-6).
+ * The **start** route deliberately carries no override — AC-17 is a statement
+ * about the baseline itself.
+ */
+export const TRANSCRIPTION_READ_THROTTLE_LIMIT = 240;
+
+/** Window {@link TRANSCRIPTION_READ_THROTTLE_LIMIT} is counted over, matching `files.controller.ts:196`. */
+export const TRANSCRIPTION_READ_THROTTLE_TTL_MS = 60_000;
+
+/**
+ * Reason stored when a run ended for a cause the engine never named — the
+ * error's own message is never stored, since it can carry a path, a storage
+ * key or a line of whatever the recording pointed at (S-8).
+ */
+export const RUN_FAILED_MESSAGE = 'This recording could not be transcribed.';
+
 /** Engine identity a run records for itself — local, as opposed to a future remote provider (D-3). */
 export const ENGINE_NAME = 'local';
 
